@@ -1,0 +1,611 @@
+# 採用プラットフォーム RoleWeave のロードマップ（機械可読な正本）
+#
+# status は planned / in_progress / done のいずれかとする。
+# 同時に in_progress とするフェーズは 1 つに限定する。
+# 各フェーズの scope は実装順序の宣言ではなく、そのフェーズが扱う範囲の定義である。
+---
+version: 1
+project:
+  name: RoleWeave
+  summary: 自己ホスト可能な採用プラットフォーム
+  license: Apache-2.0
+  languages:
+    - ja
+    - en
+  documentation_source_of_truth: ja
+
+# 横断品質要件。
+# 機能を追加するフェーズで同時に満たす。後続のフェーズへ先送りしない。
+# P10 Privacy, Security and Operations は、これらの初回実装フェーズではなく、
+# V1 全体に対する統合検証と不足の是正を行うフェーズである。
+cross_cutting_requirements:
+  - id: authorization
+    requirement: >-
+      追加したデータと操作の認可を同じフェーズで実装する。
+      後続のセキュリティフェーズへ先送りしない。
+  - id: tenant_isolation
+    requirement: >-
+      組織に属するデータは、他組織から参照・変更できないことを
+      正の検証と負の検証で保証する。
+  - id: privacy
+    requirement: >-
+      個人情報を追加するフェーズで、収集目的、公開範囲、保持、
+      削除または匿名化の扱いを決定する。
+      非公開を初期値とする。
+  - id: localization
+    requirement: >-
+      利用者向け文字列は、同じフェーズで日本語と英語を実装する。
+  - id: accessibility
+    requirement: >-
+      UI を追加するフェーズで、セマンティクス、ラベル、
+      キーボード操作を同時に検証する。
+  - id: verification
+    requirement: >-
+      各タスクに正の検証と負の検証を設ける。
+
+phases:
+  - id: P0
+    title: Project Foundation
+    status: in_progress
+    objective: >-
+      開発者と AI Agent が、同じ環境、同じ規約、同じ検証方法で極小タスクを
+      実装できる状態を作る。
+    depends_on: []
+    scope:
+      - プロジェクト方針
+      - 言語・命名規則
+      - ライセンス
+      - code-pact の最小導入
+      - Rails アプリケーションの生成
+      - PostgreSQL
+      - Docker Compose
+      - 冪等なセットアップ
+      - 統一検証コマンド
+      - GitHub Actions
+      - 日本語・英語の初期設定
+      - 基本的なセキュリティ検査
+    non_goals:
+      - 業務機能の実装
+      - 認証の実装
+      - 画面デザインの作り込み
+      - 常設デモ環境の構築
+      - デプロイ設定
+    completion_criteria:
+      - 新規環境で docker compose up が成功する
+      - 新規環境で docker compose run --rm app bin/setup が成功する
+      - 新規環境で docker compose run --rm app bin/verify が成功する
+      - bin/setup を再実行しても結果が変わらない
+      - GitHub Actions で bin/verify が実行される
+    tasks:
+      - id: P0-T1
+        title: 開発方針とロードマップの初期化
+        status: done
+        branch: p0/t1-project-policy
+      - id: P0-T2
+        title: code-pact の最小導入
+        status: planned
+        branch: p0/t2-code-pact-setup
+        depends_on:
+          - P0-T1
+      - id: P0-T3
+        title: Rails アプリケーションの生成
+        status: planned
+        branch: p0/t3-rails-bootstrap
+        depends_on:
+          - P0-T2
+      - id: P0-T4
+        title: PostgreSQL 対応 Docker Compose の追加
+        status: planned
+        branch: p0/t4-docker-compose
+        depends_on:
+          - P0-T3
+      - id: P0-T5
+        title: 冪等なセットアップコマンドの追加
+        status: planned
+        branch: p0/t5-idempotent-setup
+        depends_on:
+          - P0-T4
+      - id: P0-T6
+        title: 統一検証コマンドの追加
+        status: planned
+        branch: p0/t6-verify-command
+        depends_on:
+          - P0-T5
+      - id: P0-T7
+        title: GitHub Actions による検証
+        status: planned
+        branch: p0/t7-github-actions
+        depends_on:
+          - P0-T6
+      - id: P0-T8
+        title: 日本語・英語の初期設定
+        status: planned
+        branch: p0/t8-i18n-bootstrap
+        depends_on:
+          - P0-T3
+      - id: P0-T9
+        title: セキュリティと依存関係検査の追加
+        status: planned
+        branch: p0/t9-security-checks
+        depends_on:
+          - P0-T6
+      - id: P0-T10
+        title: Foundation 完了検証
+        status: planned
+        branch: p0/t10-foundation-verification
+        depends_on:
+          - P0-T7
+          - P0-T8
+          - P0-T9
+
+  - id: P1
+    title: Application Shell
+    status: planned
+    objective: 日本語・英語で利用できる最小の画面基盤を作る。
+    depends_on:
+      - P0
+    scope:
+      - 共通レイアウト
+      - デザイン変数
+      - ヘッダー
+      - フッター
+      - 言語切替
+      - 日本語トップページ
+      - 英語トップページ
+      - 404 およびエラー画面
+      - アクセシビリティの基礎
+      - レスポンシブ表示
+    non_goals:
+      - 業務機能の画面
+      - デザインシステムの全面構築
+      - JavaScript フレームワークの導入
+    completion_criteria:
+      - 日本語と英語のトップページが表示できる
+      - 言語切替が動作する
+      - 404 とサーバーエラーの画面が表示される
+      - 主要画面がモバイル幅で崩れない
+
+  - id: P2
+    title: Accounts and Sessions
+    status: planned
+    objective: 個人アカウントが安全にログインできるようにする。
+    depends_on:
+      - P1
+    scope:
+      - アカウント
+      - メールアドレス
+      - パスワード認証
+      - ログイン
+      - ログアウト
+      - セッション保護
+      - パスワード再設定
+      - メール確認
+      - 認証イベント記録
+    non_goals:
+      - 外部認証
+      - SSO
+      - 多要素認証
+      - 組織の権限管理
+    completion_criteria:
+      - メールアドレスとパスワードでログインできる
+      - メールアドレスの重複を登録できない
+      - パスワード再設定が完了できる
+      - メール確認前の利用範囲が制限される
+      - 認証の成否が記録される
+
+  - id: P3
+    title: Organizations and Authorization
+    status: planned
+    objective: 企業・団体と、その担当者の権限を管理できるようにする。
+    depends_on:
+      - P2
+    scope:
+      - 組織
+      - メンバー
+      - 招待
+      - ロール
+      - 権限
+      - 組織間データ分離
+      - 運営者権限
+      - 権限変更履歴
+    non_goals:
+      - 求人管理機能
+      - 課金
+      - 組織の階層構造
+    completion_criteria:
+      - 組織を作成しメンバーを招待できる
+      - ロールに応じて操作が制限される
+      - 他組織のデータを参照できない
+      - 権限変更が履歴として残る
+
+  - id: P4
+    title: Job Posting Management
+    status: planned
+    objective: 企業担当者が求人を作成し、審査を経て公開できるようにする。
+    depends_on:
+      - P3
+    scope:
+      - 求人下書き
+      - 求人本文
+      - 勤務地
+      - 職種
+      - 雇用形態
+      - 給与
+      - 応募条件
+      - 公開申請
+      - 審査
+      - 公開
+      - 停止
+      - 公開履歴
+      - プレビュー
+    non_goals:
+      - 公開側の検索機能
+      - 応募機能
+      - 求人の自動生成
+    completion_criteria:
+      - 求人の下書きを作成できる
+      - 権限のない担当者は求人を編集できない
+      - 公開申請と審査を経て公開できる
+      - 公開中の求人を停止できる
+      - 公開状態の変更が履歴として残る
+
+  - id: P5
+    title: Public Job Discovery and SEO
+    status: planned
+    objective: >-
+      求職者が公開求人を発見でき、検索エンジンにも適切に認識される
+      ようにする。
+    depends_on:
+      - P4
+    scope:
+      - 求人一覧
+      - 求人詳細
+      - キーワード検索
+      - 勤務地絞り込み
+      - 職種絞り込み
+      - 雇用形態絞り込み
+      - 給与絞り込み
+      - ページネーション
+      - canonical URL
+      - 構造化データ
+      - sitemap
+      - robots 制御
+      - 公開ページのキャッシュ方針
+    non_goals:
+      - OpenSearch の導入
+      - 検索結果のパーソナライズ
+      - レコメンド
+    completion_criteria:
+      - 公開求人のみが一覧と詳細に表示される
+      - キーワードと条件で絞り込める
+      - canonical URL が出力される
+      - sitemap と robots が配信される
+      - 初期検索が PostgreSQL のみで動作する
+
+  - id: P6
+    title: Candidate Profiles
+    status: planned
+    objective: 求職者が応募に必要な情報を管理できるようにする。
+    depends_on:
+      - P2
+    scope:
+      - 基本プロフィール
+      - 職歴
+      - 学歴
+      - スキル
+      - 希望条件
+      - 公開範囲
+      - 履歴書
+      - 職務経歴書
+      - プロフィール完成度
+      - エクスポート
+      - 削除・匿名化
+    non_goals:
+      - 候補者検索
+      - スカウト
+      - AI による経歴書生成
+    completion_criteria:
+      - プロフィールと職歴を登録できる
+      - 公開範囲を設定できる
+      - ファイルを添付できる
+      - 自分のデータをエクスポートできる
+      - 削除または匿名化ができる
+
+  - id: P7
+    title: Applications
+    status: planned
+    objective: 求職者が求人へ応募し、応募状況を確認できるようにする。
+    depends_on:
+      - P5
+      - P6
+    scope:
+      - 応募
+      - 重複応募防止
+      - 応募時点の求人情報保存
+      - 応募時点のプロフィール保存
+      - 応募取消
+      - 応募履歴
+      - 状況表示
+      - 応募イベント
+      - 応募後の非同期通知
+    non_goals:
+      - 選考管理
+      - メッセージ機能
+      - 応募者の自動選別
+    completion_criteria:
+      - 公開求人へ応募できる
+      - 同じ求職者が同じ求人へ二重応募できない
+      - 応募時点の求人とプロフィールが保存される
+      - 応募を取消できる
+      - 通知の失敗で応募が巻き戻らない
+
+  - id: P8
+    title: Hiring Workflow
+    status: planned
+    objective: 企業担当者が応募者の選考を管理できるようにする。
+    depends_on:
+      - P7
+    scope:
+      - 選考ステージ
+      - ステージ変更履歴
+      - 担当者
+      - 評価
+      - コメント
+      - 面談・面接予定
+      - 内定
+      - 辞退
+      - 不採用
+      - 期限
+      - 監査記録
+    non_goals:
+      - カレンダー連携
+      - ビデオ会議連携
+      - 評価の自動化
+    completion_criteria:
+      - 応募を選考ステージ間で移動できる
+      - ステージ変更が履歴として残る
+      - 評価とコメントを記録できる
+      - 内定・辞退・不採用を確定できる
+      - 権限のない担当者は選考を操作できない
+
+  - id: P9
+    title: Conversations and Notifications
+    status: planned
+    objective: 求職者と企業担当者が安全に連絡できるようにする。
+    depends_on:
+      - P8
+    scope:
+      - 会話スレッド
+      - メッセージ
+      - 既読
+      - 添付ファイル
+      - アプリ内通知
+      - メール通知
+      - 配信設定
+      - 再送
+      - 配信失敗記録
+    non_goals:
+      - リアルタイムチャット基盤の構築
+      - 外部チャットサービス連携
+      - 自動返信
+    completion_criteria:
+      - 応募に紐づく会話でメッセージを送受信できる
+      - 無関係な利用者が会話を参照できない
+      - 既読が記録される
+      - アプリ内通知とメール通知が配信される
+      - 配信失敗が記録され再送できる
+
+  - id: P10
+    title: Privacy, Security and Operations
+    status: planned
+    objective: >-
+      P2 から P9 までで実装した安全策を横断的に検証し、
+      個人情報を扱う V1 として不足している対策を是正する。
+      このフェーズで初めて安全性を追加するのではない。
+      認可、組織間分離、個人情報の最小化、非公開を初期値とする設計は、
+      対象となる機能を実装するフェーズで同時に実装する。
+      詳細は cross_cutting_requirements を参照する。
+    depends_on:
+      - P9
+    scope:
+      - 監査ログ
+      - 管理者操作記録
+      - ファイル検査
+      - データ保持期限
+      - データ削除
+      - 匿名化
+      - レート制限
+      - CSRF
+      - CSP
+      - セッション保護
+      - 秘密情報管理
+      - セキュリティ報告手順
+      - バックアップ・復元手順
+      - 脅威モデル
+    non_goals:
+      - 第三者認証の取得
+      - WAF の導入
+      - 侵入検知基盤の構築
+    completion_criteria:
+      - 個人情報に対する操作が監査ログに残る
+      - 保持期限を過ぎたデータを削除または匿名化できる
+      - レート制限が機能する
+      - CSP と CSRF 保護が有効である
+      - 脅威モデルとセキュリティ報告手順が文書化されている
+      - >-
+        cross_cutting_requirements の不足がフェーズ横断で検証され、
+        是正されている
+
+  - id: P11
+    title: Performance and Observability
+    status: planned
+    objective: 推測ではなく計測結果から性能を改善できるようにする。
+    depends_on:
+      - P10
+    scope:
+      - 構造化ログ
+      - OpenTelemetry 境界
+      - エラー追跡
+      - 遅い SQL の検出
+      - N+1 検出
+      - 負荷試験
+      - キャッシュ
+      - バックグラウンド処理計測
+      - データ増加試験
+      - 想定 50 万 MAU の容量モデル
+      - 200 万 MAU までの拡張判断基準
+    non_goals:
+      - 商用監視サービスへの依存
+      - Kubernetes による水平分割
+      - 先回りのキャッシュ全面導入
+      - 50 万 MAU 相当の実トラフィックを発生させること
+      - 本番規模のインフラを事前構築すること
+    completion_criteria:
+      - 構造化ログが英語キーで出力される
+      - N+1 と遅い SQL を検出できる
+      - 再現可能なローカルまたは CI 向け負荷試験の実測値が記録されている
+      - 明示した前提条件に基づく 50 万 MAU の容量モデルが文書化されている
+      - >-
+        200 万 MAU は構造変更や追加投資を判断するための基準であり、
+        初期環境の保証値ではないことが明記されている
+
+  - id: P12
+    title: OSS Release and Local Demo
+    status: planned
+    objective: >-
+      第三者が安全かつ簡単に評価できる最初の OSS リリースを作る。
+      v0.1.0 の範囲は P0 から P12 までとし、
+      スカウトおよび汎用外部連携を必須条件にしない。
+    depends_on:
+      - P11
+    scope:
+      - 架空データ
+      - デモ用シード
+      - ロール別の操作手順
+      - スクリーンショット
+      - 操作動画
+      - セットアップ文書
+      - アーキテクチャ文書
+      - コントリビューションガイド
+      - セキュリティポリシー
+      - リリース手順
+      - v0.1.0
+    non_goals:
+      - 常設公開環境の構築
+      - マネージドホスティングの提供
+      - 商用サポートの提供
+      - スカウトおよび汎用外部連携を v0.1.0 の必須条件にすること
+    completion_criteria:
+      - 架空データのみでデモシードが投入できる
+      - ロール別の操作手順が文書化されている
+      - セットアップ文書だけで第三者が起動できる
+      - コントリビューションガイドとセキュリティポリシーが存在する
+      - v0.1.0 のタグとリリース手順が存在する
+
+  - id: P13
+    title: Sourcing and Engagement
+    status: planned
+    objective: >-
+      最近の採用サービスに必要な候補者発掘機能を、
+      v0.1.0 後の拡張として追加する。
+      重要度が低いという意味ではなく、
+      最初のリリースを阻止する依存条件から外すという意味である。
+    depends_on:
+      - P12
+    scope:
+      - お気に入り求人
+      - 保存した検索条件
+      - 新着求人通知
+      - 候補者検索
+      - タレントプール
+      - スカウト
+      - スカウトテンプレート
+      - 送信上限
+      - 配信停止
+      - 重複送信防止
+      - 候補者側の公開・受信設定
+    non_goals:
+      - 候補者の外部データ収集
+      - スコアリングによる自動抽出
+      - 有料プランによる上限制御
+    completion_criteria:
+      - 求人を保存し検索条件を保存できる
+      - 新着求人が通知される
+      - 受信を許可した候補者だけを検索できる
+      - スカウトを送信でき送信上限が機能する
+      - 配信停止した候補者へ送信できない
+
+  - id: P14
+    title: Integrations
+    status: planned
+    objective: >-
+      外部サービスへ密結合せず、必要な連携を追加できるようにする。
+      v0.1.0 後の拡張として扱い、P13 とは独立に着手できる。
+    depends_on:
+      - P12
+    scope:
+      - 汎用 Webhook
+      - CSV インポート
+      - CSV エクスポート
+      - iCalendar
+      - メールアダプター
+      - ストレージアダプター
+      - CRM アダプター境界
+      - カレンダーアダプター境界
+      - 連携実行履歴
+      - 冪等性
+      - 再試行
+      - 失敗隔離
+    non_goals:
+      - 個別サービス向け実装
+      - 商用 SDK への直接依存
+      - 双方向のリアルタイム同期
+    completion_criteria:
+      - Webhook を登録し配信できる
+      - CSV の入出力ができる
+      - 同じ入力を再実行しても二重処理されない
+      - 失敗した連携が業務処理を止めない
+      - 連携の実行結果が履歴として残る
+
+  - id: P15
+    title: Post-V1 Options
+    status: planned
+    objective: >-
+      利用実績や外部要望を確認してから、追加投資の対象を判断する。
+      このフェーズは検討候補の一覧であり、実装の約束ではない。
+      候補機能を一括で実装するフェーズではなく、
+      P13 と P14 の完了を待つ必要もない。
+      実測、利用実績、企業等からの具体的な要望を契機として、候補を個別に評価する。
+      採用した候補は独立タスクとして切り出し、
+      その実装に P13 または P14 が必要な場合は、個別タスク側で依存関係を定義する。
+    depends_on:
+      - P12
+    scope:
+      - OpenSearch
+      - SSO
+      - Google Calendar
+      - Microsoft 365
+      - Salesforce
+      - HubSpot
+      - Slack
+      - ビデオ会議
+      - 高度な分析
+      - AI による文書作成補助
+      - マネージドホスティング
+      - 企業専用 PoC
+      - 商用サポート
+    non_goals:
+      - 要望の裏付けがないままの実装着手
+      - 複数候補の同時着手
+      - 列挙された全候補を一括して評価すること
+      - P13 と P14 の完了を P15 開始の必須条件にすること
+    completion_criteria:
+      - >-
+        需要シグナルが発生して評価対象となった候補について、
+        採用・不採用・保留の判断が ADR として記録されている
+      - >-
+        採用された候補について、実装範囲、依存関係、非目標を持つ
+        独立タスクが定義されている
+      - >-
+        需要シグナルが発生していない候補について、
+        ADR の作成を完了条件としない
