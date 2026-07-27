@@ -1,0 +1,16 @@
+{
+  "name": "roleweave",
+  "version": "0.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=24.18.0 <25"
+  },
+  "scripts": {
+    "pact": "code-pact",
+    "pact:validate": "code-pact validate --json",
+    "pact:lint": "code-pact plan lint --include-quality --strict --json"
+  },
+  "devDependencies": {
+    "code-pact": "2.8.0"
+  }
+}
