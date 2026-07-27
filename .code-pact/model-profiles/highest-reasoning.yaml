@@ -1,0 +1,8 @@
+tier: highest_reasoning
+purpose:
+  - architecture
+  - high_ambiguity
+effort_levels:
+  - medium
+  - high
+supports_thinking: true

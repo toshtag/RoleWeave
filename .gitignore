@@ -1,1 +1,5 @@
 /node_modules/
+/.code-pact/locks/
+/.code-pact/cache/
+/.local/
+/.context/

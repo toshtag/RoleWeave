@@ -1,0 +1,4 @@
+name: generic
+instruction_filename: docs/code-pact/agent-instructions.md
+context_dir: .context/generic
+model_map: {}
