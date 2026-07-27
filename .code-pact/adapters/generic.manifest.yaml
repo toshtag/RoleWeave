@@ -1,0 +1,14 @@
+schema_version: 1
+agent_name: generic
+generator_version: 2.8.0
+adapter_schema_version: 1
+generated_at: 2026-07-27T23:59:35.673Z
+profile_fingerprint:
+  instruction_filename: docs/code-pact/agent-instructions.md
+  context_dir: .context/generic
+files:
+  - path: docs/code-pact/agent-instructions.md
+    sha256: d86a20e9fc435f987af073a09da27201ad3fec225df51c21b9149c2cd92be668
+    managed: true
+    role: instruction
+    ownership: managed
