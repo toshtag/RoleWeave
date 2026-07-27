@@ -1,0 +1,27 @@
+id: P5
+name: Public Job Discovery and SEO
+weight: 9
+confidence: medium
+risk: medium
+status: planned
+objective: |-
+  求職者が公開求人を発見でき、検索エンジンにも適切に認識されるようにする。
+
+  前提フェーズ: P4
+
+  対象範囲: 求人一覧 / 求人詳細 / キーワード検索 / 勤務地絞り込み / 職種絞り込み /
+  雇用形態絞り込み / 給与絞り込み / ページネーション / canonical URL / 構造化データ /
+  sitemap / robots 制御 / 公開ページのキャッシュ方針
+non_goals:
+  - OpenSearch の導入
+  - 検索結果のパーソナライズ
+  - レコメンド
+definition_of_done:
+  - 公開求人のみが一覧と詳細に表示される
+  - キーワードと条件で絞り込める
+  - canonical URL が出力される
+  - sitemap と robots が配信される
+  - 初期検索が PostgreSQL のみで動作する
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

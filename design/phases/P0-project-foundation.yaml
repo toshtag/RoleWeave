@@ -1,0 +1,172 @@
+id: P0
+name: Project Foundation
+weight: 8
+confidence: high
+risk: low
+status: in_progress
+objective: |-
+  開発者と AI Agent が、同じ環境、同じ規約、同じ検証方法で極小タスクを実装できる状態を作る。
+
+  前提フェーズ: なし
+
+  対象範囲: プロジェクト方針 / 言語・命名規則 / ライセンス / code-pact の最小導入 /
+  Rails アプリケーションの生成 / PostgreSQL / Docker Compose / 冪等なセットアップ /
+  統一検証コマンド / GitHub Actions / 日本語・英語の初期設定 / 基本的なセキュリティ検査
+non_goals:
+  - 業務機能の実装
+  - 認証の実装
+  - 画面デザインの作り込み
+  - 常設デモ環境の構築
+  - デプロイ設定
+definition_of_done:
+  - 新規環境で docker compose up が成功する
+  - 新規環境で docker compose run --rm app bin/setup が成功する
+  - 新規環境で docker compose run --rm app bin/verify が成功する
+  - bin/setup を再実行しても結果が変わらない
+  - GitHub Actions で bin/verify が実行される
+verification:
+  commands:
+    - npm run pact:validate
+tasks:
+  - id: P0-T1
+    type: docs
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: medium
+    expected_duration: short
+    status: done
+    description: "開発方針とロードマップの初期化（ブランチ: p0/t1-project-policy）。 code-pact
+      導入以前に完了した既存タスクであり、code-pact 上の実行履歴は持たない。"
+  - id: P0-T2
+    type: architecture
+    ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: high
+    verification_strength: medium
+    expected_duration: medium
+    status: planned
+    description: "code-pact の最小導入（ブランチ: p0/t2-code-pact-setup）。 code-pact
+      をローカルの開発時依存として固定し、 既存ロードマップを code-pact の正規制御面へ情報欠落なく移行する。"
+    depends_on:
+      - P0-T1
+    reads:
+      - README.md
+      - README.en.md
+      - docs/architecture/principles.md
+      - docs/development/language-policy.md
+      - design/roadmap.yaml
+      - .github/pull_request_template.md
+      - package.json
+      - package-lock.json
+    writes:
+      - .node-version
+      - .gitignore
+      - package.json
+      - package-lock.json
+      - design/**
+      - .code-pact/**
+      - .context/generic/**
+      - docs/code-pact/agent-instructions.md
+      - docs/development/code-pact.md
+      - docs/architecture/principles.md
+  - id: P0-T3
+    type: architecture
+    ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: high
+    verification_strength: medium
+    expected_duration: medium
+    status: planned
+    description: "Rails アプリケーションの生成（ブランチ: p0/t3-rails-bootstrap）"
+    depends_on:
+      - P0-T2
+  - id: P0-T4
+    type: architecture
+    ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: medium
+    verification_strength: strong
+    expected_duration: medium
+    status: planned
+    description: "PostgreSQL 対応 Docker Compose の追加（ブランチ: p0/t4-docker-compose）"
+    depends_on:
+      - P0-T3
+  - id: P0-T5
+    type: architecture
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: "冪等なセットアップコマンドの追加（ブランチ: p0/t5-idempotent-setup）"
+    depends_on:
+      - P0-T4
+  - id: P0-T6
+    type: test
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: "統一検証コマンドの追加（ブランチ: p0/t6-verify-command）"
+    depends_on:
+      - P0-T5
+  - id: P0-T7
+    type: architecture
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）"
+    depends_on:
+      - P0-T6
+  - id: P0-T8
+    type: feature
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: medium
+    verification_strength: medium
+    expected_duration: short
+    status: planned
+    description: "日本語・英語の初期設定（ブランチ: p0/t8-i18n-bootstrap）"
+    depends_on:
+      - P0-T3
+  - id: P0-T9
+    type: test
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: "セキュリティと依存関係検査の追加（ブランチ: p0/t9-security-checks）"
+    depends_on:
+      - P0-T6
+  - id: P0-T10
+    type: test
+    ambiguity: low
+    risk: low
+    context_size: medium
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: "Foundation 完了検証（ブランチ: p0/t10-foundation-verification）"
+    depends_on:
+      - P0-T7
+      - P0-T8
+      - P0-T9

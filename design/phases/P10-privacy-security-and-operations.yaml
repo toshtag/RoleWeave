@@ -1,0 +1,33 @@
+id: P10
+name: Privacy Security and Operations
+weight: 9
+confidence: medium
+risk: high
+status: planned
+objective: |-
+  P2 から P9 までで実装した安全策を横断的に検証し、個人情報を扱う V1 として
+  不足している対策を是正する。
+  このフェーズで初めて安全性を追加するのではない。
+  認可、組織間分離、個人情報の最小化、非公開を初期値とする設計は、
+  対象となる機能を実装するフェーズで同時に実装する。
+  詳細は design/constitution.md と design/rules/cross-cutting-quality.md を参照する。
+
+  前提フェーズ: P9
+
+  対象範囲: 監査ログ / 管理者操作記録 / ファイル検査 / データ保持期限 / データ削除 /
+  匿名化 / レート制限 / CSRF / CSP / セッション保護 / 秘密情報管理 /
+  セキュリティ報告手順 / バックアップ・復元手順 / 脅威モデル
+non_goals:
+  - 第三者認証の取得
+  - WAF の導入
+  - 侵入検知基盤の構築
+definition_of_done:
+  - 個人情報に対する操作が監査ログに残る
+  - 保持期限を過ぎたデータを削除または匿名化できる
+  - レート制限が機能する
+  - CSP と CSRF 保護が有効である
+  - 脅威モデルとセキュリティ報告手順が文書化されている
+  - 横断品質要件の不足がフェーズ横断で検証され、是正されている
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

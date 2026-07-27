@@ -1,0 +1,27 @@
+id: P2
+name: Accounts and Sessions
+weight: 7
+confidence: high
+risk: medium
+status: planned
+objective: |-
+  個人アカウントが安全にログインできるようにする。
+
+  前提フェーズ: P1
+
+  対象範囲: アカウント / メールアドレス / パスワード認証 / ログイン / ログアウト /
+  セッション保護 / パスワード再設定 / メール確認 / 認証イベント記録
+non_goals:
+  - 外部認証
+  - SSO
+  - 多要素認証
+  - 組織の権限管理
+definition_of_done:
+  - メールアドレスとパスワードでログインできる
+  - メールアドレスの重複を登録できない
+  - パスワード再設定が完了できる
+  - メール確認前の利用範囲が制限される
+  - 認証の成否が記録される
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

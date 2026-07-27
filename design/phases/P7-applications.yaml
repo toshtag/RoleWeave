@@ -1,0 +1,26 @@
+id: P7
+name: Applications
+weight: 8
+confidence: medium
+risk: high
+status: planned
+objective: |-
+  求職者が求人へ応募し、応募状況を確認できるようにする。
+
+  前提フェーズ: P5, P6
+
+  対象範囲: 応募 / 重複応募防止 / 応募時点の求人情報保存 / 応募時点のプロフィール保存 /
+  応募取消 / 応募履歴 / 状況表示 / 応募イベント / 応募後の非同期通知
+non_goals:
+  - 選考管理
+  - メッセージ機能
+  - 応募者の自動選別
+definition_of_done:
+  - 公開求人へ応募できる
+  - 同じ求職者が同じ求人へ二重応募できない
+  - 応募時点の求人とプロフィールが保存される
+  - 求職者が自分の応募を取消できる
+  - 通知の失敗で応募が巻き戻らない
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

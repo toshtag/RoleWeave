@@ -1,0 +1,26 @@
+id: P6
+name: Candidate Profiles
+weight: 8
+confidence: medium
+risk: high
+status: planned
+objective: |-
+  求職者が応募に必要な情報を管理できるようにする。
+
+  前提フェーズ: P2
+
+  対象範囲: 基本プロフィール / 職歴 / 学歴 / スキル / 希望条件 / 公開範囲 /
+  履歴書 / 職務経歴書 / プロフィール完成度 / エクスポート / 削除・匿名化
+non_goals:
+  - 候補者検索
+  - スカウト
+  - AI による経歴書生成
+definition_of_done:
+  - プロフィールと職歴を登録できる
+  - 公開範囲を設定できる
+  - ファイルを添付できる
+  - 自分のデータをエクスポートできる
+  - 削除または匿名化ができる
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

@@ -1,0 +1,26 @@
+id: P1
+name: Application Shell
+weight: 5
+confidence: high
+risk: low
+status: planned
+objective: |-
+  日本語・英語で利用できる最小の画面基盤を作る。
+
+  前提フェーズ: P0
+
+  対象範囲: 共通レイアウト / デザイン変数 / ヘッダー / フッター / 言語切替 /
+  日本語トップページ / 英語トップページ / 404 およびエラー画面 /
+  アクセシビリティの基礎 / レスポンシブ表示
+non_goals:
+  - 業務機能の画面
+  - デザインシステムの全面構築
+  - JavaScript フレームワークの導入
+definition_of_done:
+  - 日本語と英語のトップページが表示できる
+  - 日本語と英語の言語切替が動作する
+  - 404 とサーバーエラーの画面が表示される
+  - 主要画面がモバイル幅で崩れない
+verification:
+  commands:
+    - docker compose run --rm app bin/verify
