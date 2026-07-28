@@ -382,10 +382,10 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: bind mount した作業ツリーの所有者がコンテナの実行ユーザーと異なるホストで、
-      コンテナ内の Git が作業ツリーを拒否し、Code Pact が追跡ファイル索引を読めない問題を修正する。
-      docker compose run --rm app bin/verify を Linux ホストでも成立させる。
+    status: done
+    description: bind mount した作業ツリーの所有者がコンテナの実行ユーザーと異なるホストで、 コンテナ内の Git
+      が作業ツリーを拒否し、Code Pact が追跡ファイル索引を読めない問題を修正する。 docker compose run --rm app
+      bin/verify を Linux ホストでも成立させる。
     depends_on:
       - P0-T6A
     reads:
