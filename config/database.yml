@@ -18,6 +18,13 @@ default: &default
   # For details on connection pooling, see Rails configuration guide
   # https://guides.rubyonrails.org/configuring.html#database-pooling
   max_connections: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+  # 接続先は環境変数で与える。
+  # Docker Compose ではコンテナ側から渡し、ホストで直接動かす場合は未設定のまま
+  # ローカルの Unix domain socket を使う。資格情報はこのファイルへ書かない。
+  host: <%= ENV["DATABASE_HOST"] %>
+  port: <%= ENV.fetch("DATABASE_PORT", 5432) %>
+  username: <%= ENV["DATABASE_USERNAME"] %>
+  password: <%= ENV["DATABASE_PASSWORD"] %>
 
 
 development:
