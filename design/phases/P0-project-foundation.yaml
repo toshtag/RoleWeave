@@ -47,7 +47,7 @@ tasks:
     write_surface: high
     verification_strength: medium
     expected_duration: medium
-    status: planned
+    status: done
     description: "code-pact の最小導入（ブランチ: p0/t2-code-pact-setup）。 code-pact
       をローカルの開発時依存として固定し、 既存ロードマップを code-pact の正規制御面へ情報欠落なく移行する。"
     depends_on:
