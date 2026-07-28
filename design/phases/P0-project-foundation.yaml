@@ -408,15 +408,38 @@ tasks:
   - id: P0-T7
     type: architecture
     ambiguity: low
-    risk: low
-    context_size: small
+    risk: medium
+    context_size: medium
     write_surface: low
     verification_strength: strong
     expected_duration: short
     status: planned
-    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）"
+    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）。 Pull Request と main
+      ブランチへの push に対して GitHub Actions を実行し、 既存の統一検証入口である bin/ci から bin/verify --full
+      へ委譲する。 Workflow へ個別の検証定義を複製せず、最小権限と承認済みの不変な Action 参照を保証する。"
     depends_on:
       - P0-T6B
+    reads:
+      - .ruby-version
+      - .node-version
+      - Gemfile
+      - Gemfile.lock
+      - package.json
+      - package-lock.json
+      - bin/ci
+      - bin/verify
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T7-github-actions.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T7-github-actions.md
   - id: P0-T8
     type: feature
     ambiguity: low
