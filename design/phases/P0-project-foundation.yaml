@@ -68,7 +68,6 @@ tasks:
       - package-lock.json
       - design/**
       - .code-pact/**
-      - .context/generic/**
       - docs/code-pact/agent-instructions.md
       - docs/development/code-pact.md
       - docs/architecture/principles.md
