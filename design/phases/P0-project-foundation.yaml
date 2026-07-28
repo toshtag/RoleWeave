@@ -534,13 +534,41 @@ tasks:
     ambiguity: low
     risk: low
     context_size: small
-    write_surface: medium
-    verification_strength: medium
+    write_surface: low
+    verification_strength: strong
     expected_duration: short
     status: planned
-    description: "日本語・英語の初期設定（ブランチ: p0/t8-i18n-bootstrap）"
+    description: "日本語・英語の i18n 基盤の追加（ブランチ: p0/t8-i18n-bootstrap）。 Rails 標準の I18n
+      を基盤として、日本語と英語だけを対応言語に設定し、 日本語を既定言語とする。Rails 共通の日本語ロケールデータを導入し、
+      アプリケーションが所有する翻訳辞書について日英のキー同型性と 翻訳欠落の検出を継続的に検証する。"
     depends_on:
-      - P0-T3
+      - P0-T7C
+    reads:
+      - Gemfile
+      - Gemfile.lock
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - config/locales/en.yml
+      - scripts/verify-p0
+      - design/acceptance/P0-T8-i18n-bootstrap.md
+      - design/rules/**
+      - docs/development/language-policy.md
+      - docs/architecture/principles.md
+      - docs/development/code-pact.md
+    writes:
+      - Gemfile
+      - Gemfile.lock
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/locales/en.yml
+      - config/locales/ja.yml
+      - test/configuration/i18n_configuration_test.rb
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8-i18n-bootstrap.md
   - id: P0-T9
     type: test
     ambiguity: low
