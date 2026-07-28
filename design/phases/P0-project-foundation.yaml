@@ -374,6 +374,37 @@ tasks:
       - scripts/verify-p0
     acceptance_refs:
       - design/acceptance/P0-T6A-ci-wrapper-enforcement.md
+  - id: P0-T6B
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: bind mount した作業ツリーの所有者がコンテナの実行ユーザーと異なるホストで、
+      コンテナ内の Git が作業ツリーを拒否し、Code Pact が追跡ファイル索引を読めない問題を修正する。
+      docker compose run --rm app bin/verify を Linux ホストでも成立させる。
+    depends_on:
+      - P0-T6A
+    reads:
+      - bin/docker-entrypoint
+      - bin/verify
+      - bin/ci
+      - Dockerfile
+      - compose.yaml
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T6-unified-verification.md
+      - design/acceptance/P0-T6B-container-git-ownership.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - bin/docker-entrypoint
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T6B-container-git-ownership.md
   - id: P0-T7
     type: architecture
     ambiguity: low
@@ -385,7 +416,7 @@ tasks:
     status: planned
     description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）"
     depends_on:
-      - P0-T6A
+      - P0-T6B
   - id: P0-T8
     type: feature
     ambiguity: low
@@ -421,6 +452,7 @@ tasks:
     status: planned
     description: "Foundation 完了検証（ブランチ: p0/t10-foundation-verification）"
     depends_on:
+      - P0-T6B
       - P0-T7
       - P0-T8
       - P0-T9
