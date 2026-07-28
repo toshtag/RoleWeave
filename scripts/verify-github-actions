@@ -62,6 +62,34 @@ EXPECTED_STEPS = [
 # 固定値へ退行すると、無関係な PR の実行まで打ち切られる。
 EXPECTED_CONCURRENCY_GROUP = "ci-${{ github.workflow }}-${{ github.ref }}"
 
+# ソース上のトップレベルキー。順序まで含めて固定する。
+#
+# YAML 1.1 に従うパーサーは on / yes / ON をすべて真偽値として解釈する。
+# 解析結果の真偽値キーを on へ正規化するだけでは、
+# ソース上を true: や yes: へ書き換えた Workflow を検出できない。
+# Trigger が失われれば CI そのものが実行されなくなる。
+EXPECTED_TOP_LEVEL_SOURCE_KEYS = %w[
+  name
+  on
+  permissions
+  concurrency
+  jobs
+].freeze
+
+# 真偽値のソース表現。小文字の true / false だけを正規形とする。
+#
+# Actions Toolkit の getBooleanInput が受け付けるのは true と false だけであり、
+# YAML 1.1 の別名（yes / no / on / off）は対象外となる。
+EXPECTED_BOOLEAN_SOURCE_VALUES = {
+  "cancel-in-progress" => "true",
+  "persist-credentials" => "false",
+  "bundler-cache" => "true"
+}.freeze
+
+# インデントのないマッピングキー。引用符付きのキーは意図的に拾わない。
+# 拾わないことで一覧の件数が合わなくなり、完全一致の検査で失敗する。
+TOP_LEVEL_KEY_LINE = /\A([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]|\z)/
+
 # 検証内容の正本は bin/verify とする。個別のコマンドを Workflow へ複製しない。
 FORBIDDEN_RUN_FRAGMENTS = %w[
   bin/rubocop
@@ -74,9 +102,11 @@ FORBIDDEN_RUN_FRAGMENTS = %w[
   brakeman
 ].freeze
 
-# GitHub の式は secrets.NAME と secrets['NAME'] の両方を取り得る。
-# 前者だけを探す検査では、添字記法による参照を見逃す。
-SECRET_REFERENCE = /\bsecrets\s*(?:\.|\[)/i
+# secrets コンテキストへの参照そのものを禁止する。
+# プロパティ参照だけを探すと、toJSON(secrets) のようにコンテキスト全体を
+# 関数へ渡す記法を見逃す。検査対象は解析済みの文字列に限るため、
+# 委譲経路を説明するコメントは巻き込まない。
+SECRET_REFERENCE = /\bsecrets\b/i
 
 # 引用符で囲んだキーは YAML として同じ意味を持つが、素朴な行検査を迂回できる。
 # 迂回を検出するため、正規形式より広く uses 行を拾う。
@@ -85,6 +115,26 @@ PINNED_USES_LINE = /\A\s*uses:[ ]+(\S+)@([0-9a-f]{40})[ ]+#[ ]*(\S+)[ ]*\z/
 
 def check(failures, condition, message)
   failures << message unless condition
+end
+
+# インデントのないマッピングキーをソースから収集する。
+# コメント行、空行、インデントされた行は対象から除く。
+def top_level_source_keys(raw)
+  raw.each_line.filter_map do |line|
+    next if line.strip.empty?
+    next if line.lstrip.start_with?("#")
+    next unless line == line.lstrip
+
+    TOP_LEVEL_KEY_LINE.match(line.chomp)&.[](1)
+  end
+end
+
+# 指定したキーに対する、ソース上のスカラー値をすべて集める。
+# 解析結果は YAML 1.1 の別名を正規化してしまうため、書かれた表現そのものを見る。
+def source_scalar_values(raw, key)
+  pattern = /\A[ \t]+#{Regexp.escape(key)}:[ \t]*([^# \t\r\n]+)[ \t]*(?:#.*)?\z/
+
+  raw.each_line.filter_map { |line| pattern.match(line.chomp)&.[](1) }
 end
 
 # ネストした値をすべて文字列として集める。
@@ -136,7 +186,7 @@ failures = []
 # --- 最上位の構造 -------------------------------------------------------------
 #
 # YAML 1.1 に従うパーサーは on を真偽値として解釈する。
-# 文字列キーと真偽値キーの両方を受け付けたうえで、名前を正規化して検査する。
+# 正規の on: を受け取るため、解析結果では文字列キーと真偽値キーの両方を受け付ける。
 
 triggers = workflow.key?("on") ? workflow["on"] : workflow[true]
 top_level_keys = workflow.keys.map { |key| key == true ? "on" : key }
@@ -146,6 +196,15 @@ check(failures, top_level_keys.sort == %w[concurrency jobs name on permissions],
 
 check(failures, workflow["name"] == "CI",
   "workflow name must be CI, got #{workflow["name"].inspect}")
+
+# 解析結果の正規化とは別に、ソース上のキーそのものを検査する。
+# 正規化だけでは true: / yes: / ON: と書かれた Workflow を区別できず、
+# GitHub が Trigger として扱わないソースを正しいと判定してしまう。
+# 引用符付きのキーは収集対象から外れるため、件数の不一致として失敗する。
+source_keys = top_level_source_keys(raw)
+
+check(failures, source_keys == EXPECTED_TOP_LEVEL_SOURCE_KEYS,
+  "top level source keys must be exactly #{EXPECTED_TOP_LEVEL_SOURCE_KEYS.inspect}, got #{source_keys.inspect}")
 
 # --- Trigger ------------------------------------------------------------------
 #
@@ -270,12 +329,26 @@ end
 
 # --- シークレット参照 ---------------------------------------------------------
 #
-# secrets.NAME と secrets['NAME'] の両方を拒否する。
+# secrets コンテキストへの参照そのものを拒否する。
+# プロパティ参照だけでなく、toJSON(secrets) のような受け渡しも対象にする。
 
 secret_reference = collect_strings(workflow).find { |value| SECRET_REFERENCE.match?(value) }
 
 check(failures, secret_reference.nil?,
   "workflow must not reference secrets, got #{secret_reference.inspect}")
+
+# --- 真偽値のソース表現 -------------------------------------------------------
+#
+# 解析結果では YAML 1.1 の別名が true / false へ正規化されるため、
+# yes / no / on / off と書かれた Workflow を区別できない。
+# GitHub Actions の入力は小文字の true / false を前提とする。
+
+EXPECTED_BOOLEAN_SOURCE_VALUES.each do |key, expected_value|
+  values = source_scalar_values(raw, key)
+
+  check(failures, values == [ expected_value ],
+    "#{key} must be written exactly once as #{expected_value}, got #{values.inspect}")
+end
 
 # --- 生の行による検査 ---------------------------------------------------------
 #

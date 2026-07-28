@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# P0-T4 / P0-T5 の Docker 検証。
+# P0-T4 / P0-T5 / P0-T6B の Docker 検証。
 #
 # scripts/verify-p0 から、P0-T4 の進捗イベントが記録された時点で呼び出される。
-# P0-T5 の検証は、そのタスクの進捗イベントが記録された時点で追加で有効になる。
+# P0-T5 と P0-T6B の検証は、それぞれのタスクの進捗イベントが記録された時点で追加で有効になる。
 #
-# 受け入れ条件の正本は次の 2 つとする。
+# 受け入れ条件の正本は次の 3 つとする。
 #
 #   design/acceptance/P0-T4-docker-compose.md
 #   design/acceptance/P0-T5-idempotent-setup.md
+#   design/acceptance/P0-T6B-container-git-ownership.md
 #
 # 静的検証は docker compose config --format json の正規化結果を Ruby の JSON で解析する。
 # YAML のインデントに依存した grep だけでは、値の所属先を取り違える。
