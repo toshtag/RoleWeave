@@ -2,6 +2,10 @@ source "https://rubygems.org"
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem "rails", "~> 8.1.3"
+# Rails 標準機能の日本語ロケールデータ [https://github.com/svenfuchs/rails-i18n]
+# Active Model のエラー文言、日付、時刻、数値形式を自前で複製すると、
+# Rails の更新へ追随できず、翻訳の網羅性と一貫性も維持できない。
+gem "rails-i18n", "~> 8.1.0"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use postgresql as the database for Active Record
