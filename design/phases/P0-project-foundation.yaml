@@ -480,10 +480,10 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: GitHub Actions 構造検査器が YAML の最初の document だけを検査し、
-      mapping 内の重複キーを後勝ちで受理する問題を修正する。 YAML ストリーム全体が単一 document であり、
-      すべての mapping key が一意であることを解析木から検証する。
+    status: done
+    description: GitHub Actions 構造検査器が YAML の最初の document だけを検査し、 mapping
+      内の重複キーを後勝ちで受理する問題を修正する。 YAML ストリーム全体が単一 document であり、 すべての mapping key
+      が一意であることを解析木から検証する。
     depends_on:
       - P0-T7A
     reads:
