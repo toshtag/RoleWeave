@@ -1,0 +1,12 @@
+task_id: P0-T6
+status: done
+at: 2026-07-28T06:29:50.812Z
+actor: agent
+agent: generic
+author: Pocket
+evidence:
+  - commands
+  - decision
+source: loop
+verification_ref: evidence:sha256:600fe4a237dddc240d40c891545797ea557d1d0f8ba081858aa5e21aba4f9397
+id: 7c99d647acb5f1fab0c105b5b9f4cdd7d2bab4214fc0f58c6f7faac2145b6478

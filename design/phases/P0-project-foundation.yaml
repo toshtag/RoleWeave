@@ -319,7 +319,7 @@ tasks:
     write_surface: medium
     verification_strength: strong
     expected_duration: medium
-    status: planned
+    status: done
     description: "統一検証コマンドの追加（ブランチ: p0/t6-verify-command）。 開発者、AI Agent、将来の CI
       が使用する検証入口を bin/verify へ一本化する。 標準モードではコンテナ内でアプリケーションと Code Pact を検証し、
       --full では Docker、PostgreSQL、セットアップ冪等性を含む P0 完全検証を実行する。"
