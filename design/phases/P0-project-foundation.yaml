@@ -328,7 +328,6 @@ tasks:
     reads:
       - bin/setup
       - bin/ci
-      - config/ci.rb
       - bin/rubocop
       - bin/rails
       - Gemfile
