@@ -13,7 +13,15 @@
 # 文字列 grep だけでは値の所属先を取り違え、コメントと実行内容を混同する。
 # リリースタグのコメントは解析結果に残らないため、生の行を併用する。
 #
-# 受け入れ条件の正本は design/acceptance/P0-T7-github-actions.md とする。
+# 解析結果だけを見ると、ファイルの一部しか検査していないことに気づけない。
+# 重複した mapping key は後勝ちで畳み込まれ、2 件目以降の document は読み捨てられる。
+# そのため、値を読む前に解析木でストリーム全体の完全性を確認する。
+#
+# 受け入れ条件の正本は次の 3 つとする。
+#
+#   design/acceptance/P0-T7-github-actions.md
+#   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+#   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
 
 require "yaml"
 
@@ -137,6 +145,44 @@ def source_scalar_values(raw, key)
   raw.each_line.filter_map { |line| pattern.match(line.chomp)&.[](1) }
 end
 
+# 解析木を再帰的に巡回し、同じ mapping 内の重複キーを集める。
+#
+# Psych は重複キーを後勝ちで畳み込むため、解析結果からは前方の定義が消える。
+# 検証器と GitHub 側で解釈がずれる余地を残さないよう、木の段階で拒否する。
+# 判定は同一 mapping 内に限る。別々の mapping に同じキーがあることは問題にしない。
+def duplicate_mapping_keys(node, path = "$", failures = [])
+  case node
+  when Psych::Nodes::Mapping
+    seen = {}
+
+    node.children.each_slice(2) do |key_node, value_node|
+      unless key_node.is_a?(Psych::Nodes::Scalar)
+        failures << "#{path}: mapping key at line #{key_node.start_line + 1} must be a scalar"
+        next
+      end
+
+      key = key_node.value
+      first = seen[key]
+
+      if first
+        failures <<
+          "#{path}: duplicate mapping key #{key.inspect} at lines " \
+          "#{first.start_line + 1} and #{key_node.start_line + 1}"
+      else
+        seen[key] = key_node
+      end
+
+      duplicate_mapping_keys(value_node, "#{path}.#{key}", failures)
+    end
+  when Psych::Nodes::Sequence
+    node.children.each_with_index do |child, index|
+      duplicate_mapping_keys(child, "#{path}[#{index}]", failures)
+    end
+  end
+
+  failures
+end
+
 # ネストした値をすべて文字列として集める。
 # シークレット参照は job・step・with のどこへ書いても拒否する。
 def collect_strings(node, found = [])
@@ -169,6 +215,41 @@ end
 
 raw = File.read(path, encoding: "UTF-8")
 
+# --- ストリームの完全性 -------------------------------------------------------
+#
+# 値を読む前に、ファイル全体が 1 つの Workflow であることを確認する。
+# YAML.safe_load は最初の document だけを返すため、
+# 後続 document や document 終端より後ろの内容は検査対象から外れてしまう。
+
+begin
+  stream = Psych.parse_stream(raw, filename: path)
+rescue Psych::SyntaxError => error
+  warn "workflow is not valid YAML: #{path}: #{error.message}"
+  exit 1
+end
+
+documents = stream.children
+
+unless documents.length == 1
+  warn "workflow must contain exactly one YAML document, got #{documents.length}: #{path}"
+  exit 1
+end
+
+document_root = documents.first.root
+
+unless document_root.is_a?(Psych::Nodes::Mapping)
+  warn "workflow document root must be a mapping: #{path}"
+  exit 1
+end
+
+duplicates = duplicate_mapping_keys(document_root)
+
+unless duplicates.empty?
+  duplicates.each { |duplicate| warn("workflow contract violation: #{duplicate}") }
+  exit 1
+end
+
+# ストリーム全体の検証が成功した後にだけ、値としての読み取りへ進む。
 begin
   workflow = YAML.safe_load(raw)
 rescue Psych::Exception => error
