@@ -15,6 +15,7 @@
 #   design/acceptance/P0-T7-github-actions.md
 #   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
 #   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+#   design/acceptance/P0-T7C-github-actions-static-fields.md
 
 require "tmpdir"
 
@@ -153,7 +154,35 @@ MUTATIONS = ACTION_MUTATIONS.merge({
   "引用符付きキーを持つ2件目document" => ->(text) { "#{text}---\n\"x\": \"extra\"\n" },
   "secretsを含む2件目document" => ->(text) { "#{text}---\n\"x\": \"${{ secrets.TOKEN }}\"\n" },
   "document終端後の裸のscalar" => ->(text) { "#{text}...\n\nplain-trailing-content\n" },
-  "document終端後のsecrets式" => ->(text) { "#{text}...\n\n${{ secrets.TOKEN }}\n" }
+  "document終端後のsecrets式" => ->(text) { "#{text}...\n\n${{ secrets.TOKEN }}\n" },
+
+  # 表示名。正規値へ固定しないと、GitHub 式の評価結果を表示名として出力できる。
+  "job名を別の固定値へ変更" => ->(text) { text.sub("    name: 統一検証", "    name: 無関係な表示名") },
+  "job名からgithub式を参照" => ->(text) { text.sub("    name: 統一検証", "    name: ${{ github.ref }}") },
+  "job名からgithub.tokenを参照" => ->(text) { text.sub("    name: 統一検証", "    name: ${{ github.token }}") },
+  "step名を別の固定値へ変更" => ->(text) { text.sub("      - name: 統一検証", "      - name: 無関係な表示名") },
+  "step名からgithub.tokenを参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ github.token }}")
+  },
+  "step名からgithub['token']を参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ github['token'] }}")
+  },
+  'step名からgithub["token"]を参照' => ->(text) {
+    text.sub("      - name: 統一検証", '      - name: ${{ github["token"] }}')
+  },
+  "step名からgithub全体を参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ toJSON(github) }}")
+  },
+  "step名から裸のgithubコンテキストを参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ github }}")
+  },
+
+  # 数値スカラー。解析結果では 30 と等値になる別表記を拒否する。
+  "timeoutを浮動小数へ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: 30.0") },
+  "timeoutをfloatタグ付きへ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: !!float 30") },
+  "timeoutを16進数へ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: 0x1e") },
+  "timeoutを符号付きへ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: +30") },
+  "timeoutを文字列へ変更" => ->(text) { text.sub("timeout-minutes: 30", 'timeout-minutes: "30"') }
 }).freeze
 
 # 検証器の終了コードだけを見る。出力は失敗時の説明に使う。
