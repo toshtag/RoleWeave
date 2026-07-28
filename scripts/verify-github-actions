@@ -1,0 +1,325 @@
+#!/usr/bin/env ruby
+# GitHub Actions Workflow の構造検査。
+#
+# scripts/verify-p0 から、P0-T7 の進捗イベントが記録された時点で呼び出される。
+#
+#   scripts/verify-github-actions                 .github/workflows/ci.yml を検査する
+#   scripts/verify-github-actions path/to/ci.yml  指定した Workflow を検査する
+#
+# 引数を受け取れるようにしているのは負の検証のためである。
+# 一時ディレクトリへ複製した Workflow を検査し、正規のファイルを破壊しない。
+#
+# 判定は YAML の解析結果に対して行う。
+# 文字列 grep だけでは値の所属先を取り違え、コメントと実行内容を混同する。
+# リリースタグのコメントは解析結果に残らないため、生の行を併用する。
+#
+# 受け入れ条件の正本は design/acceptance/P0-T7-github-actions.md とする。
+
+require "yaml"
+
+DEFAULT_WORKFLOW_PATH = ".github/workflows/ci.yml"
+
+# 承認済みの Action 固定。
+#
+# 「40 桁の 16 進数であること」だけでは、承認していない任意のコミットを許してしまう。
+# Action 名・SHA・リリースタグの組をここへ登録し、Workflow と完全一致させる。
+# Action を更新するときは、Workflow とこの一覧を同一 PR で更新し、
+# 公式リポジトリでタグと SHA の対応を確認する。
+APPROVED_ACTION_PINS = {
+  "actions/checkout" => {
+    sha: "3d3c42e5aac5ba805825da76410c181273ba90b1",
+    tag: "v7.0.1"
+  },
+  "ruby/setup-ruby" => {
+    sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b",
+    tag: "v1.321.0"
+  },
+  "actions/setup-node" => {
+    sha: "820762786026740c76f36085b0efc47a31fe5020",
+    tag: "v7.0.0"
+  }
+}.freeze
+
+# steps の順序と責務。with は完全一致で検査し、暗黙の設定追加を拒否する。
+EXPECTED_STEPS = [
+  {
+    action: "actions/checkout",
+    with: { "persist-credentials" => false }
+  },
+  {
+    action: "ruby/setup-ruby",
+    with: { "ruby-version" => ".ruby-version", "bundler-cache" => true }
+  },
+  {
+    action: "actions/setup-node",
+    with: { "node-version-file" => ".node-version", "cache" => "npm" }
+  },
+  { run: "npm ci" },
+  { run: "bin/ci" }
+].freeze
+
+# 同じブランチまたは PR の実行だけを打ち切る。
+# 固定値へ退行すると、無関係な PR の実行まで打ち切られる。
+EXPECTED_CONCURRENCY_GROUP = "ci-${{ github.workflow }}-${{ github.ref }}"
+
+# 検証内容の正本は bin/verify とする。個別のコマンドを Workflow へ複製しない。
+FORBIDDEN_RUN_FRAGMENTS = %w[
+  bin/rubocop
+  bin/rails
+  bin/verify
+  bin/setup
+  scripts/verify-p0
+  docker
+  bundler-audit
+  brakeman
+].freeze
+
+# GitHub の式は secrets.NAME と secrets['NAME'] の両方を取り得る。
+# 前者だけを探す検査では、添字記法による参照を見逃す。
+SECRET_REFERENCE = /\bsecrets\s*(?:\.|\[)/i
+
+# 引用符で囲んだキーは YAML として同じ意味を持つが、素朴な行検査を迂回できる。
+# 迂回を検出するため、正規形式より広く uses 行を拾う。
+USES_LINE = /\A\s*["']?uses["']?\s*:/
+PINNED_USES_LINE = /\A\s*uses:[ ]+(\S+)@([0-9a-f]{40})[ ]+#[ ]*(\S+)[ ]*\z/
+
+def check(failures, condition, message)
+  failures << message unless condition
+end
+
+# ネストした値をすべて文字列として集める。
+# シークレット参照は job・step・with のどこへ書いても拒否する。
+def collect_strings(node, found = [])
+  case node
+  when Hash
+    node.each do |key, value|
+      collect_strings(key, found)
+      collect_strings(value, found)
+    end
+  when Array
+    node.each { |value| collect_strings(value, found) }
+  when String
+    found << node
+  end
+
+  found
+end
+
+if ARGV.length > 1
+  warn "使用方法: scripts/verify-github-actions [workflow.yml]"
+  exit 1
+end
+
+path = ARGV.fetch(0, DEFAULT_WORKFLOW_PATH)
+
+unless File.file?(path)
+  warn "workflow is missing: #{path}"
+  exit 1
+end
+
+raw = File.read(path, encoding: "UTF-8")
+
+begin
+  workflow = YAML.safe_load(raw)
+rescue Psych::Exception => error
+  warn "workflow is not valid YAML: #{path}: #{error.message}"
+  exit 1
+end
+
+unless workflow.is_a?(Hash)
+  warn "workflow must be a mapping: #{path}"
+  exit 1
+end
+
+failures = []
+
+# --- 最上位の構造 -------------------------------------------------------------
+#
+# YAML 1.1 に従うパーサーは on を真偽値として解釈する。
+# 文字列キーと真偽値キーの両方を受け付けたうえで、名前を正規化して検査する。
+
+triggers = workflow.key?("on") ? workflow["on"] : workflow[true]
+top_level_keys = workflow.keys.map { |key| key == true ? "on" : key }
+
+check(failures, top_level_keys.sort == %w[concurrency jobs name on permissions],
+  "top level keys must be exactly name, on, permissions, concurrency and jobs, got #{top_level_keys.sort.inspect}")
+
+check(failures, workflow["name"] == "CI",
+  "workflow name must be CI, got #{workflow["name"].inspect}")
+
+# --- Trigger ------------------------------------------------------------------
+#
+# pull_request_target は fork の PR に対して書き込み権限のある文脈で実行される。
+# 検証目的の Workflow では使用しない。
+
+if triggers.is_a?(Hash)
+  check(failures, triggers.keys.sort == %w[pull_request push],
+    "triggers must be exactly pull_request and push, got #{triggers.keys.sort.inspect}")
+
+  check(failures, triggers["pull_request"].nil?,
+    "pull_request must not be narrowed, got #{triggers["pull_request"].inspect}")
+
+  check(failures, triggers["push"] == { "branches" => [ "main" ] },
+    "push must target only the main branch, got #{triggers["push"].inspect}")
+else
+  check(failures, false, "triggers must be a mapping, got #{triggers.inspect}")
+end
+
+# --- 権限 ---------------------------------------------------------------------
+
+check(failures, workflow["permissions"] == { "contents" => "read" },
+  "permissions must be exactly contents: read, got #{workflow["permissions"].inspect}")
+
+# --- 同時実行 -----------------------------------------------------------------
+
+concurrency = workflow["concurrency"]
+
+if concurrency.is_a?(Hash)
+  check(failures, concurrency["group"] == EXPECTED_CONCURRENCY_GROUP,
+    "concurrency group must be #{EXPECTED_CONCURRENCY_GROUP.inspect}, got #{concurrency["group"].inspect}")
+
+  check(failures, concurrency["cancel-in-progress"] == true,
+    "concurrency must cancel in-progress runs, got #{concurrency["cancel-in-progress"].inspect}")
+else
+  check(failures, false, "concurrency must be a mapping, got #{concurrency.inspect}")
+end
+
+# --- job ----------------------------------------------------------------------
+#
+# 検証を複数 job へ分割しない。実行順序と失敗箇所の正本を 1 か所に保つ。
+
+jobs = workflow["jobs"]
+jobs = {} unless jobs.is_a?(Hash)
+
+check(failures, jobs.keys == [ "verify" ],
+  "jobs must be exactly verify, got #{jobs.keys.inspect}")
+
+job = jobs["verify"]
+job = {} unless job.is_a?(Hash)
+
+check(failures, job.keys.sort == %w[name runs-on steps timeout-minutes],
+  "job keys must be exactly name, runs-on, timeout-minutes and steps, got #{job.keys.sort.inspect}")
+
+check(failures, job["runs-on"] == "ubuntu-24.04",
+  "runner must be ubuntu-24.04, got #{job["runs-on"].inspect}")
+
+check(failures, job["timeout-minutes"] == 30,
+  "job timeout must be 30 minutes, got #{job["timeout-minutes"].inspect}")
+
+# 別経路の実行環境を持ち込まない。PostgreSQL と Docker は bin/verify --full の責務とする。
+%w[services container environment permissions strategy continue-on-error].each do |key|
+  check(failures, !job.key?(key), "job must not declare #{key}")
+end
+
+# --- steps --------------------------------------------------------------------
+
+steps = job["steps"]
+steps = [] unless steps.is_a?(Array)
+
+check(failures, steps.length == EXPECTED_STEPS.length,
+  "steps must be exactly #{EXPECTED_STEPS.length}, got #{steps.length}")
+
+EXPECTED_STEPS.each_with_index do |expected, index|
+  step = steps[index]
+
+  unless step.is_a?(Hash)
+    check(failures, false, "step #{index + 1} is missing")
+    next
+  end
+
+  check(failures, step["name"].to_s.strip != "", "step #{index + 1} must have a name")
+
+  if expected.key?(:action)
+    check(failures, step.keys.sort == %w[name uses with],
+      "step #{index + 1} keys must be exactly name, uses and with, got #{step.keys.sort.inspect}")
+
+    action = expected.fetch(:action)
+    pin = APPROVED_ACTION_PINS.fetch(action)
+
+    # 承認済みの Action 名と SHA の組で完全一致させる。
+    # 名前と桁数だけの検査では、承認していない任意のコミットを許してしまう。
+    check(failures, step["uses"] == "#{action}@#{pin.fetch(:sha)}",
+      "step #{index + 1} must use #{action}@#{pin.fetch(:sha)} (#{pin.fetch(:tag)}), got #{step["uses"].inspect}")
+
+    check(failures, step["with"] == expected.fetch(:with),
+      "step #{index + 1} with must be #{expected.fetch(:with).inspect}, got #{step["with"].inspect}")
+  else
+    check(failures, step.keys.sort == %w[name run],
+      "step #{index + 1} keys must be exactly name and run, got #{step.keys.sort.inspect}")
+
+    check(failures, step["run"].to_s.strip == expected.fetch(:run),
+      "step #{index + 1} must run #{expected.fetch(:run)}, got #{step["run"].inspect}")
+  end
+end
+
+# --- 実行コマンドの複製 -------------------------------------------------------
+#
+# 検査対象は解析済みの run だけとする。
+# 委譲経路を説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
+
+steps.each_with_index do |step, index|
+  next unless step.is_a?(Hash)
+
+  command = step["run"].to_s
+
+  FORBIDDEN_RUN_FRAGMENTS.each do |fragment|
+    check(failures, !command.include?(fragment),
+      "step #{index + 1} must not run #{fragment} directly. bin/verify is the single source of truth")
+  end
+end
+
+# --- シークレット参照 ---------------------------------------------------------
+#
+# secrets.NAME と secrets['NAME'] の両方を拒否する。
+
+secret_reference = collect_strings(workflow).find { |value| SECRET_REFERENCE.match?(value) }
+
+check(failures, secret_reference.nil?,
+  "workflow must not reference secrets, got #{secret_reference.inspect}")
+
+# --- 生の行による検査 ---------------------------------------------------------
+#
+# 固定した SHA がどのリリースに対応するのかは、解析結果からは読み取れない。
+# uses 行の末尾へリリースタグをコメントとして残すことを必須にする。
+#
+# キーを引用符で囲むと YAML としては同じ意味を保ったまま、素朴な行検査を迂回できる。
+# uses を含む行の総数と、正規形式に一致する行の内容・順序の両方を検査する。
+
+uses_lines = raw.each_line.with_index(1).select { |line, _| USES_LINE.match?(line) }
+
+check(failures, uses_lines.length == APPROVED_ACTION_PINS.length,
+  "workflow must contain exactly #{APPROVED_ACTION_PINS.length} uses lines, got #{uses_lines.length}")
+
+expected_pins = EXPECTED_STEPS.filter_map { |step| step[:action] }
+
+uses_lines.each_with_index do |(line, number), index|
+  matched = PINNED_USES_LINE.match(line.chomp)
+
+  unless matched
+    check(failures, false,
+      "line #{number} must be `uses: owner/action@<40 hex sha> # <tag>`: #{line.strip.inspect}")
+    next
+  end
+
+  action = expected_pins[index]
+  pin = action && APPROVED_ACTION_PINS[action]
+
+  unless pin
+    check(failures, false, "line #{number} declares an unexpected extra action: #{line.strip.inspect}")
+    next
+  end
+
+  check(failures, matched[1] == action,
+    "line #{number} must use #{action}, got #{matched[1].inspect}")
+
+  check(failures, matched[2] == pin.fetch(:sha),
+    "line #{number} must pin the approved SHA #{pin.fetch(:sha)}, got #{matched[2].inspect}")
+
+  check(failures, matched[3] == pin.fetch(:tag),
+    "line #{number} must record the approved release tag #{pin.fetch(:tag)}, got #{matched[3].inspect}")
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("workflow contract violation: #{failure}") }
+  exit 1
+end

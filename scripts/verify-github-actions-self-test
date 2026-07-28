@@ -1,0 +1,127 @@
+#!/usr/bin/env ruby
+# scripts/verify-github-actions の回帰検査。
+#
+# scripts/verify-p0 から、P0-T7 の進捗イベントが記録された時点で呼び出される。
+#
+# 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+# 負の検証を実行時の手作業に依存させると、検証器が退行しても気づけない。
+# ここでは正規の Workflow へ変異を加え、すべてが拒否されることを毎回確認する。
+#
+# 変異は一時ディレクトリへ複製した Workflow に対してのみ行う。
+# .github/workflows/ci.yml は読み取るだけで、書き換えない。
+#
+# 受け入れ条件の正本は design/acceptance/P0-T7-github-actions.md とする。
+
+require "tmpdir"
+
+WORKFLOW_PATH = ".github/workflows/ci.yml"
+VERIFIER_PATH = "scripts/verify-github-actions"
+
+CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+
+# 変異は正規の Workflow に対する文字列置換で表現する。
+# 置換が適用されなかった場合は、Workflow 側の変更に追随できていないため失敗させる。
+MUTATIONS = {
+  "可変タグ参照" => ->(text) { text.sub("actions/checkout@#{CHECKOUT_SHA}", "actions/checkout@v7") },
+  "承認外のSHA" => ->(text) { text.sub(CHECKOUT_SHA, "0" * 40) },
+  "リリースタグの改ざん" => ->(text) { text.sub("# v7.0.1", "# v999.0.0") },
+  "引用符付きusesキー" => ->(text) { text.sub("uses: actions/checkout@", "\"uses\": actions/checkout@") },
+  "タグコメントの削除" => ->(text) { text.sub(" # v7.0.1", "") },
+  "concurrency groupの固定値化" => ->(text) {
+    text.sub("group: ci-${{ github.workflow }}-${{ github.ref }}", "group: global")
+  },
+  "concurrencyの削除" => ->(text) {
+    text.sub(
+      "concurrency:\n  group: ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true\n\n",
+      ""
+    )
+  },
+  "secretsのドット参照" => ->(text) {
+    text.sub("        run: bin/ci", "        env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: bin/ci")
+  },
+  "secretsの添字参照" => ->(text) {
+    text.sub("    name: 統一検証", "    name: ${{ secrets['TOKEN'] }}")
+  },
+  "write権限" => ->(text) { text.sub("  contents: read", "  contents: write") },
+  "pull_request_target" => ->(text) { text.sub("  pull_request:", "  pull_request_target:") },
+  "統一入口の迂回" => ->(text) { text.sub("        run: bin/ci", "        run: bin/verify --full") },
+  "個別検証の複製" => ->(text) {
+    text.sub(
+      "      - name: 統一検証",
+      "      - name: Rubyスタイル\n        run: bin/rubocop\n\n      - name: 統一検証"
+    )
+  },
+  "複数job" => ->(text) {
+    text +
+      "\n  extra:\n" \
+      "    name: 追加\n" \
+      "    runs-on: ubuntu-24.04\n" \
+      "    timeout-minutes: 5\n" \
+      "    steps:\n" \
+      "      - name: 何もしない\n" \
+      "        run: \"true\"\n"
+  },
+  "ubuntu-latest" => ->(text) { text.sub("    runs-on: ubuntu-24.04", "    runs-on: ubuntu-latest") },
+  "version fileの重複記述" => ->(text) {
+    text.sub("          ruby-version: .ruby-version", "          ruby-version: 4.0.6")
+  },
+  "npm install" => ->(text) { text.sub("        run: npm ci", "        run: npm install") },
+  "認証情報の保持" => ->(text) {
+    text.sub("          persist-credentials: false", "          persist-credentials: true")
+  },
+  "timeoutの削除" => ->(text) { text.sub("    timeout-minutes: 30\n", "") },
+  "service containerの追加" => ->(text) {
+    text.sub("    steps:", "    services:\n      db:\n        image: postgres:18.4-bookworm\n\n    steps:")
+  },
+  "continue-on-error" => ->(text) { text.sub("        run: bin/ci", "        continue-on-error: true\n        run: bin/ci") }
+}.freeze
+
+# 検証器の終了コードだけを見る。出力は失敗時の説明に使う。
+def verify(path)
+  output = IO.popen([ VERIFIER_PATH, path ], err: [ :child, :out ], &:read)
+  [ $?.success?, output ]
+end
+
+unless ARGV.empty?
+  warn "使用方法: scripts/verify-github-actions-self-test"
+  exit 1
+end
+
+unless File.file?(WORKFLOW_PATH)
+  warn "workflow is missing: #{WORKFLOW_PATH}"
+  exit 1
+end
+
+original = File.read(WORKFLOW_PATH, encoding: "UTF-8")
+failures = []
+
+Dir.mktmpdir("verify-github-actions-self-test") do |directory|
+  path = File.join(directory, "ci.yml")
+
+  # 陽性対照。正規の Workflow が通過しない検証器は、負の検証も信用できない。
+  File.write(path, original, encoding: "UTF-8")
+  passed, output = verify(path)
+
+  unless passed
+    failures << "the canonical workflow must pass the structural check:\n#{output}"
+  end
+
+  MUTATIONS.each do |label, mutate|
+    mutated = mutate.call(original)
+
+    if mutated == original
+      failures << "mutation #{label.inspect} did not change the workflow. update the self test"
+      next
+    end
+
+    File.write(path, mutated, encoding: "UTF-8")
+    passed, = verify(path)
+
+    failures << "mutation #{label.inspect} must be rejected by #{VERIFIER_PATH}" if passed
+  end
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("self test failure: #{failure}") }
+  exit 1
+end
