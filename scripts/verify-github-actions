@@ -22,6 +22,7 @@
 #   design/acceptance/P0-T7-github-actions.md
 #   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
 #   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+#   design/acceptance/P0-T7C-github-actions-static-fields.md
 
 require "yaml"
 
@@ -48,22 +49,33 @@ APPROVED_ACTION_PINS = {
   }
 }.freeze
 
-# steps の順序と責務。with は完全一致で検査し、暗黙の設定追加を拒否する。
+# 表示名は正規値へ固定する。
+#
+# 表示名を動的にする必要はない。空でないことだけを検査すると、
+# GitHub 式の評価結果を表示名として出力できてしまう。
+# github.token は GITHUB_TOKEN と機能的に同等であり、
+# github コンテキスト全体にも同種の機密情報が含まれる。
+EXPECTED_JOB_NAME = "統一検証"
+
+# steps の順序と責務。name と with は完全一致で検査し、暗黙の設定追加を拒否する。
 EXPECTED_STEPS = [
   {
+    name: "リポジトリを取得",
     action: "actions/checkout",
     with: { "persist-credentials" => false }
   },
   {
+    name: "Rubyを準備",
     action: "ruby/setup-ruby",
     with: { "ruby-version" => ".ruby-version", "bundler-cache" => true }
   },
   {
+    name: "Node.jsを準備",
     action: "actions/setup-node",
     with: { "node-version-file" => ".node-version", "cache" => "npm" }
   },
-  { run: "npm ci" },
-  { run: "bin/ci" }
+  { name: "Node.js依存関係を準備", run: "npm ci" },
+  { name: "統一検証", run: "bin/ci" }
 ].freeze
 
 # 同じブランチまたは PR の実行だけを打ち切る。
@@ -84,14 +96,18 @@ EXPECTED_TOP_LEVEL_SOURCE_KEYS = %w[
   jobs
 ].freeze
 
-# 真偽値のソース表現。小文字の true / false だけを正規形とする。
+# スカラーのソース表現。解析結果では区別できない書き方を、ソース側で固定する。
 #
+# 真偽値は小文字の true / false だけを正規形とする。
 # Actions Toolkit の getBooleanInput が受け付けるのは true と false だけであり、
 # YAML 1.1 の別名（yes / no / on / off）は対象外となる。
-EXPECTED_BOOLEAN_SOURCE_VALUES = {
+#
+# 数値も同様に、30 と等値になる別表記（30.0 / !!float 30 / 0x1e / +30）を拒否する。
+EXPECTED_SOURCE_SCALAR_VALUES = {
   "cancel-in-progress" => "true",
   "persist-credentials" => "false",
-  "bundler-cache" => "true"
+  "bundler-cache" => "true",
+  "timeout-minutes" => "30"
 }.freeze
 
 # インデントのないマッピングキー。引用符付きのキーは意図的に拾わない。
@@ -115,6 +131,11 @@ FORBIDDEN_RUN_FRAGMENTS = %w[
 # 関数へ渡す記法を見逃す。検査対象は解析済みの文字列に限るため、
 # 委譲経路を説明するコメントは巻き込まない。
 SECRET_REFERENCE = /\bsecrets\b/i
+
+# github.token は GITHUB_TOKEN シークレットと機能的に同等である。
+# secrets コンテキストだけを禁止しても、こちらの経路が残る。
+# 表示名の完全固定と併せて、二重に拒否する。
+GITHUB_TOKEN_REFERENCE = /\bgithub\s*(?:\.\s*token|\[\s*["']token["']\s*\])/i
 
 # 引用符で囲んだキーは YAML として同じ意味を持つが、素朴な行検査を迂回できる。
 # 迂回を検出するため、正規形式より広く uses 行を拾う。
@@ -343,8 +364,14 @@ check(failures, job.keys.sort == %w[name runs-on steps timeout-minutes],
 check(failures, job["runs-on"] == "ubuntu-24.04",
   "runner must be ubuntu-24.04, got #{job["runs-on"].inspect}")
 
-check(failures, job["timeout-minutes"] == 30,
-  "job timeout must be 30 minutes, got #{job["timeout-minutes"].inspect}")
+check(failures, job["name"] == EXPECTED_JOB_NAME,
+  "job name must be #{EXPECTED_JOB_NAME.inspect}, got #{job["name"].inspect}")
+
+# 型も検査する。Ruby では整数 30 と浮動小数点数 30.0 が等値になる。
+timeout_minutes = job["timeout-minutes"]
+
+check(failures, timeout_minutes.instance_of?(Integer) && timeout_minutes == 30,
+  "job timeout must be the integer 30, got #{timeout_minutes.inspect}")
 
 # 別経路の実行環境を持ち込まない。PostgreSQL と Docker は bin/verify --full の責務とする。
 %w[services container environment permissions strategy continue-on-error].each do |key|
@@ -367,7 +394,8 @@ EXPECTED_STEPS.each_with_index do |expected, index|
     next
   end
 
-  check(failures, step["name"].to_s.strip != "", "step #{index + 1} must have a name")
+  check(failures, step["name"] == expected.fetch(:name),
+    "step #{index + 1} name must be #{expected.fetch(:name).inspect}, got #{step["name"].inspect}")
 
   if expected.key?(:action)
     check(failures, step.keys.sort == %w[name uses with],
@@ -412,19 +440,29 @@ end
 #
 # secrets コンテキストへの参照そのものを拒否する。
 # プロパティ参照だけでなく、toJSON(secrets) のような受け渡しも対象にする。
+#
+# github.token は secrets ではないが、GITHUB_TOKEN と機能的に同等である。
+# 表示名の完全固定と併せて、こちらの経路も明示的に拒否する。
 
-secret_reference = collect_strings(workflow).find { |value| SECRET_REFERENCE.match?(value) }
+workflow_strings = collect_strings(workflow)
+
+secret_reference = workflow_strings.find { |value| SECRET_REFERENCE.match?(value) }
 
 check(failures, secret_reference.nil?,
   "workflow must not reference secrets, got #{secret_reference.inspect}")
 
-# --- 真偽値のソース表現 -------------------------------------------------------
-#
-# 解析結果では YAML 1.1 の別名が true / false へ正規化されるため、
-# yes / no / on / off と書かれた Workflow を区別できない。
-# GitHub Actions の入力は小文字の true / false を前提とする。
+github_token_reference = workflow_strings.find { |value| GITHUB_TOKEN_REFERENCE.match?(value) }
 
-EXPECTED_BOOLEAN_SOURCE_VALUES.each do |key, expected_value|
+check(failures, github_token_reference.nil?,
+  "workflow must not reference github.token, got #{github_token_reference.inspect}")
+
+# --- スカラーのソース表現 -----------------------------------------------------
+#
+# 解析結果では YAML 1.1 の真偽値別名が true / false へ正規化され、
+# 30.0 や 0x1e のような数値表記も同じ値へ解決される。
+# 書かれた表現そのものを固定し、非正規な表記を拒否する。
+
+EXPECTED_SOURCE_SCALAR_VALUES.each do |key, expected_value|
   values = source_scalar_values(raw, key)
 
   check(failures, values == [ expected_value ],
