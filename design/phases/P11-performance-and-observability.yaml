@@ -1,0 +1,29 @@
+id: P11
+name: Performance and Observability
+weight: 7
+confidence: low
+risk: medium
+status: planned
+objective: |-
+  推測ではなく計測結果から性能を改善できるようにする。
+
+  前提フェーズ: P10
+
+  対象範囲: 構造化ログ / OpenTelemetry 境界 / エラー追跡 / 遅い SQL の検出 /
+  N+1 検出 / 負荷試験 / キャッシュ / バックグラウンド処理計測 / データ増加試験 /
+  想定 50 万 MAU の容量モデル / 200 万 MAU までの拡張判断基準
+non_goals:
+  - 商用監視サービスへの依存
+  - Kubernetes による水平分割
+  - 先回りのキャッシュ全面導入
+  - 50 万 MAU 相当の実トラフィックを発生させること
+  - 本番規模のインフラを事前構築すること
+definition_of_done:
+  - 構造化ログが英語キーで出力される
+  - N+1 と遅い SQL を検出できる
+  - 再現可能なローカルまたは CI 向け負荷試験の実測値が記録されている
+  - 明示した前提条件に基づく 50 万 MAU の容量モデルが文書化されている
+  - 200 万 MAU は構造変更や追加投資を判断するための基準であり、初期環境の保証値ではないことが明記されている
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

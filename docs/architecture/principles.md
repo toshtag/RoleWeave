@@ -189,7 +189,10 @@ Redis と OpenSearch は初期段階で必須にしない。
 ## 7. 進め方
 
 - 1 タスクにつき 1 つの確認可能な成果とする
-- 1 タスクにつき 1 コミット、1 PR を原則とする
+- 1 タスクにつき 1 PR を原則とする
+- コミットはレビュー可能な意味のある変更単位に分割できる
+- WIP、fixup、意味のない修正コミットをマージ時に残さない
+- main へのマージは原則 Squash merge とし、main 上では 1 タスク 1 コミットにまとめる
 - 「認証を実装する」のような大きな単位でタスクを切らない
 - 「同じ求職者が同じ求人へ二重応募できない」のような振る舞い単位で切る
 - 各タスクには正の検証と負の検証の両方を用意する
@@ -206,8 +209,9 @@ Redis と OpenSearch は初期段階で必須にしない。
 - 日本語と英語
 - アクセシビリティ
 
-機械可読な定義は [`design/roadmap.yaml`](../../design/roadmap.yaml) の
-`cross_cutting_requirements` に置く。
+正本は [`design/constitution.md`](../../design/constitution.md) と
+[`design/rules/cross-cutting-quality.md`](../../design/rules/cross-cutting-quality.md) に置く。
+後者は code-pact がタスク実行時に読み込むルールファイルである。
 
 P10 Privacy, Security and Operations は、これらの初回実装フェーズではない。
 V1 全体に対する統合検証と、不足の是正を行うフェーズである。

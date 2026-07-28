@@ -1,0 +1,217 @@
+#!/usr/bin/env bash
+# P0 Project Foundation の累積検証。
+#
+# P0 のタスクが進むたびに検証を追加していく。
+# 各検証は、対応するタスクが開始された時点で自動的に有効になる。
+# これにより、実装していないタスクを Code Pact の構造検査だけで完了できない状態を保つ。
+#
+# P0-T6 で bin/verify が完成した時点で、P0 の verification.commands を bin/verify へ一本化する。
+set -euo pipefail
+
+# 進捗イベントの有無でタスクの開始を判定する。
+# started / done のいずれかが記録されていれば、そのタスクの検証を有効にする。
+task_has_event() {
+  local task_id="$1"
+  grep -Rqs "^task_id: ${task_id}$" .code-pact/state/events
+}
+
+# 必須の行がちょうど 1 件だけ存在することを確認する。
+# 欠落と重複の両方を失敗として扱う。
+# 単純な存在確認では、既存設定を置換した不完全なファイルや、
+# 同じ行を繰り返し追記したファイルを検出できない。
+require_exact_line_once() {
+  local expected="$1"
+  local file="$2"
+  local count
+
+  if [[ ! -f "$file" ]]; then
+    printf 'required file is missing: %s\n' "$file" >&2
+    return 1
+  fi
+
+  count="$(
+    awk -v expected="$expected" '
+      $0 == expected { count += 1 }
+      END { print count + 0 }
+    ' "$file"
+  )"
+
+  if [[ "$count" -ne 1 ]]; then
+    printf \
+      'expected exactly one line in %s, found %s: %s\n' \
+      "$file" \
+      "$count" \
+      "$expected" \
+      >&2
+    return 1
+  fi
+}
+
+# --- 開発ランタイム -----------------------------------------------------------
+#
+# ファイルに書かれたバージョンだけでなく、実際に動いている Node.js を検査する。
+# バージョンマネージャーの切り替え漏れを、Code Pact の検証より前に失敗させる。
+
+test -f .node-version
+
+expected_node_version="$(tr -d '\r\n' < .node-version)"
+
+test "$expected_node_version" = "24.18.0"
+test "$(node --version)" = "v${expected_node_version}"
+
+node -e '
+  const packageJson = require("./package.json");
+
+  if (packageJson.engines?.node !== ">=24.18.0 <25") {
+    console.error(
+      `unexpected package.json engines.node: ${packageJson.engines?.node}`
+    );
+    process.exit(1);
+  }
+'
+
+# --- P0-T2 / P0-T2A / P0-T2B / P0-T2C: Code Pact 制御面 ----------------------
+#
+# plan lint は必ず strict で実行する。
+# --strict でのみ終了コードへ反映される警告（TASK_ID_PHASE_PREFIX など）を見逃さない。
+
+npm run pact:validate >/dev/null
+npm run pact:lint >/dev/null
+
+test -f design/brief.md
+test -f design/constitution.md
+test -f design/rules/coding-style.md
+test -f design/rules/code-pact-execution.md
+test -f design/acceptance/P0-T3-rails-bootstrap.md
+test -f docs/development/code-pact.md
+
+# --- 既存 .gitignore 設定の保持 -----------------------------------------------
+#
+# P0-T3 で Rails 用の除外設定を追記する際、これらを置換・削除・重複させない。
+
+project_gitignore_lines=(
+  "/node_modules/"
+  "/.code-pact/locks/"
+  "/.code-pact/state/locks/"
+  "/.code-pact/cache/"
+  "/.local/"
+  "/.context/"
+)
+
+for line in "${project_gitignore_lines[@]}"; do
+  require_exact_line_once "$line" .gitignore
+done
+
+# --- P0 全体で持ち込まない生成物 ---------------------------------------------
+#
+# デプロイ基盤（Kamal）、Thruster、開発用コンテナは現在のロードマップで採用していない。
+# Rails が一時生成する master key と、それで暗号化された credentials も持ち込まない。
+
+test ! -e .kamal
+test ! -e config/deploy.yml
+test ! -e bin/kamal
+test ! -e bin/thrust
+test ! -e .devcontainer
+test ! -e config/master.key
+test ! -e config/credentials.yml.enc
+
+# --- P0-T4 以前: Docker 関連ファイルの混入を拒否 -----------------------------
+
+if ! task_has_event "P0-T4"; then
+  test ! -e Dockerfile
+  test ! -e compose.yaml
+  test ! -e docker-compose.yml
+  test ! -e .dockerignore
+  test ! -e bin/docker-entrypoint
+fi
+
+# --- P0-T7 以前: GitHub Actions 関連ファイルの混入を拒否 ---------------------
+#
+# Rails 標準の bin/ci と config/ci.rb はローカル検証の入口であり、GitHub Actions ではない。
+# これらは拒否しない。P0-T6 で bin/verify との関係を確定する。
+
+if ! task_has_event "P0-T7"; then
+  test ! -e .github/workflows
+  test ! -e .github/dependabot.yml
+fi
+
+# --- P0-T3: Rails アプリケーションの実体 -------------------------------------
+#
+# P0-T3 が開始された時点で有効になる。
+# 受け入れ条件の詳細は design/acceptance/P0-T3-rails-bootstrap.md を参照する。
+
+if task_has_event "P0-T3"; then
+  test -f Gemfile
+  test -f Gemfile.lock
+  test -f Rakefile
+  test -f config.ru
+  test -x bin/rails
+  test -f config/application.rb
+  test -f config/database.yml
+  test -d app
+  test -d test
+
+  # 固定バージョン。ファイルの内容だけでなく実行中のランタイムを検査する。
+  test -f .ruby-version
+  test "$(tr -d '\r\n' < .ruby-version)" = "4.0.6"
+  test "$(ruby -e 'print RUBY_VERSION')" = "4.0.6"
+  test "$(bundle exec rails --version)" = "Rails 8.1.3"
+
+  # --skip-git で生成されない Git 管理ファイルを補っていること
+  test -f .gitignore
+  test -f .gitattributes
+  test -f .rubocop.yml
+
+  # Rails 8.1.3 標準の除外設定。
+  # .keep の除外解除がないと、維持すると宣言した .keep が Git 管理対象にならない。
+  rails_gitignore_lines=(
+    "/.bundle"
+    "/.env*"
+    "/log/*"
+    "!/log/.keep"
+    "/tmp/*"
+    "!/tmp/.keep"
+    "/tmp/pids/*"
+    "!/tmp/pids/"
+    "!/tmp/pids/.keep"
+    "/storage/*"
+    "!/storage/.keep"
+    "/tmp/storage/*"
+    "!/tmp/storage/"
+    "!/tmp/storage/.keep"
+    "/public/assets"
+    "/config/*.key"
+  )
+
+  for line in "${rails_gitignore_lines[@]}"; do
+    require_exact_line_once "$line" .gitignore
+  done
+
+  require_exact_line_once "db/schema.rb linguist-generated" .gitattributes
+  require_exact_line_once "vendor/* linguist-vendored" .gitattributes
+
+  grep -Eq 'gem[[:space:]]+["'\'']pg["'\'']' Gemfile
+  grep -Eq 'adapter:[[:space:]]*postgresql' config/database.yml
+  grep -Eq 'module[[:space:]]+RoleWeave' config/application.rb
+
+  bundle check
+
+  # PostgreSQL サーバーがない状態で boot できることを確認する。
+  # 接続不能な DATABASE_URL を与え、boot 中に不用意な DB 接続が起きていないことを検出する。
+  env \
+    RAILS_ENV=test \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails zeitwerk:check
+
+  env \
+    RAILS_ENV=test \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails runner \
+    'abort "unexpected application namespace" unless Rails.application.class.module_parent_name == "RoleWeave"'
+
+  # Rails 生成後、README が事実誤認を残していないこと
+  ! grep -Fq 'アプリケーションは実装されていません' README.md
+  ! grep -Fq 'application itself has not been implemented' README.en.md
+fi

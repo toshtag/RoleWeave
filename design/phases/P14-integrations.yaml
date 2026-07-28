@@ -1,0 +1,28 @@
+id: P14
+name: Integrations
+weight: 8
+confidence: low
+risk: medium
+status: planned
+objective: |-
+  外部サービスへ密結合せず、必要な連携を追加できるようにする。
+  v0.1.0 後の拡張として扱い、P13 とは独立に着手できる。
+
+  前提フェーズ: P12
+
+  対象範囲: 汎用 Webhook / CSV インポート / CSV エクスポート / iCalendar /
+  メールアダプター / ストレージアダプター / CRM アダプター境界 /
+  カレンダーアダプター境界 / 連携実行履歴 / 冪等性 / 再試行 / 失敗隔離
+non_goals:
+  - 個別サービス向け実装
+  - 商用 SDK への直接依存
+  - 双方向のリアルタイム同期
+definition_of_done:
+  - Webhook を登録し配信できる
+  - CSV の入出力ができる
+  - 同じ入力を再実行しても二重処理されない
+  - 失敗した連携が業務処理を止めない
+  - 連携の実行結果が履歴として残る
+verification:
+  commands:
+    - docker compose run --rm app bin/verify

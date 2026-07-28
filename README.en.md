@@ -65,9 +65,12 @@ Setup instructions will be added once the development environment is in place
 The documents below are internal design documents and are written in Japanese, as
 described above. Setup and usage documentation will be provided in both languages.
 
-- [Roadmap](design/roadmap.yaml) — phase definitions from P0 through P15
+- [Project brief](design/brief.md) — what is being built and who it is for
+- [Constitution](design/constitution.md) — the principles that guide planning and implementation decisions
+- [Roadmap](design/roadmap.yaml) — phase index from P0 through P15
 - [Architecture principles](docs/architecture/principles.md) — how structural decisions are made
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
+- [code-pact operations guide](docs/development/code-pact.md) — how the development control plane is used
 
 ## How development proceeds
 
