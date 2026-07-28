@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+# 統一検証コマンドの bootstrap 版。
+#
+# Code Pact は task start 時にフェーズの verification.commands をロックする。
+# P0 の検証コマンドを bin/verify --full へ変更するには、
+# start より前に bin/verify が実在している必要がある。
+#
+# この版は P0-T6 の契約コミット専用であり、開始後に最終実装へ置き換える。
+#
+# 受け入れ条件の正本は design/acceptance/P0-T6-unified-verification.md とする。
+set -euo pipefail
+
+APP_ROOT="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/.."
+  pwd
+)"
+
+cd "$APP_ROOT"
+
+if [[ "$#" -eq 1 && "$1" == "--full" ]]; then
+  exec scripts/verify-p0
+fi
+
+printf 'P0-T6の実装が完了していないため、標準検証はまだ利用できません。\n' >&2
+exit 1
