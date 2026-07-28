@@ -413,10 +413,11 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）。 Pull Request と main
-      ブランチへの push に対して GitHub Actions を実行し、 既存の統一検証入口である bin/ci から bin/verify --full
-      へ委譲する。 Workflow へ個別の検証定義を複製せず、最小権限と承認済みの不変な Action 参照を保証する。"
+    status: done
+    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）。 Pull Request と
+      main ブランチへの push に対して GitHub Actions を実行し、 既存の統一検証入口である bin/ci から
+      bin/verify --full へ委譲する。 Workflow へ個別の検証定義を複製せず、最小権限と承認済みの不変な Action
+      参照を保証する。"
     depends_on:
       - P0-T6B
     reads:
