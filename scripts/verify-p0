@@ -215,3 +215,13 @@ if task_has_event "P0-T3"; then
   ! grep -Fq 'アプリケーションは実装されていません' README.md
   ! grep -Fq 'application itself has not been implemented' README.en.md
 fi
+
+# --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
+#
+# P0-T4 が開始された時点で有効になる。
+# Docker daemon への接続とコンテナの起動を伴うため、検証本体は別スクリプトへ分ける。
+# 受け入れ条件の詳細は design/acceptance/P0-T4-docker-compose.md を参照する。
+
+if task_has_event "P0-T4"; then
+  scripts/verify-p0-docker
+fi
