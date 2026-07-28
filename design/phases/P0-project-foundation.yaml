@@ -500,6 +500,36 @@ tasks:
       - scripts/verify-github-actions-self-test
     acceptance_refs:
       - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+  - id: P0-T7C
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: GitHub Actions 構造検査器が job 名と step 名へ任意の式を許し、
+      github.token や github コンテキスト全体への参照を受理する問題を修正する。
+      あわせて timeout-minutes が整数 30 以外のソース表現でも通過する問題を修正し、
+      表示名と数値スカラーの正規形を固定する。
+    depends_on:
+      - P0-T7B
+    reads:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - design/acceptance/P0-T7-github-actions.md
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+      - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+      - design/acceptance/P0-T7C-github-actions-static-fields.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+    acceptance_refs:
+      - design/acceptance/P0-T7C-github-actions-static-fields.md
   - id: P0-T8
     type: feature
     ambiguity: low
@@ -539,5 +569,6 @@ tasks:
       - P0-T7
       - P0-T7A
       - P0-T7B
+      - P0-T7C
       - P0-T8
       - P0-T9
