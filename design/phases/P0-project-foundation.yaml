@@ -349,6 +349,31 @@ tasks:
       - scripts/verify-p0-docker
     acceptance_refs:
       - design/acceptance/P0-T6-unified-verification.md
+  - id: P0-T6A
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: bin/ci が bin/verify --full へ委譲するだけの互換ラッパーであることを、
+      部分文字列ではなく実行構造全体で検証し、 独立した検証定義の混入を拒否する。
+    depends_on:
+      - P0-T6
+    reads:
+      - bin/ci
+      - bin/verify
+      - scripts/verify-p0
+      - design/acceptance/P0-T6-unified-verification.md
+      - design/acceptance/P0-T6A-ci-wrapper-enforcement.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T6A-ci-wrapper-enforcement.md
   - id: P0-T7
     type: architecture
     ambiguity: low
@@ -360,7 +385,7 @@ tasks:
     status: planned
     description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）"
     depends_on:
-      - P0-T6
+      - P0-T6A
   - id: P0-T8
     type: feature
     ambiguity: low
