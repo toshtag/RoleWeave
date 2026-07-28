@@ -105,6 +105,35 @@ tasks:
       - README.md
       - README.en.md
       - scripts/verify-p0
+  - id: P0-T2B
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: medium
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: >-
+      P0 の strict 検証漏れと P0-T3 の Rails 初期化契約の不足を修正し、
+      秘密情報やデプロイ関連生成物を持ち込まず、固定バージョンで
+      Rails アプリケーションを生成できる状態にする。
+    depends_on:
+      - P0-T2A
+    reads:
+      - design/phases/P0-project-foundation.yaml
+      - design/acceptance/P0-T3-rails-bootstrap.md
+      - design/rules/code-pact-execution.md
+      - docs/development/code-pact.md
+      - scripts/verify-p0
+      - README.md
+      - README.en.md
+      - .gitignore
+    writes:
+      - design/acceptance/P0-T3-rails-bootstrap.md
+      - design/rules/code-pact-execution.md
+      - docs/development/code-pact.md
+      - scripts/verify-p0
   - id: P0-T3
     type: architecture
     ambiguity: low
@@ -116,7 +145,7 @@ tasks:
     status: planned
     description: "Rails アプリケーションの生成（ブランチ: p0/t3-rails-bootstrap）"
     depends_on:
-      - P0-T2A
+      - P0-T2B
     reads:
       - README.md
       - README.en.md
@@ -133,12 +162,16 @@ tasks:
       - docs/development/language-policy.md
       - docs/development/code-pact.md
     writes:
+      - README.md
+      - README.en.md
       - .ruby-version
+      - .gitignore
+      - .gitattributes
+      - .rubocop.yml
       - Gemfile
       - Gemfile.lock
       - Rakefile
       - config.ru
-      - Procfile.dev
       - app/**
       - bin/**
       - config/**
@@ -146,6 +179,7 @@ tasks:
       - lib/**
       - log/**
       - public/**
+      - script/**
       - storage/**
       - test/**
       - tmp/**
