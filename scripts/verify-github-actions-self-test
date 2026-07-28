@@ -10,7 +10,11 @@
 # 変異は一時ディレクトリへ複製した Workflow に対してのみ行う。
 # .github/workflows/ci.yml は読み取るだけで、書き換えない。
 #
-# 受け入れ条件の正本は design/acceptance/P0-T7-github-actions.md とする。
+# 受け入れ条件の正本は次の 3 つとする。
+#
+#   design/acceptance/P0-T7-github-actions.md
+#   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+#   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
 
 require "tmpdir"
 
@@ -115,7 +119,41 @@ MUTATIONS = ACTION_MUTATIONS.merge({
   "service containerの追加" => ->(text) {
     text.sub("    steps:", "    services:\n      db:\n        image: postgres:18.4-bookworm\n\n    steps:")
   },
-  "continue-on-error" => ->(text) { text.sub("        run: bin/ci", "        continue-on-error: true\n        run: bin/ci") }
+  "continue-on-error" => ->(text) { text.sub("        run: bin/ci", "        continue-on-error: true\n        run: bin/ci") },
+
+  # 重複した mapping key。
+  # Psych は後勝ちで畳み込むため、前方の定義は解析結果から消える。
+  "pushの重複" => ->(text) {
+    text.sub(
+      "  push:\n    branches:\n      - main\n",
+      "  push:\n    branches:\n      - feature\n  push:\n    branches:\n      - main\n"
+    )
+  },
+  "contentsの重複" => ->(text) { text.sub("  contents: read", "  contents: write\n  contents: read") },
+  "verify jobの重複" => ->(text) {
+    text.sub(
+      "  verify:\n",
+      "  verify:\n    name: 無効な定義\n    runs-on: ubuntu-latest\n    steps: []\n  verify:\n"
+    )
+  },
+  "step runの重複" => ->(text) { text.sub("        run: bin/ci", "        run: echo bypass\n        run: bin/ci") },
+  "step nameの重複" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ secrets.TOKEN }}\n        name: 統一検証")
+  },
+  "引用符違いのキー重複" => ->(text) { text.sub("  contents: read", "  \"contents\": write\n  contents: read") },
+  "flow mapping内のキー重複" => ->(text) {
+    text.sub(
+      "        with:\n          node-version-file: .node-version\n          cache: npm",
+      "        with: { node-version-file: .node-version, cache: yarn, cache: npm }"
+    )
+  },
+
+  # 複数 document。YAML.safe_load は最初の document だけを返す。
+  "空の2件目document" => ->(text) { "#{text}---\n" },
+  "引用符付きキーを持つ2件目document" => ->(text) { "#{text}---\n\"x\": \"extra\"\n" },
+  "secretsを含む2件目document" => ->(text) { "#{text}---\n\"x\": \"${{ secrets.TOKEN }}\"\n" },
+  "document終端後の裸のscalar" => ->(text) { "#{text}...\n\nplain-trailing-content\n" },
+  "document終端後のsecrets式" => ->(text) { "#{text}...\n\n${{ secrets.TOKEN }}\n" }
 }).freeze
 
 # 検証器の終了コードだけを見る。出力は失敗時の説明に使う。
