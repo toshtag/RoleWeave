@@ -1,0 +1,12 @@
+task_id: P0-T2B
+status: done
+at: 2026-07-28T01:50:30.638Z
+actor: agent
+agent: generic
+author: Pocket
+evidence:
+  - commands
+  - decision
+source: loop
+verification_ref: evidence:sha256:3af692ffa09f9e95d3b7435c9cb5108b21b9e9c85547a197ada56fd28074308f
+id: 2f5c2cf8b2023a4ed96a3917443dbdded4da4c88476f7195f904cc26f9411140

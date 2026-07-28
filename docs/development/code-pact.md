@@ -36,6 +36,11 @@ npm exec -- code-pact task prepare <TASK_ID> --agent generic --json
 npm exec -- code-pact task start <TASK_ID> --agent generic
 ```
 
+`task start` はタスク契約とフェーズ `verification.commands` をロックする。
+`reads`、`writes`、`acceptance_refs`、依存関係、検証コマンドは start 前に確認し、
+必要な制御面変更をコミットして作業ツリーを clean にしてから start する。
+start 後にこれらを変更すると `TASK_CONTRACT_DRIFT` が発生し、`task complete` が失敗する。
+
 実装したあと、検証と完了記録を行う。
 
 ```bash
@@ -47,16 +52,25 @@ npm exec -- code-pact task complete <TASK_ID> --agent generic
 ```
 
 finalize は、まず dry-run で結果と `write_audit` を確認してから書き込む。
+dry-run と `--write` の両方で `--audit-strict` を指定する。
 
 ```bash
-npm exec -- code-pact task finalize <TASK_ID> --json
+npm exec -- code-pact task finalize <TASK_ID> --audit-strict --json
 ```
 
 ```bash
-npm exec -- code-pact task finalize <TASK_ID> --write --json
+npm exec -- code-pact task finalize <TASK_ID> --audit-strict --write --json
 ```
 
 dry-run の結果を確認せずに `--write` を実行しない。
+`write_audit` の `outside_declared` と `declared_unused` を空にしてから `--write` する。
+
+進捗イベント（`.code-pact/state/events/**`）は write audit の対象外のため、`writes` へ宣言しない。
+`design/roadmap.yaml`、`design/phases/*.yaml`、`.code-pact/**` は Code Pact の保護パスであり、
+実行中のタスクがこれらを `writes` へ宣言していると、strict な `plan lint` が
+`TASK_WRITES_PROTECTED_PATH` を終了コードへ反映する。
+P0 の検証は strict lint を含むため、制御面自体を変更するタスクは、
+その変更を `task start` 前のコミットで済ませる。
 
 プロジェクト全体の整合性は次で確認する。
 
@@ -148,9 +162,17 @@ Code Pact の構造検査（`validate` / `plan lint`）だけを残さない。
 P0 の検証コマンドは [`scripts/verify-p0`](../../scripts/verify-p0) とする。
 このスクリプトは進捗イベントを見て、開始済みタスクに対応する検証を自動的に有効にする。
 
-- Code Pact 制御面の検査は常に実行する
+- Code Pact 制御面の検査は常に実行する。
+  `plan lint` は必ず `--strict`（`npm run pact:lint`）で実行する。
+  strict でのみ終了コードへ反映される警告を見逃さないため
+- Kamal、Thruster、開発用コンテナ、Rails の master key と credentials は、
+  P0 全体を通して混入を失敗として扱う
 - P0-T3 が開始された時点から Rails 実体の検査を有効にする
+  （固定バージョン、`.gitignore` / `.gitattributes` / `.rubocop.yml`、
+  PostgreSQL なしでの boot、README の状態）
 - P0-T4 が開始されるまでは Docker 関連ファイルの混入を失敗として扱う
+- P0-T7 が開始されるまでは GitHub Actions 関連ファイルの混入を失敗として扱う
+  （Rails 標準の `bin/ci` と `config/ci.rb` はローカル検証の入口であり、拒否しない）
 
 P0-T4 以降は、各タスクでこのスクリプトへ検証を追加する。
 P0-T6 で `bin/verify` が完成した時点で、P0 の `verification.commands` を `bin/verify` へ一本化する。

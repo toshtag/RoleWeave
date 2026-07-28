@@ -28,3 +28,26 @@ applies_to: [architecture, feature, bugfix, refactor, mechanical_refactor, test,
 - 実装後は `verify` → `task complete` → `task finalize`（dry-run で `write_audit` を確認してから `--write`）の順で進める
 - 実行していない検証を成功として記録・報告しない
 - 検証コマンドを一時的に無効化して完了させない
+
+## タスク契約のロック
+
+`task start` は、タスク契約（`description` / `reads` / `writes` / `depends_on`）と
+フェーズの `verification.commands` をロックする。
+
+- `reads`、`writes`、`acceptance_refs`、依存関係、検証コマンドは `task start` の前に確定する
+- 必要な制御面の変更を先にコミットし、作業ツリーを clean にしてから `task start` する
+  （`task start` は作業ツリーが clean でないと契約をロックできない）
+- start 後にこれらを変更すると `TASK_CONTRACT_DRIFT` が発生し、`task complete` が失敗する
+- drift を避けるために検証を弱めない。契約を正しく直してからやり直す
+
+## finalize
+
+- `task finalize` は dry-run と `--write` の両方で `--audit-strict` を指定する
+- `write_audit` の `outside_declared` と `declared_unused` を空にしてから `--write` する
+- 進捗イベント（`.code-pact/state/events/**`）は write audit の対象外であるため、
+  `writes` へ宣言しない。宣言すると `TASK_WRITES_AUDIT_DECLARED_UNUSED` になる
+- `design/roadmap.yaml`、`design/phases/*.yaml`、`.code-pact/**` は Code Pact の保護パスである。
+  実行中のタスクがこれらを `writes` へ宣言していると、strict な `plan lint` が
+  `TASK_WRITES_PROTECTED_PATH` を終了コードへ反映するため、
+  フェーズ検証に strict lint を含むフェーズでは `task complete` できない。
+  制御面自体を変更するタスクは、その変更を `task start` 前のコミットで済ませる

@@ -15,10 +15,13 @@ task_has_event() {
   grep -Rqs "^task_id: ${task_id}$" .code-pact/state/events
 }
 
-# --- P0-T2 / P0-T2-R1: Code Pact 制御面 -------------------------------------
+# --- P0-T2 / P0-T2A / P0-T2B: Code Pact 制御面 -------------------------------
+#
+# plan lint は必ず strict で実行する。
+# --strict でのみ終了コードへ反映される警告（TASK_ID_PHASE_PREFIX など）を見逃さない。
 
-npm run pact:validate
-npm exec -- code-pact plan lint --include-quality --json >/dev/null
+npm run pact:validate >/dev/null
+npm run pact:lint >/dev/null
 
 test -f design/brief.md
 test -f design/constitution.md
@@ -27,10 +30,20 @@ test -f design/rules/code-pact-execution.md
 test -f design/acceptance/P0-T3-rails-bootstrap.md
 test -f docs/development/code-pact.md
 
-# --- P0-T4 以前: Docker 関連ファイルの混入を拒否 -----------------------------
+# --- P0 全体で持ち込まない生成物 ---------------------------------------------
 #
-# Docker は P0-T4 で導入する。それ以前に生成されていた場合は、
-# タスク境界を越えた変更であるため失敗させる。
+# デプロイ基盤（Kamal）、Thruster、開発用コンテナは現在のロードマップで採用していない。
+# Rails が一時生成する master key と、それで暗号化された credentials も持ち込まない。
+
+test ! -e .kamal
+test ! -e config/deploy.yml
+test ! -e bin/kamal
+test ! -e bin/thrust
+test ! -e .devcontainer
+test ! -e config/master.key
+test ! -e config/credentials.yml.enc
+
+# --- P0-T4 以前: Docker 関連ファイルの混入を拒否 -----------------------------
 
 if ! task_has_event "P0-T4"; then
   test ! -e Dockerfile
@@ -38,7 +51,16 @@ if ! task_has_event "P0-T4"; then
   test ! -e docker-compose.yml
   test ! -e .dockerignore
   test ! -e bin/docker-entrypoint
-  test ! -e .devcontainer
+fi
+
+# --- P0-T7 以前: GitHub Actions 関連ファイルの混入を拒否 ---------------------
+#
+# Rails 標準の bin/ci と config/ci.rb はローカル検証の入口であり、GitHub Actions ではない。
+# これらは拒否しない。P0-T6 で bin/verify との関係を確定する。
+
+if ! task_has_event "P0-T7"; then
+  test ! -e .github/workflows
+  test ! -e .github/dependabot.yml
 fi
 
 # --- P0-T3: Rails アプリケーションの実体 -------------------------------------
@@ -57,12 +79,49 @@ if task_has_event "P0-T3"; then
   test -d app
   test -d test
 
+  # 固定バージョン
+  test -f .ruby-version
+  test "$(tr -d '\r\n' < .ruby-version)" = "4.0.6"
+  test "$(bundle exec rails --version)" = "Rails 8.1.3"
+
+  # --skip-git で生成されない Git 管理ファイルを補っていること
+  test -f .gitignore
+  test -f .gitattributes
+  test -f .rubocop.yml
+
+  grep -Fqx '/.bundle' .gitignore
+  grep -Fqx '/.env*' .gitignore
+  grep -Fqx '/log/*' .gitignore
+  grep -Fqx '/tmp/*' .gitignore
+  grep -Fqx '/storage/*' .gitignore
+  grep -Fqx '/public/assets' .gitignore
+  grep -Fqx '/config/*.key' .gitignore
+
+  grep -Fqx 'db/schema.rb linguist-generated' .gitattributes
+  grep -Fqx 'vendor/* linguist-vendored' .gitattributes
+
   grep -Eq 'gem[[:space:]]+["'\'']pg["'\'']' Gemfile
   grep -Eq 'adapter:[[:space:]]*postgresql' config/database.yml
   grep -Eq 'module[[:space:]]+RoleWeave' config/application.rb
 
   bundle check
-  bundle exec rails zeitwerk:check
-  bundle exec rails runner \
+
+  # PostgreSQL サーバーがない状態で boot できることを確認する。
+  # 接続不能な DATABASE_URL を与え、boot 中に不用意な DB 接続が起きていないことを検出する。
+  env \
+    RAILS_ENV=test \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails zeitwerk:check
+
+  env \
+    RAILS_ENV=test \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails runner \
     'abort "unexpected application namespace" unless Rails.application.class.module_parent_name == "RoleWeave"'
+
+  # Rails 生成後、README が事実誤認を残していないこと
+  ! grep -Fq 'アプリケーションは実装されていません' README.md
+  ! grep -Fq 'application itself has not been implemented' README.en.md
 fi
