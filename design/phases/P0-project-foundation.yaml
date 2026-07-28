@@ -216,9 +216,40 @@ tasks:
     verification_strength: strong
     expected_duration: medium
     status: planned
-    description: "PostgreSQL 対応 Docker Compose の追加（ブランチ: p0/t4-docker-compose）"
+    description: >-
+      Ruby、Node.js、Rails を実行する app サービスと、
+      PostgreSQL 18.4 を実行する db サービスを Docker Compose へ追加し、
+      新規環境で再現可能なローカル開発基盤を構築する（ブランチ: p0/t4-docker-compose）。
     depends_on:
       - P0-T3
+    reads:
+      - .ruby-version
+      - .node-version
+      - .gitignore
+      - Gemfile
+      - Gemfile.lock
+      - package.json
+      - package-lock.json
+      - config/database.yml
+      - config/routes.rb
+      - bin/rails
+      - scripts/verify-p0
+      - design/acceptance/P0-T4-docker-compose.md
+      - design/rules/**
+      - docs/architecture/principles.md
+      - docs/development/language-policy.md
+      - docs/development/code-pact.md
+    writes:
+      - Dockerfile
+      - compose.yaml
+      - .dockerignore
+      - bin/docker-entrypoint
+      - bin/docker-healthcheck
+      - config/database.yml
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T4-docker-compose.md
   - id: P0-T5
     type: architecture
     ambiguity: low
