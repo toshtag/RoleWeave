@@ -256,10 +256,8 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: >-
-      ローカル開発用 app サービスの公開ポートを 127.0.0.1 だけへバインドし、
-      同一 LAN や外部インターフェースへの意図しない公開を防ぐ。
+    status: done
+    description: ローカル開発用 app サービスの公開ポートを 127.0.0.1 だけへバインドし、 同一 LAN や外部インターフェースへの意図しない公開を防ぐ。
     depends_on:
       - P0-T4
     reads:
