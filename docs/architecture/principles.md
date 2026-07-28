@@ -206,8 +206,9 @@ Redis と OpenSearch は初期段階で必須にしない。
 - 日本語と英語
 - アクセシビリティ
 
-機械可読な定義は [`design/roadmap.yaml`](../../design/roadmap.yaml) の
-`cross_cutting_requirements` に置く。
+正本は [`design/constitution.md`](../../design/constitution.md) と
+[`design/rules/cross-cutting-quality.md`](../../design/rules/cross-cutting-quality.md) に置く。
+後者は code-pact がタスク実行時に読み込むルールファイルである。
 
 P10 Privacy, Security and Operations は、これらの初回実装フェーズではない。
 V1 全体に対する統合検証と、不足の是正を行うフェーズである。
