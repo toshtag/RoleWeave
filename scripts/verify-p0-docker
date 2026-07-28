@@ -196,6 +196,16 @@ check(failures, db["image"] == "postgres:18.4-bookworm", "db image must be postg
 # db: ホストへポートを公開しない
 check(failures, Array(db["ports"]).empty?, "db must not publish ports to the host")
 
+# app: ループバックだけへ公開する。
+# ホスト IP を省略すると Docker はすべてのホストインターフェースへバインドする。
+app_ports = Array(app["ports"])
+check(failures, app_ports.length == 1, "app must publish exactly one port, got #{app_ports.inspect}")
+
+app_port = app_ports.first || {}
+check(failures, app_port["host_ip"] == "127.0.0.1", "app port must bind to 127.0.0.1, got #{app_port["host_ip"].inspect}")
+check(failures, app_port["target"].to_i == 3000, "app container port must be 3000, got #{app_port["target"].inspect}")
+check(failures, app_port["protocol"].to_s.empty? || app_port["protocol"] == "tcp", "app port protocol must be tcp, got #{app_port["protocol"].inspect}")
+
 # db: PostgreSQL 18 のボリューム位置
 db_volumes = Array(db["volumes"])
 pgdata = db_volumes.find { |volume| volume["target"].to_s.start_with?("/var/lib/postgresql") }
@@ -372,6 +382,10 @@ compose exec -T db \
 # --- 動的検証: app の起動と healthcheck ---------------------------------------
 
 compose up -d --wait app
+
+# 正規化結果だけでなく、実際に公開された endpoint がループバック限定であることを確認する。
+published_endpoint="$(compose port app 3000 | tr -d '\r\n')"
+test "$published_endpoint" = "127.0.0.1:${app_port}"
 
 ruby -rnet/http -e '
   port = Integer(ARGV.fetch(0))
