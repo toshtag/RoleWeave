@@ -26,7 +26,7 @@ definition_of_done:
   - GitHub Actions で bin/verify が実行される
 verification:
   commands:
-    - scripts/verify-p0
+    - bin/verify --full
 tasks:
   - id: P0-T1
     type: docs
@@ -314,15 +314,66 @@ tasks:
   - id: P0-T6
     type: test
     ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: medium
+    verification_strength: strong
+    expected_duration: medium
+    status: done
+    description: "統一検証コマンドの追加（ブランチ: p0/t6-verify-command）。 開発者、AI Agent、将来の CI
+      が使用する検証入口を bin/verify へ一本化する。 標準モードではコンテナ内でアプリケーションと Code Pact を検証し、
+      --full では Docker、PostgreSQL、セットアップ冪等性を含む P0 完全検証を実行する。"
+    depends_on:
+      - P0-T5
+    reads:
+      - bin/setup
+      - bin/ci
+      - bin/rubocop
+      - bin/rails
+      - Gemfile
+      - Gemfile.lock
+      - package.json
+      - package-lock.json
+      - compose.yaml
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T6-unified-verification.md
+      - design/rules/**
+      - docs/architecture/principles.md
+      - docs/development/code-pact.md
+    writes:
+      - bin/verify
+      - bin/ci
+      - config/ci.rb
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T6-unified-verification.md
+  - id: P0-T6A
+    type: bugfix
+    ambiguity: low
     risk: low
     context_size: small
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: "統一検証コマンドの追加（ブランチ: p0/t6-verify-command）"
+    status: done
+    description: bin/ci が bin/verify --full へ委譲するだけの互換ラッパーであることを、
+      部分文字列ではなく実行構造全体で検証し、 独立した検証定義の混入を拒否する。
     depends_on:
-      - P0-T5
+      - P0-T6
+    reads:
+      - bin/ci
+      - bin/verify
+      - scripts/verify-p0
+      - design/acceptance/P0-T6-unified-verification.md
+      - design/acceptance/P0-T6A-ci-wrapper-enforcement.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T6A-ci-wrapper-enforcement.md
   - id: P0-T7
     type: architecture
     ambiguity: low
@@ -334,7 +385,7 @@ tasks:
     status: planned
     description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）"
     depends_on:
-      - P0-T6
+      - P0-T6A
   - id: P0-T8
     type: feature
     ambiguity: low

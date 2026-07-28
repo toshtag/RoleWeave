@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+# 統一検証コマンド。
+#
+# 正規の実行方法は次の 2 つだけとする。
+#
+#   docker compose run --rm app bin/verify   アプリケーションと制御面の標準検証
+#   bin/verify --full                        Docker 基盤と冪等性を含む P0 完全検証
+#
+# scripts/verify-p0 と scripts/verify-p0-docker は --full から呼ばれる内部実装であり、
+# 利用者と CI が直接実行する入口にはしない。
+#
+# 標準モードは検証だけを行う。
+# 依存関係のインストール、lockfile の更新、development データベースの変更、
+# サーバーの起動は行わない。準備は bin/setup の責務とする。
+#
+# 受け入れ条件の正本は design/acceptance/P0-T6-unified-verification.md とする。
+set -euo pipefail
+
+APP_ROOT="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/.."
+  pwd
+)"
+
+cd "$APP_ROOT"
+
+# 完全モードは P0 の累積検証へ委譲する。
+# 検証内容をここへ複製すると、正本が 2 つになる。
+if [[ "$#" -eq 1 && "$1" == "--full" ]]; then
+  exec scripts/verify-p0
+fi
+
+# 未知の引数を黙って無視しない。
+if [[ "$#" -ne 0 ]]; then
+  printf '使用方法: bin/verify [--full]\n' >&2
+  exit 1
+fi
+
+# コマンドは配列で渡し、shell の解釈を経由させない。
+run_step() {
+  local title="$1"
+  shift
+
+  printf '\n== %s ==\n' "$title"
+  "$@"
+}
+
+run_step "Ruby 依存関係" \
+  bundle check
+
+run_step "Node.js 依存関係" \
+  npm ls --depth=0
+
+run_step "Code Pact 構造検査" \
+  npm run pact:validate
+
+run_step "Code Pact 厳格 lint" \
+  npm run pact:lint
+
+run_step "Ruby スタイル" \
+  bin/rubocop
+
+run_step "test データベース準備" \
+  env RAILS_ENV=test bin/rails db:prepare
+
+run_step "Zeitwerk" \
+  env RAILS_ENV=test bin/rails zeitwerk:check
+
+# 実行時間の長い検証を最後へ置き、静的な契約違反を先に失敗させる。
+run_step "Rails test" \
+  env RAILS_ENV=test bin/rails test
+
+printf '\n== 検証完了 ==\n'

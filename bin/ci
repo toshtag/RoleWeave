@@ -1,6 +1,15 @@
-#!/usr/bin/env ruby
-require_relative "../config/boot"
-require "active_support/continuous_integration"
+#!/usr/bin/env bash
+# Rails 標準の CI 入口。
+#
+# 検証内容の正本は bin/verify だけとする。
+# ここへ独立したコマンド一覧を持たせると、検証の定義が二重になる。
+#
+# 引数の検査も bin/verify へ委譲する。
+set -euo pipefail
 
-CI = ActiveSupport::ContinuousIntegration
-require_relative "../config/ci.rb"
+APP_ROOT="$(
+  cd "$(dirname "${BASH_SOURCE[0]}")/.."
+  pwd
+)"
+
+exec "$APP_ROOT/bin/verify" --full "$@"
