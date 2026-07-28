@@ -5,7 +5,8 @@
 # 各検証は、対応するタスクが開始された時点で自動的に有効になる。
 # これにより、実装していないタスクを Code Pact の構造検査だけで完了できない状態を保つ。
 #
-# P0-T6 で bin/verify が完成した時点で、P0 の verification.commands を bin/verify へ一本化する。
+# P0-T6 以降、このスクリプトは bin/verify --full から呼ばれる内部実装とする。
+# 利用者と CI が直接実行する入口にはしない。
 set -euo pipefail
 
 # 進捗イベントの有無でタスクの開始を判定する。
@@ -127,8 +128,8 @@ fi
 
 # --- P0-T7 以前: GitHub Actions 関連ファイルの混入を拒否 ---------------------
 #
-# Rails 標準の bin/ci と config/ci.rb はローカル検証の入口であり、GitHub Actions ではない。
-# これらは拒否しない。P0-T6 で bin/verify との関係を確定する。
+# bin/ci はローカル検証の入口であり、GitHub Actions ではない。これは拒否しない。
+# bin/verify との関係は P0-T6 の検証で確定する。
 
 if ! task_has_event "P0-T7"; then
   test ! -e .github/workflows
@@ -214,6 +215,84 @@ if task_has_event "P0-T3"; then
   # Rails 生成後、README が事実誤認を残していないこと
   ! grep -Fq 'アプリケーションは実装されていません' README.md
   ! grep -Fq 'application itself has not been implemented' README.en.md
+fi
+
+# --- P0-T6: 統一検証コマンド --------------------------------------------------
+#
+# P0-T6 が開始された時点で有効になる。
+# Docker 検証は build とコンテナ起動を伴うため、契約違反はその前に失敗させる。
+# 受け入れ条件の詳細は design/acceptance/P0-T6-unified-verification.md を参照する。
+
+if task_has_event "P0-T6"; then
+  test -x bin/verify
+  test -x bin/ci
+
+  # 検証定義の二重正本を残さない。
+  test ! -e config/ci.rb
+
+  bash -n bin/verify
+  bash -n bin/ci
+
+  # フェーズ検証コマンドは YAML として解析する。
+  # Code Pact の serializer は表記を正規化するため、インデント前提の grep では検出できない。
+  ruby -ryaml -e '
+    phase = YAML.load_file("design/phases/P0-project-foundation.yaml")
+    commands = phase.fetch("verification").fetch("commands")
+
+    abort "unexpected P0 verification command: #{commands.inspect}" \
+      unless commands == ["bin/verify --full"]
+  '
+
+  # コメント行は検査対象から外す。
+  # 正規コマンドを説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
+  verify_body="$(grep -v '^[[:space:]]*#' bin/verify)"
+
+  required_verify_commands=(
+    'bundle check'
+    'npm ls --depth=0'
+    'npm run pact:validate'
+    'npm run pact:lint'
+    'bin/rubocop'
+    'env RAILS_ENV=test bin/rails db:prepare'
+    'env RAILS_ENV=test bin/rails zeitwerk:check'
+    'env RAILS_ENV=test bin/rails test'
+  )
+
+  for command in "${required_verify_commands[@]}"; do
+    if ! printf '%s\n' "$verify_body" | grep -Fq "$command"; then
+      printf 'bin/verify is missing required command: %s\n' "$command" >&2
+      exit 1
+    fi
+  done
+
+  # 標準モードは Docker を起動しない。基盤検証は完全モードの責務とする。
+  if printf '%s\n' "$verify_body" | grep -Eq '(^|[[:space:]])docker([[:space:]]|$)'; then
+    printf 'bin/verify standard mode must not invoke Docker directly\n' >&2
+    exit 1
+  fi
+
+  # セットアップと検証を混在させない。
+  if printf '%s\n' "$verify_body" | grep -Fq 'bin/setup'; then
+    printf 'bin/verify must not perform setup\n' >&2
+    exit 1
+  fi
+
+  # セキュリティ・依存関係検査の必須化は P0-T9 で扱う。
+  if printf '%s\n' "$verify_body" | grep -Eq 'bundler-audit|importmap audit|brakeman'; then
+    printf 'security audits belong to P0-T9\n' >&2
+    exit 1
+  fi
+
+  # bin/ci は委譲するだけの互換ラッパーとする。
+  grep -Fq 'exec "$APP_ROOT/bin/verify" --full "$@"' bin/ci
+
+  # 完全モードをコンテナ内から呼ぶと、この検証自身を無限に呼び戻す。
+  docker_verification_body="$(grep -v '^[[:space:]]*#' scripts/verify-p0-docker)"
+
+  if printf '%s\n' "$docker_verification_body" | grep -Fq 'bin/verify --full'; then
+    printf 'scripts/verify-p0-docker must not invoke the full mode\n' >&2
+    exit 1
+  fi
 fi
 
 # --- P0-T4: Docker Compose と PostgreSQL -------------------------------------

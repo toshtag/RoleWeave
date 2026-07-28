@@ -552,7 +552,19 @@ else
   compose run --rm app bin/rails db:prepare
 fi
 
-compose run --rm -e RAILS_ENV=test app bin/rails db:prepare
+# --- 動的検証: コンテナ内の標準検証（P0-T6） ---------------------------------
+#
+# P0-T6 以降、test DB の準備は bin/verify の責務とする。
+# 検証内容をここへ複製せず、正規コマンドをそのまま実測する。
+# bin/verify --full をコンテナ内から呼ぶと再帰するため、標準モードだけを実行する。
+#
+# 過去 tree では従来どおり db:prepare を直接実行する。
+
+if task_has_event "P0-T6"; then
+  compose run --rm app bin/verify
+else
+  compose run --rm -e RAILS_ENV=test app bin/rails db:prepare
+fi
 
 compose run --rm app bin/rails runner \
   'abort "unexpected server version" unless ActiveRecord::Base.connection.select_value("SHOW server_version_num").to_i == 180004'
