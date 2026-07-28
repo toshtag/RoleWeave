@@ -26,7 +26,7 @@ definition_of_done:
   - GitHub Actions で bin/verify が実行される
 verification:
   commands:
-    - npm run pact:validate
+    - scripts/verify-p0
 tasks:
   - id: P0-T1
     type: docs
@@ -71,6 +71,41 @@ tasks:
       - docs/code-pact/agent-instructions.md
       - docs/development/code-pact.md
       - docs/architecture/principles.md
+  - id: P0-T2A
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: medium
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: >-
+      P0-T2 のレビューで判明した制御面の不整合を修正し、
+      P0-T3 を境界・受け入れ条件・実装内容に対応した検証付きで開始可能にする。
+    depends_on:
+      - P0-T2
+    reads:
+      - design/phases/P0-project-foundation.yaml
+      - design/rules/task-scope.md
+      - design/rules/language-and-naming.md
+      - design/rules/architecture.md
+      - docs/architecture/principles.md
+      - docs/development/code-pact.md
+      - docs/code-pact/agent-instructions.md
+      - README.md
+      - README.en.md
+    writes:
+      - design/phases/P0-project-foundation.yaml
+      - design/acceptance/P0-T3-rails-bootstrap.md
+      - design/rules/coding-style.md
+      - design/rules/code-pact-execution.md
+      - design/rules/task-scope.md
+      - docs/architecture/principles.md
+      - docs/development/code-pact.md
+      - README.md
+      - README.en.md
+      - scripts/verify-p0
   - id: P0-T3
     type: architecture
     ambiguity: low
