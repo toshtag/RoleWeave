@@ -25,7 +25,9 @@ services:
       DATABASE_USERNAME: roleweave
       DATABASE_PASSWORD: roleweave
     ports:
-      - "${APP_PORT:-3000}:3000"
+      # ホスト IP を省略すると全インターフェースへ公開される。
+      # ローカル開発用のため IPv4 ループバックだけへバインドする。
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
     volumes:
       # 作業ツリーは bind mount し、依存キャッシュは named volume で分離する。
       - .:/workspace
