@@ -441,6 +441,37 @@ tasks:
       - scripts/verify-p0
     acceptance_refs:
       - design/acceptance/P0-T7-github-actions.md
+  - id: P0-T7A
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: Ruby の YAML 1.1 解釈によって GitHub Actions の非正規なキーと真偽値表現が
+      正規構造として受理される問題、および secrets コンテキスト全体への参照を検出できない問題を修正する。
+      構造検査自身の変異テストを追加し、P0-T6B の Docker 累積検証コメントも実際の authority へ合わせる。
+    depends_on:
+      - P0-T7
+    reads:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T6B-container-git-ownership.md
+      - design/acceptance/P0-T7-github-actions.md
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
   - id: P0-T8
     type: feature
     ambiguity: low
@@ -478,5 +509,6 @@ tasks:
     depends_on:
       - P0-T6B
       - P0-T7
+      - P0-T7A
       - P0-T8
       - P0-T9
