@@ -1,0 +1,405 @@
+#!/usr/bin/env bash
+# P0-T4 の Docker Compose 検証。
+#
+# scripts/verify-p0 から、P0-T4 の進捗イベントが記録された時点で呼び出される。
+# 受け入れ条件の正本は design/acceptance/P0-T4-docker-compose.md とする。
+#
+# 静的検証は docker compose config --format json の正規化結果を Ruby の JSON で解析する。
+# YAML のインデントに依存した grep だけでは、値の所属先を取り違える。
+#
+# 動的検証は専用の Compose project name と空きポートを使い、
+# 通常の開発用 project や volume へ影響を与えない。
+set -euo pipefail
+
+# 必須の行がちょうど 1 件だけ存在することを確認する。
+# 欠落と重複の両方を失敗として扱う。
+require_exact_line_once() {
+  local expected="$1"
+  local file="$2"
+  local count
+
+  if [[ ! -f "$file" ]]; then
+    printf 'required file is missing: %s\n' "$file" >&2
+    return 1
+  fi
+
+  count="$(
+    awk -v expected="$expected" '
+      $0 == expected { count += 1 }
+      END { print count + 0 }
+    ' "$file"
+  )"
+
+  if [[ "$count" -ne 1 ]]; then
+    printf \
+      'expected exactly one line in %s, found %s: %s\n' \
+      "$file" \
+      "$count" \
+      "$expected" \
+      >&2
+    return 1
+  fi
+}
+
+# --- 前提: Docker が使用できること -------------------------------------------
+
+docker info >/dev/null
+
+# --- 静的検証: 必須ファイル ---------------------------------------------------
+
+test -f Dockerfile
+test -f compose.yaml
+test -f .dockerignore
+test -x bin/docker-entrypoint
+test -x bin/docker-healthcheck
+test ! -e docker-compose.yml
+
+# --- 静的検証: Dockerfile -----------------------------------------------------
+#
+# ベースイメージはパッチバージョンまで固定する。
+# ARG の既定値と FROM の参照先の両方を検査し、フローティングタグを拒否する。
+
+require_exact_line_once "ARG RUBY_VERSION=4.0.6" Dockerfile
+require_exact_line_once "ARG NODE_VERSION=24.18.0" Dockerfile
+require_exact_line_once \
+  'FROM node:${NODE_VERSION}-bookworm-slim AS node_runtime' \
+  Dockerfile
+require_exact_line_once \
+  'FROM ruby:${RUBY_VERSION}-slim-bookworm AS development' \
+  Dockerfile
+
+unexpected_from="$(
+  awk '
+    $1 == "FROM" && $2 != "node:${NODE_VERSION}-bookworm-slim" \
+      && $2 != "ruby:${RUBY_VERSION}-slim-bookworm" { print $2 }
+  ' Dockerfile
+)"
+
+if [[ -n "$unexpected_from" ]]; then
+  printf 'unexpected base image in Dockerfile: %s\n' "$unexpected_from" >&2
+  exit 1
+fi
+
+# Node.js は必要な実体だけを取得する。/usr/local 全体をコピーすると Ruby を壊す。
+if grep -Eq '^COPY --from=node_runtime /usr/local/?[[:space:]]' Dockerfile; then
+  printf 'Dockerfile must not copy the whole /usr/local from the node image\n' >&2
+  exit 1
+fi
+
+# lockfile を変更できない状態で依存を解決していること。
+grep -Fq "BUNDLE_FROZEN=true bundle install" Dockerfile
+grep -Fq "npm ci" Dockerfile
+! grep -Eq '^[[:space:]]*RUN[[:space:]].*npm[[:space:]]+install' Dockerfile
+
+# 本番向けの処理を開発用イメージへ持ち込まない。
+! grep -Fq "assets:precompile" Dockerfile
+! grep -Eq 'RAILS_ENV[=:][[:space:]]*production' Dockerfile
+! grep -Fq "db:prepare" Dockerfile
+
+# --- 静的検証: .dockerignore --------------------------------------------------
+
+dockerignore_lines=(
+  ".git"
+  ".context"
+  ".local"
+  ".code-pact/cache"
+  ".code-pact/locks"
+  ".code-pact/state/locks"
+  "node_modules"
+  ".bundle"
+  ".env*"
+  "config/*.key"
+  "log/*"
+  "tmp/*"
+  "storage/*"
+  "public/assets"
+  "!log/.keep"
+  "!tmp/.keep"
+  "!tmp/pids/.keep"
+  "!tmp/storage/.keep"
+  "!storage/.keep"
+)
+
+for line in "${dockerignore_lines[@]}"; do
+  require_exact_line_once "$line" .dockerignore
+done
+
+# Code Pact の制御面と検証スクリプトは build context に残す。
+for kept in design docs scripts .code-pact; do
+  if awk -v kept="$kept" '
+    $0 == kept || $0 == kept "/" || $0 == kept "/*" || $0 == "/" kept { found = 1 }
+    END { exit found ? 0 : 1 }
+  ' .dockerignore; then
+    printf '.dockerignore must not exclude %s\n' "$kept" >&2
+    exit 1
+  fi
+done
+
+# --- 静的検証: config/database.yml -------------------------------------------
+#
+# 接続先は環境変数で与える。Docker 固有のホスト名や資格情報を設定ファイルへ書かない。
+
+for variable in DATABASE_HOST DATABASE_PORT DATABASE_USERNAME DATABASE_PASSWORD; do
+  if ! grep -Fq "$variable" config/database.yml; then
+    printf 'config/database.yml must reference %s\n' "$variable" >&2
+    exit 1
+  fi
+done
+
+grep -Eq '^[[:space:]]+database:[[:space:]]*role_weave_development$' config/database.yml
+grep -Eq '^[[:space:]]+database:[[:space:]]*role_weave_test$' config/database.yml
+
+if grep -Eq '^[[:space:]]*host:[[:space:]]*db[[:space:]]*$' config/database.yml; then
+  printf 'config/database.yml must not hardcode the Docker hostname\n' >&2
+  exit 1
+fi
+
+# --- 静的検証: Compose 定義 ---------------------------------------------------
+
+if grep -Eq '^version:' compose.yaml; then
+  printf 'compose.yaml must not declare a top-level version key\n' >&2
+  exit 1
+fi
+
+docker compose config --quiet
+
+compose_json="$(mktemp)"
+trap 'rm -f "$compose_json"' EXIT
+
+docker compose config --format json > "$compose_json"
+
+ruby - "$compose_json" <<'RUBY'
+require "json"
+
+config = JSON.parse(File.read(ARGV.fetch(0)))
+failures = []
+
+def check(failures, condition, message)
+  failures << message unless condition
+end
+
+services = config.fetch("services", {})
+check(failures, services.keys.sort == %w[app db], "services must be exactly app and db, got #{services.keys.sort.inspect}")
+
+app = services["app"] || {}
+db = services["db"] || {}
+
+# app: build target と固定バージョン
+build = app["build"] || {}
+check(failures, build["target"] == "development", "app build target must be development, got #{build["target"].inspect}")
+check(failures, (build["args"] || {})["RUBY_VERSION"] == "4.0.6", "app build arg RUBY_VERSION must be 4.0.6")
+check(failures, (build["args"] || {})["NODE_VERSION"] == "24.18.0", "app build arg NODE_VERSION must be 24.18.0")
+
+# db: 固定イメージ
+check(failures, db["image"] == "postgres:18.4-bookworm", "db image must be postgres:18.4-bookworm, got #{db["image"].inspect}")
+
+# db: ホストへポートを公開しない
+check(failures, Array(db["ports"]).empty?, "db must not publish ports to the host")
+
+# app: ループバックだけへ公開する。
+# ホスト IP を省略すると Docker はすべてのホストインターフェースへバインドする。
+app_ports = Array(app["ports"])
+check(failures, app_ports.length == 1, "app must publish exactly one port, got #{app_ports.inspect}")
+
+app_port = app_ports.first || {}
+check(failures, app_port["host_ip"] == "127.0.0.1", "app port must bind to 127.0.0.1, got #{app_port["host_ip"].inspect}")
+check(failures, app_port["target"].to_i == 3000, "app container port must be 3000, got #{app_port["target"].inspect}")
+check(failures, app_port["protocol"].to_s.empty? || app_port["protocol"] == "tcp", "app port protocol must be tcp, got #{app_port["protocol"].inspect}")
+
+# db: PostgreSQL 18 のボリューム位置
+db_volumes = Array(db["volumes"])
+pgdata = db_volumes.find { |volume| volume["target"].to_s.start_with?("/var/lib/postgresql") }
+check(failures, !pgdata.nil?, "db must persist /var/lib/postgresql")
+if pgdata
+  check(failures, pgdata["target"] == "/var/lib/postgresql", "db volume target must be /var/lib/postgresql (PostgreSQL 18), got #{pgdata["target"].inspect}")
+  check(failures, pgdata["type"] == "volume", "db data must use a named volume")
+  check(failures, pgdata["source"] == "postgres_data", "db data volume source must be postgres_data")
+end
+check(failures, db_volumes.none? { |volume| volume["target"].to_s.start_with?("/var/lib/postgresql/data") }, "db must not mount the PostgreSQL 17 layout /var/lib/postgresql/data")
+
+# db: trust 認証を使用しない
+db_environment = db["environment"] || {}
+check(failures, !db_environment.key?("POSTGRES_HOST_AUTH_METHOD"), "db must not set POSTGRES_HOST_AUTH_METHOD")
+check(failures, db_environment["POSTGRES_USER"] == "roleweave", "db POSTGRES_USER must be roleweave")
+check(failures, db_environment["POSTGRES_DB"] == "role_weave_development", "db POSTGRES_DB must be role_weave_development")
+
+# app: 起動順序
+depends_on = app["depends_on"] || {}
+check(failures, depends_on.key?("db"), "app must depend on db")
+check(failures, (depends_on["db"] || {})["condition"] == "service_healthy", "app must wait for db service_healthy")
+
+# healthcheck
+%w[app db].each do |name|
+  healthcheck = (services[name] || {})["healthcheck"] || {}
+  check(failures, !Array(healthcheck["test"]).empty?, "#{name} must define a healthcheck")
+  check(failures, healthcheck["disable"] != true, "#{name} healthcheck must not be disabled")
+end
+
+# app: DB 接続環境変数
+app_environment = app["environment"] || {}
+{
+  "DATABASE_HOST" => "db",
+  "DATABASE_PORT" => "5432",
+  "DATABASE_USERNAME" => "roleweave",
+  "DATABASE_PASSWORD" => "roleweave"
+}.each do |key, value|
+  check(failures, app_environment[key] == value, "app environment #{key} must be #{value.inspect}, got #{app_environment[key].inspect}")
+end
+
+# app: bind mount と依存キャッシュ volume の分離
+app_volumes = Array(app["volumes"])
+workspace = app_volumes.find { |volume| volume["target"] == "/workspace" }
+check(failures, workspace && workspace["type"] == "bind", "app must bind mount the working tree at /workspace")
+{
+  "/usr/local/bundle" => "bundle",
+  "/workspace/node_modules" => "node_modules"
+}.each do |target, source|
+  mount = app_volumes.find { |volume| volume["target"] == target }
+  check(failures, mount && mount["type"] == "volume" && mount["source"] == source, "app must mount the named volume #{source} at #{target}")
+end
+check(failures, app_volumes.none? { |volume| volume["type"] == "volume" && volume["source"].to_s.empty? }, "app must not use anonymous volumes")
+
+# named volume
+check(failures, config.fetch("volumes", {}).keys.sort == %w[bundle node_modules postgres_data], "named volumes must be exactly bundle, node_modules and postgres_data")
+
+# 運用上の固定を持ち込まない
+services.each do |name, service|
+  check(failures, !service.key?("restart"), "#{name} must not set a restart policy")
+  check(failures, !service.key?("container_name"), "#{name} must not set container_name")
+  check(failures, service["platform"].to_s.empty?, "#{name} must not pin platform")
+  check(failures, !service.key?("develop"), "#{name} must not configure Compose Watch")
+  check(failures, Array(service["profiles"]).empty?, "#{name} must not use profiles")
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("compose contract violation: #{failure}") }
+  exit 1
+end
+RUBY
+
+# --- 動的検証: 隔離した検証環境 -----------------------------------------------
+#
+# 通常の開発用 project や volume を壊さないよう、専用の project name を使う。
+# ホストポートは実行時に空きポートを取得し、既存プロセスと衝突させない。
+
+project_name="roleweave-p0-verify-$$"
+
+app_port="$(
+  ruby -rsocket -e '
+    server = TCPServer.new("127.0.0.1", 0)
+    puts server.addr[1]
+    server.close
+  '
+)"
+
+compose() {
+  APP_PORT="$app_port" docker compose --project-name "$project_name" "$@"
+}
+
+cleanup() {
+  local status=$?
+
+  # --rmi local は project 名から自動生成した検証専用イメージだけを対象にする。
+  # 明示的に image を指定している postgres は削除しない。
+  APP_PORT="$app_port" docker compose \
+    --project-name "$project_name" \
+    down \
+    --volumes \
+    --remove-orphans \
+    --rmi local \
+    >/dev/null 2>&1 || true
+
+  rm -f "$compose_json"
+
+  return "$status"
+}
+
+trap cleanup EXIT
+
+compose build app
+
+# --- 動的検証: app イメージの中身 ---------------------------------------------
+#
+# DB を起動せずに確認する。
+
+compose run --rm --no-deps app \
+  ruby -e 'abort "unexpected Ruby #{RUBY_VERSION}" unless RUBY_VERSION == "4.0.6"'
+
+container_node_version="$(compose run --rm --no-deps app node --version | tr -d '\r\n')"
+test "$container_node_version" = "v24.18.0"
+
+container_rails_version="$(compose run --rm --no-deps app bundle exec rails --version | tr -d '\r\n')"
+test "$container_rails_version" = "Rails 8.1.3"
+
+compose run --rm --no-deps app bundle check
+compose run --rm --no-deps app npm ls --depth=0 >/dev/null
+
+# --- 動的検証: PostgreSQL ------------------------------------------------------
+
+compose up -d --wait db
+
+container_server_version="$(
+  compose exec -T db \
+    psql -U roleweave -d role_weave_development -Atc 'SHOW server_version_num;' \
+    | tr -d '\r\n'
+)"
+test "$container_server_version" = "180004"
+
+# --- 動的検証: Rails からの DB 準備 -------------------------------------------
+
+compose run --rm app bin/rails db:prepare
+compose run --rm -e RAILS_ENV=test app bin/rails db:prepare
+
+compose run --rm app bin/rails runner \
+  'abort "unexpected server version" unless ActiveRecord::Base.connection.select_value("SHOW server_version_num").to_i == 180004'
+
+# --- 動的検証: DB の永続化 -----------------------------------------------------
+#
+# db コンテナを削除して再作成しても、named volume の内容が失われないことを確認する。
+
+compose exec -T db \
+  psql -U roleweave -d role_weave_development -v ON_ERROR_STOP=1 -q -c "
+    CREATE TABLE docker_persistence_probe (value text NOT NULL);
+    INSERT INTO docker_persistence_probe (value) VALUES ('persisted');
+  "
+
+compose stop db
+compose rm -f db
+compose up -d --wait db
+
+probe_value="$(
+  compose exec -T db \
+    psql -U roleweave -d role_weave_development -Atc \
+    'SELECT value FROM docker_persistence_probe;' \
+    | tr -d '\r\n'
+)"
+test "$probe_value" = "persisted"
+
+compose exec -T db \
+  psql -U roleweave -d role_weave_development -v ON_ERROR_STOP=1 -q -c \
+  'DROP TABLE docker_persistence_probe;'
+
+# --- 動的検証: app の起動と healthcheck ---------------------------------------
+
+compose up -d --wait app
+
+# 正規化結果だけでなく、実際に公開された endpoint がループバック限定であることを確認する。
+published_endpoint="$(compose port app 3000 | tr -d '\r\n')"
+test "$published_endpoint" = "127.0.0.1:${app_port}"
+
+ruby -rnet/http -e '
+  port = Integer(ARGV.fetch(0))
+  response = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/up"))
+  abort "health check failed: #{response.code}" unless response.code == "200"
+' "$app_port"
+
+# --- 事後確認: 契約外のファイルを書き換えていないこと --------------------------
+#
+# 作業ツリーは bind mount されているため、コンテナ内の操作が
+# 依存定義を書き換えていないことを最後に確認する。
+
+git diff --quiet HEAD -- \
+  Gemfile \
+  Gemfile.lock \
+  package.json \
+  package-lock.json

@@ -1,0 +1,72 @@
+# ローカル開発用の Docker Compose 定義。
+#
+# サービスは app と db の 2 つだけとする。
+# 資格情報は開発専用の固定値であり、本番環境へ流用できる設計として扱わない。
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development
+      args:
+        RUBY_VERSION: "4.0.6"
+        NODE_VERSION: "24.18.0"
+    init: true
+    command:
+      - bin/rails
+      - server
+      - -b
+      - 0.0.0.0
+    environment:
+      RAILS_ENV: development
+      DATABASE_HOST: db
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: roleweave
+      DATABASE_PASSWORD: roleweave
+    ports:
+      # ホスト IP を省略すると全インターフェースへ公開される。
+      # ローカル開発用のため IPv4 ループバックだけへバインドする。
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      # 作業ツリーは bind mount し、依存キャッシュは named volume で分離する。
+      - .:/workspace
+      - bundle:/usr/local/bundle
+      - node_modules:/workspace/node_modules
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - bin/docker-healthcheck
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    stdin_open: true
+    tty: true
+
+  db:
+    image: postgres:18.4-bookworm
+    environment:
+      POSTGRES_USER: roleweave
+      POSTGRES_PASSWORD: roleweave
+      POSTGRES_DB: role_weave_development
+    volumes:
+      # PostgreSQL 18 では永続データのマウント先が /var/lib/postgresql へ変更されている。
+      # 17 以前の /var/lib/postgresql/data をマウントしても永続化されない。
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U roleweave -d role_weave_development
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 5s
+
+volumes:
+  bundle:
+  node_modules:
+  postgres_data:

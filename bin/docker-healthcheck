@@ -1,0 +1,25 @@
+#!/usr/bin/env ruby
+# app サービスの healthcheck。
+#
+# Rails の /up へ HTTP リクエストし、応答が成功かどうかだけを終了コードで返す。
+# 業務ログや例外詳細は出力しない。
+
+require "net/http"
+
+begin
+  port = ENV.fetch("PORT", "3000")
+  uri = URI("http://127.0.0.1:#{port}/up")
+
+  response = Net::HTTP.start(
+    uri.host,
+    uri.port,
+    open_timeout: 1,
+    read_timeout: 1
+  ) do |http|
+    http.get(uri.request_uri)
+  end
+
+  exit(response.is_a?(Net::HTTPSuccess) ? 0 : 1)
+rescue StandardError
+  exit 1
+end
