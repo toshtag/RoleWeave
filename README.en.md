@@ -8,9 +8,9 @@ An open source, self-hostable recruiting platform.
 
 **Under development. Not recommended for production use.**
 
-This repository is at an early stage. At present it contains only the development
-policy and the roadmap; the application itself has not been implemented.
-Breaking changes may be made without notice.
+This repository is at an early stage. The Rails application foundation is present,
+but business features such as job postings, applications, and authentication have
+not yet been implemented. Breaking changes may be made without notice.
 
 ## About this project
 
