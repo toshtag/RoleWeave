@@ -276,15 +276,41 @@ tasks:
   - id: P0-T5
     type: architecture
     ambiguity: low
-    risk: low
-    context_size: small
+    risk: medium
+    context_size: medium
     write_surface: low
     verification_strength: strong
-    expected_duration: short
-    status: planned
-    description: "冪等なセットアップコマンドの追加（ブランチ: p0/t5-idempotent-setup）"
+    expected_duration: medium
+    status: done
+    description: "Docker Compose の新規環境で bin/setup を実行し、 Ruby・Node.js 依存関係と
+      development データベースを準備して正常終了させる。 同じ環境で再実行しても既存データや依存定義を破壊せず、
+      同じ開発可能な状態へ収束することを保証する（ブランチ: p0/t5-idempotent-setup）。"
     depends_on:
       - P0-T4A
+    reads:
+      - bin/setup
+      - bin/dev
+      - bin/rails
+      - Gemfile
+      - Gemfile.lock
+      - package.json
+      - package-lock.json
+      - db/seeds.rb
+      - config/database.yml
+      - Dockerfile
+      - compose.yaml
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T5-idempotent-setup.md
+      - design/rules/**
+      - docs/architecture/principles.md
+      - docs/development/language-policy.md
+      - docs/development/code-pact.md
+    writes:
+      - bin/setup
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T5-idempotent-setup.md
   - id: P0-T6
     type: test
     ambiguity: low
