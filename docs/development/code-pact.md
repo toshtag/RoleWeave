@@ -74,8 +74,15 @@ P0-T2 は code-pact 自体を導入するタスクであるため、通常のラ
 この例外は P0-T2 に限る。
 
 - P0-T1 は code-pact 導入以前に完了した既存タスクである。
-  code-pact 上の実行履歴を持たないため、`.code-pact/state/` に偽のイベント履歴を作らない。
-  設計上の状態としてのみ `done` を維持する。
+  P0-T2 は P0-T1 に依存するため、依存解決のために完了実績を記録する必要がある。
+  実行していない検証を成功として扱わないよう、`task complete` ではなく
+  `task record-done` を使い、`source: external` のイベントとして記録する。
+  検証コマンドを実行したかのような履歴を作らない。
+
+  ```bash
+  npm exec -- code-pact task record-done P0-T1 --agent generic \
+    --evidence "<マージ済みコミットまたは PR>" --notes "<記録理由>"
+  ```
 - P0-T2 は、最低限の制御面（`design/roadmap.yaml`、`design/phases/`、P0-T2 の契約）を
   生成したあとに `task prepare` と `task start` を実行する。
 - P0-T3 以降は、実装前に必ず `task prepare` と `task start` を実行する。

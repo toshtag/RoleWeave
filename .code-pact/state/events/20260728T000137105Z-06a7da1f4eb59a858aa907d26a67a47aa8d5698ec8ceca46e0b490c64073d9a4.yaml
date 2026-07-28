@@ -1,0 +1,11 @@
+task_id: P0-T1
+status: done
+at: 2026-07-28T00:01:37.105Z
+actor: agent
+agent: generic
+author: Pocket
+evidence:
+  - "code-pact 導入以前に完了。main の 32c6727 (PR #1) としてマージ済み。"
+notes: "P0-T1 は code-pact 導入前のタスクのため、source: external として記録する。"
+source: external
+id: 06a7da1f4eb59a858aa907d26a67a47aa8d5698ec8ceca46e0b490c64073d9a4
