@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# コンテナ起動時の前処理。
+#
+# 依存インストールと DB 準備はここで行わない。
+# PostgreSQL の待機は Compose の depends_on / service_healthy に委ねる。
+set -euo pipefail
+
+# 前回の異常終了で残った Puma の PID ファイルだけを取り除く。
+rm -f /workspace/tmp/pids/server.pid
+
+exec "$@"
