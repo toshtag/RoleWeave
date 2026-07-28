@@ -140,11 +140,9 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: >-
-      P0 の検証で実行中の Node.js・Ruby バージョンと、
-      既存 gitignore 設定および Rails 標準の keep 例外を検証し、
-      不完全な Rails 初期化を成功扱いできないようにする。
+    status: done
+    description: P0 の検証で実行中の Node.js・Ruby バージョンと、 既存 gitignore 設定および Rails 標準の keep
+      例外を検証し、 不完全な Rails 初期化を成功扱いできないようにする。
     depends_on:
       - P0-T2B
     reads:

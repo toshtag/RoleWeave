@@ -17,8 +17,13 @@ JavaScript:        importmap
 Test framework:    Minitest
 ```
 
+開発ランタイムは Node.js `24.18.0`（`.node-version`）を前提とする。
+
 別バージョンを自動選択しない。
 実行環境に Ruby 4.0.6 または Rails 8.1.3 がない場合は、別バージョンで生成せず、環境を整備してから実行する。
+
+`.ruby-version` と `.node-version` のファイル内容だけでは不十分である。
+実際に動いているランタイムが一致していることを確認する。
 
 ## 生成方針
 
@@ -70,16 +75,64 @@ Test framework:    Minitest
 `--skip-git` は Git 初期化に加えて `.gitignore` と `.gitattributes` の生成も省略する。
 そのため、生成後に手動で整備する。
 
-- 現在の Code Pact と Node.js 用の ignore 設定を保持する
-- Rails 8.1.3 標準の ignore 設定を追記する
-  （`/.bundle`、`/.env*`、`/log/*`、`/tmp/*`、`/storage/*`、`/public/assets` と対応する `.keep` の除外解除）
-- `/config/*.key` を必ず無視する
-  Rails の credentials generator は `.gitignore` が存在する場合にこの行を追記するが、
-  `--skip-git` では `.gitignore` 自体が生成されないため、追記されずに警告だけが出る
-- Rails 標準の `.gitattributes` を追加する
-  （`db/schema.rb linguist-generated`、`vendor/* linguist-vendored`）
+### 保持する既存の ignore 設定
+
+次の行を置換、削除、重複させない。
+
+```text
+/node_modules/
+/.code-pact/locks/
+/.code-pact/state/locks/
+/.code-pact/cache/
+/.local/
+/.context/
+```
+
+`.gitignore` 全体を Rails 生成物で置き換える実装は成功扱いにしない。
+
+### 追記する Rails 8.1.3 標準の ignore 設定
+
+次の行をちょうど 1 件ずつ持たせる。
+
+```text
+/.bundle
+/.env*
+/log/*
+!/log/.keep
+/tmp/*
+!/tmp/.keep
+/tmp/pids/*
+!/tmp/pids/
+!/tmp/pids/.keep
+/storage/*
+!/storage/.keep
+/tmp/storage/*
+!/tmp/storage/
+!/tmp/storage/.keep
+/public/assets
+/config/*.key
+```
+
+`.keep` の除外解除がないと、Rails が生成する `log/.keep`、`tmp/.keep`、`storage/.keep` などが
+Git 管理対象にならず、維持すると宣言した標準生成物が失われる。
+`/tmp/pids/` と `/tmp/storage/` はディレクトリ自体を再包含する。
+
+`/config/*.key` は、Rails の credentials generator が `.gitignore` の存在時にのみ追記する。
+`--skip-git` では `.gitignore` 自体が生成されないため追記されず、警告だけが出る。
+
+### `.gitattributes`
+
+Rails 標準の次の行を、ちょうど 1 件ずつ持たせる。
+
+```text
+db/schema.rb linguist-generated
+vendor/* linguist-vendored
+```
+
+### 共通の要件
+
 - 既存設定を全面置換しない
-- 同じ行を重複させない
+- 同じ行を重複させない（欠落と重複の両方を検証で拒否する）
 
 ## credentials
 
@@ -145,11 +198,15 @@ README 全体を書き換えない。
 ## 正の検証
 
 - `.ruby-version` が `4.0.6`
+- 実行中の `RUBY_VERSION` が `4.0.6`
+- 実行中の `node --version` が `v24.18.0`
 - `bundle exec rails --version` が `Rails 8.1.3`
 - `Gemfile` に `pg` がある
 - `config/database.yml` が PostgreSQL を使用する
 - `config/application.rb` のアプリケーション名前空間が `RoleWeave`
-- `.gitignore` に Rails 用除外設定と `/config/*.key` がある
+- `.gitignore` が既存の Code Pact / Node.js 用設定を保持している
+- `.gitignore` に Rails 用除外設定、`.keep` の除外解除、`/config/*.key` がある
+- `.gitignore` と `.gitattributes` の必須行がいずれも重複していない
 - `.gitattributes` がある
 - `.rubocop.yml` がある
 - `bundle check` が成功する
@@ -178,8 +235,9 @@ env RAILS_ENV=test DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test PGCONNEC
 
 ## 負の検証
 
-- README、LICENSE、`design/`、`docs/`、`.github/`、`package.json`、`package-lock.json` を
-  「現在の状態」節以外で変更していない
+- `README.md` と `README.en.md` は、「現在の状態」節以外を変更していない
+- `LICENSE`、`design/`、`docs/`、`.github/`、`package.json`、`package-lock.json` を変更していない
+  （受け入れ条件や設計文書を、実装の都合に合わせて変更しない）
 - `config/master.key` がない
 - `config/credentials.yml.enc` がない
 - Docker 関連ファイル（`Dockerfile`、`.dockerignore`、`bin/docker-entrypoint`、
@@ -201,9 +259,14 @@ env RAILS_ENV=test DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test PGCONNEC
 上記のうち機械的に確認できる項目は `scripts/verify-p0` に実装済みで、
 P0-T3 の `started` イベントが記録された時点から自動的に有効になる。
 
+- 実行中の Node.js が `24.18.0`、`package.json` の `engines.node` が `>=24.18.0 <25`（P0 全体で常時）
+- 既存の Code Pact / Node.js 用 ignore 設定の保持（P0 全体で常時）
 - Rails 実体の存在確認、`pg` gem、`adapter: postgresql`、`module RoleWeave`
-- `.ruby-version` = `4.0.6`、`bundle exec rails --version` = `Rails 8.1.3`
-- `.gitignore` の Rails 用除外設定と `/config/*.key`、`.gitattributes`、`.rubocop.yml`
+- `.ruby-version` = `4.0.6`、実行中の `RUBY_VERSION` = `4.0.6`、
+  `bundle exec rails --version` = `Rails 8.1.3`
+- `.gitignore` の Rails 用除外設定、`.keep` の除外解除、`/config/*.key`、
+  `.gitattributes`、`.rubocop.yml`
+- `.gitignore` と `.gitattributes` の必須行の重複拒否
 - `bundle check`、PostgreSQL なしでの `zeitwerk:check` と名前空間 boot 確認
 - README の古い文言が残っていないこと
 - Kamal / Thruster / devcontainer / master key / credentials の不在（P0 全体で常時）

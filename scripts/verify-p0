@@ -15,7 +15,62 @@ task_has_event() {
   grep -Rqs "^task_id: ${task_id}$" .code-pact/state/events
 }
 
-# --- P0-T2 / P0-T2A / P0-T2B: Code Pact 制御面 -------------------------------
+# 必須の行がちょうど 1 件だけ存在することを確認する。
+# 欠落と重複の両方を失敗として扱う。
+# 単純な存在確認では、既存設定を置換した不完全なファイルや、
+# 同じ行を繰り返し追記したファイルを検出できない。
+require_exact_line_once() {
+  local expected="$1"
+  local file="$2"
+  local count
+
+  if [[ ! -f "$file" ]]; then
+    printf 'required file is missing: %s\n' "$file" >&2
+    return 1
+  fi
+
+  count="$(
+    awk -v expected="$expected" '
+      $0 == expected { count += 1 }
+      END { print count + 0 }
+    ' "$file"
+  )"
+
+  if [[ "$count" -ne 1 ]]; then
+    printf \
+      'expected exactly one line in %s, found %s: %s\n' \
+      "$file" \
+      "$count" \
+      "$expected" \
+      >&2
+    return 1
+  fi
+}
+
+# --- 開発ランタイム -----------------------------------------------------------
+#
+# ファイルに書かれたバージョンだけでなく、実際に動いている Node.js を検査する。
+# バージョンマネージャーの切り替え漏れを、Code Pact の検証より前に失敗させる。
+
+test -f .node-version
+
+expected_node_version="$(tr -d '\r\n' < .node-version)"
+
+test "$expected_node_version" = "24.18.0"
+test "$(node --version)" = "v${expected_node_version}"
+
+node -e '
+  const packageJson = require("./package.json");
+
+  if (packageJson.engines?.node !== ">=24.18.0 <25") {
+    console.error(
+      `unexpected package.json engines.node: ${packageJson.engines?.node}`
+    );
+    process.exit(1);
+  }
+'
+
+# --- P0-T2 / P0-T2A / P0-T2B / P0-T2C: Code Pact 制御面 ----------------------
 #
 # plan lint は必ず strict で実行する。
 # --strict でのみ終了コードへ反映される警告（TASK_ID_PHASE_PREFIX など）を見逃さない。
@@ -29,6 +84,23 @@ test -f design/rules/coding-style.md
 test -f design/rules/code-pact-execution.md
 test -f design/acceptance/P0-T3-rails-bootstrap.md
 test -f docs/development/code-pact.md
+
+# --- 既存 .gitignore 設定の保持 -----------------------------------------------
+#
+# P0-T3 で Rails 用の除外設定を追記する際、これらを置換・削除・重複させない。
+
+project_gitignore_lines=(
+  "/node_modules/"
+  "/.code-pact/locks/"
+  "/.code-pact/state/locks/"
+  "/.code-pact/cache/"
+  "/.local/"
+  "/.context/"
+)
+
+for line in "${project_gitignore_lines[@]}"; do
+  require_exact_line_once "$line" .gitignore
+done
 
 # --- P0 全体で持ち込まない生成物 ---------------------------------------------
 #
@@ -79,9 +151,10 @@ if task_has_event "P0-T3"; then
   test -d app
   test -d test
 
-  # 固定バージョン
+  # 固定バージョン。ファイルの内容だけでなく実行中のランタイムを検査する。
   test -f .ruby-version
   test "$(tr -d '\r\n' < .ruby-version)" = "4.0.6"
+  test "$(ruby -e 'print RUBY_VERSION')" = "4.0.6"
   test "$(bundle exec rails --version)" = "Rails 8.1.3"
 
   # --skip-git で生成されない Git 管理ファイルを補っていること
@@ -89,16 +162,33 @@ if task_has_event "P0-T3"; then
   test -f .gitattributes
   test -f .rubocop.yml
 
-  grep -Fqx '/.bundle' .gitignore
-  grep -Fqx '/.env*' .gitignore
-  grep -Fqx '/log/*' .gitignore
-  grep -Fqx '/tmp/*' .gitignore
-  grep -Fqx '/storage/*' .gitignore
-  grep -Fqx '/public/assets' .gitignore
-  grep -Fqx '/config/*.key' .gitignore
+  # Rails 8.1.3 標準の除外設定。
+  # .keep の除外解除がないと、維持すると宣言した .keep が Git 管理対象にならない。
+  rails_gitignore_lines=(
+    "/.bundle"
+    "/.env*"
+    "/log/*"
+    "!/log/.keep"
+    "/tmp/*"
+    "!/tmp/.keep"
+    "/tmp/pids/*"
+    "!/tmp/pids/"
+    "!/tmp/pids/.keep"
+    "/storage/*"
+    "!/storage/.keep"
+    "/tmp/storage/*"
+    "!/tmp/storage/"
+    "!/tmp/storage/.keep"
+    "/public/assets"
+    "/config/*.key"
+  )
 
-  grep -Fqx 'db/schema.rb linguist-generated' .gitattributes
-  grep -Fqx 'vendor/* linguist-vendored' .gitattributes
+  for line in "${rails_gitignore_lines[@]}"; do
+    require_exact_line_once "$line" .gitignore
+  done
+
+  require_exact_line_once "db/schema.rb linguist-generated" .gitattributes
+  require_exact_line_once "vendor/* linguist-vendored" .gitattributes
 
   grep -Eq 'gem[[:space:]]+["'\'']pg["'\'']' Gemfile
   grep -Eq 'adapter:[[:space:]]*postgresql' config/database.yml
