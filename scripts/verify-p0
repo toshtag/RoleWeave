@@ -355,6 +355,83 @@ RUBY
   fi
 fi
 
+# --- P0-T8: 日本語・英語の i18n 基盤 ------------------------------------------
+#
+# P0-T8 が開始された時点で有効になる。
+# Docker 検証より前へ置き、契約違反を build より先に失敗させる。
+# 受け入れ条件の詳細は design/acceptance/P0-T8-i18n-bootstrap.md を参照する。
+
+if task_has_event "P0-T8"; then
+  test -f config/locales/ja.yml
+  test -f config/locales/en.yml
+  test -f test/configuration/i18n_configuration_test.rb
+
+  # 共通の日本語ロケールデータは依存で賄う。同じ gem を複数の行で宣言しない。
+  # 宣言が重複すると、後の行のバージョン指定が黙って優先される。
+  rails_i18n_declarations="$(
+    grep -Ec '^[[:space:]]*gem[[:space:]]+["'\'']rails-i18n["'\'']' Gemfile || true
+  )"
+
+  if [[ "$rails_i18n_declarations" -ne 1 ]]; then
+    printf \
+      'expected exactly one rails-i18n declaration in Gemfile, found %s\n' \
+      "$rails_i18n_declarations" \
+      >&2
+    exit 1
+  fi
+
+  # 設定ファイルの記述ではなく、boot 後の I18n の実測値を検査する。
+  # Rails は config.i18n の一部のキーを初期化時に取り除くため、
+  # 設定オブジェクトを読み返しても実際の挙動は分からない。
+  env \
+    RAILS_ENV=test \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails runner - <<'RUBY'
+    expected_locales = %i[ja en].to_set
+    actual_locales = I18n.available_locales.map(&:to_sym).to_set
+
+    abort "unexpected available locales: #{actual_locales.to_a.inspect}" \
+      unless actual_locales == expected_locales
+
+    abort "unexpected default locale: #{I18n.default_locale.inspect}" \
+      unless I18n.default_locale == :ja
+
+    begin
+      I18n.with_locale(:fr) { nil }
+      abort "unsupported locale was accepted: fr"
+    rescue I18n::InvalidLocale
+      # 期待どおり拒否された
+    end
+
+    fallbacks_enabled = I18n.backend.class.ancestors.any? do |ancestor|
+      ancestor.name == "I18n::Backend::Fallbacks"
+    end
+
+    abort "i18n fallbacks must be disabled" if fallbacks_enabled
+
+    begin
+      I18n.t("verify_p0_missing_translation_probe")
+      abort "missing translations must raise in the test environment"
+    rescue I18n::MissingTranslationData
+      # 期待どおり検出された
+    end
+
+    %i[ja en].each do |locale|
+      name = I18n.t("application.name", locale: locale)
+
+      abort "unexpected application.name for #{locale}: #{name.inspect}" \
+        unless name == "RoleWeave"
+
+      path = Rails.root.join("config/locales/#{locale}.yml")
+      dictionary = YAML.safe_load_file(path, aliases: false, permitted_classes: [])
+
+      abort "generated sample translation remains in #{path}" \
+        if dictionary.fetch(locale.to_s).key?("hello")
+    end
+RUBY
+fi
+
 # --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
 #
 # P0-T4 が開始された時点で有効になる。
