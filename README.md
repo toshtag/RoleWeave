@@ -59,9 +59,12 @@
 
 ## ドキュメント
 
-- [ロードマップ](design/roadmap.yaml) — P0 から P15 までのフェーズ定義
+- [プロジェクト概要](design/brief.md) — 何を、誰のために作るか
+- [憲法](design/constitution.md) — 計画・実装上の判断を導く基本原則
+- [ロードマップ](design/roadmap.yaml) — P0 から P15 までのフェーズ索引
 - [アーキテクチャ原則](docs/architecture/principles.md) — 構造に関する判断基準
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
+- [code-pact 運用ガイド](docs/development/code-pact.md) — 開発タスクの制御面の使い方
 
 ## 開発の進め方
 

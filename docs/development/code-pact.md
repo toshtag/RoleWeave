@@ -115,13 +115,24 @@ npm exec -- code-pact adapter install generic --json
 - 生成内容がプロジェクトの方針と矛盾する場合は、`design/constitution.md` と `design/rules/` 側を正本として扱う
 - 再生成は `npm exec -- code-pact adapter upgrade generic --write --json` で行う
 
+RoleWeave で使用する正規コマンドは、常に次の形とする。
+
+```text
+npm exec -- code-pact ... --agent generic
+```
+
+生成された Agent 指示に `--agent claude-code` が記載されていても使用しない。
+[`design/rules/code-pact-execution.md`](../../design/rules/code-pact-execution.md) を優先する。
+
 現時点で確認している生成物の注意点は次のとおり。
 
-- 「プロジェクト固有の規約」節が `design/rules/coding-style.md` を参照しているが、
-  これは `code-pact init` のサンプル規約であり、このプロジェクトでは採用していない。
-  実際の規約は `design/constitution.md` と `design/rules/` 配下の 4 ファイルである。
-- コマンド例の `--agent claude-code` は code-pact 側の汎用例である。
+- コマンド例の `--agent claude-code` は code-pact 側の汎用例であり、8 か所に出現する。
   このプロジェクトでは `--agent generic` を指定する。
+- 「プロジェクト固有の規約」節が `design/rules/coding-style.md` を参照する。
+  `code-pact init` のサンプル規約は削除したが、同じパスへ RoleWeave 固有の実ルールを
+  置き直しているため参照は解決する。
+- 上記の矛盾は生成物を編集して解消せず、`design/rules/code-pact-execution.md` と
+  `design/rules/coding-style.md` 側で補完している。
 
 ### コンテキストパック
 
@@ -129,7 +140,22 @@ npm exec -- code-pact adapter install generic --json
 `.context/` は `code-pact init` が `.gitignore` へ追加するため、リポジトリへコミットしない。
 必要になった時点で `task prepare --detail full` または `task context` で生成する。
 
-## 6. 制御面の構成
+## 6. フェーズ検証コマンド
+
+フェーズの `verification.commands` は、そのフェーズで実装した内容を実際に検証するものにする。
+Code Pact の構造検査（`validate` / `plan lint`）だけを残さない。
+
+P0 の検証コマンドは [`scripts/verify-p0`](../../scripts/verify-p0) とする。
+このスクリプトは進捗イベントを見て、開始済みタスクに対応する検証を自動的に有効にする。
+
+- Code Pact 制御面の検査は常に実行する
+- P0-T3 が開始された時点から Rails 実体の検査を有効にする
+- P0-T4 が開始されるまでは Docker 関連ファイルの混入を失敗として扱う
+
+P0-T4 以降は、各タスクでこのスクリプトへ検証を追加する。
+P0-T6 で `bin/verify` が完成した時点で、P0 の `verification.commands` を `bin/verify` へ一本化する。
+
+## 7. 制御面の構成
 
 ```text
 .code-pact/
@@ -144,7 +170,11 @@ design/
 ├── constitution.md           判断の基本原則
 ├── roadmap.yaml              フェーズ索引
 ├── phases/                   フェーズ契約（P0 から P15）
+├── acceptance/               タスクごとの受け入れ条件
 └── rules/                    タスク実行時のルール
+
+scripts/
+└── verify-p0                 P0 の累積検証
 ```
 
 フェーズとタスクの状態の正本は `design/` 配下に一本化する。

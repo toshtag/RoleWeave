@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# P0 Project Foundation の累積検証。
+#
+# P0 のタスクが進むたびに検証を追加していく。
+# 各検証は、対応するタスクが開始された時点で自動的に有効になる。
+# これにより、実装していないタスクを Code Pact の構造検査だけで完了できない状態を保つ。
+#
+# P0-T6 で bin/verify が完成した時点で、P0 の verification.commands を bin/verify へ一本化する。
+set -euo pipefail
+
+# 進捗イベントの有無でタスクの開始を判定する。
+# started / done のいずれかが記録されていれば、そのタスクの検証を有効にする。
+task_has_event() {
+  local task_id="$1"
+  grep -Rqs "^task_id: ${task_id}$" .code-pact/state/events
+}
+
+# --- P0-T2 / P0-T2-R1: Code Pact 制御面 -------------------------------------
+
+npm run pact:validate
+npm exec -- code-pact plan lint --include-quality --json >/dev/null
+
+test -f design/brief.md
+test -f design/constitution.md
+test -f design/rules/coding-style.md
+test -f design/rules/code-pact-execution.md
+test -f design/acceptance/P0-T3-rails-bootstrap.md
+test -f docs/development/code-pact.md
+
+# --- P0-T4 以前: Docker 関連ファイルの混入を拒否 -----------------------------
+#
+# Docker は P0-T4 で導入する。それ以前に生成されていた場合は、
+# タスク境界を越えた変更であるため失敗させる。
+
+if ! task_has_event "P0-T4"; then
+  test ! -e Dockerfile
+  test ! -e compose.yaml
+  test ! -e docker-compose.yml
+  test ! -e .dockerignore
+  test ! -e bin/docker-entrypoint
+  test ! -e .devcontainer
+fi
+
+# --- P0-T3: Rails アプリケーションの実体 -------------------------------------
+#
+# P0-T3 が開始された時点で有効になる。
+# 受け入れ条件の詳細は design/acceptance/P0-T3-rails-bootstrap.md を参照する。
+
+if task_has_event "P0-T3"; then
+  test -f Gemfile
+  test -f Gemfile.lock
+  test -f Rakefile
+  test -f config.ru
+  test -x bin/rails
+  test -f config/application.rb
+  test -f config/database.yml
+  test -d app
+  test -d test
+
+  grep -Eq 'gem[[:space:]]+["'\'']pg["'\'']' Gemfile
+  grep -Eq 'adapter:[[:space:]]*postgresql' config/database.yml
+  grep -Eq 'module[[:space:]]+RoleWeave' config/application.rb
+
+  bundle check
+  bundle exec rails zeitwerk:check
+  bundle exec rails runner \
+    'abort "unexpected application namespace" unless Rails.application.class.module_parent_name == "RoleWeave"'
+fi
