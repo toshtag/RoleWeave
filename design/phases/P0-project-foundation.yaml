@@ -508,11 +508,10 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: GitHub Actions 構造検査器が job 名と step 名へ任意の式を許し、
-      github.token や github コンテキスト全体への参照を受理する問題を修正する。
-      あわせて timeout-minutes が整数 30 以外のソース表現でも通過する問題を修正し、
-      表示名と数値スカラーの正規形を固定する。
+    status: done
+    description: GitHub Actions 構造検査器が job 名と step 名へ任意の式を許し、 github.token や github
+      コンテキスト全体への参照を受理する問題を修正する。 あわせて timeout-minutes が整数 30
+      以外のソース表現でも通過する問題を修正し、 表示名と数値スカラーの正規形を固定する。
     depends_on:
       - P0-T7B
     reads:
