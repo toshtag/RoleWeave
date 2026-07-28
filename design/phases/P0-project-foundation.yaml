@@ -472,6 +472,34 @@ tasks:
       - scripts/verify-p0-docker
     acceptance_refs:
       - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+  - id: P0-T7B
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: GitHub Actions 構造検査器が YAML の最初の document だけを検査し、
+      mapping 内の重複キーを後勝ちで受理する問題を修正する。 YAML ストリーム全体が単一 document であり、
+      すべての mapping key が一意であることを解析木から検証する。
+    depends_on:
+      - P0-T7A
+    reads:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - design/acceptance/P0-T7-github-actions.md
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+      - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+    acceptance_refs:
+      - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
   - id: P0-T8
     type: feature
     ambiguity: low
@@ -510,5 +538,6 @@ tasks:
       - P0-T6B
       - P0-T7
       - P0-T7A
+      - P0-T7B
       - P0-T8
       - P0-T9
