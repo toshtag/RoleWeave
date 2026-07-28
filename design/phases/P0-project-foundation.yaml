@@ -163,7 +163,7 @@ tasks:
     write_surface: high
     verification_strength: strong
     expected_duration: medium
-    status: planned
+    status: done
     description: "Rails アプリケーションの生成（ブランチ: p0/t3-rails-bootstrap）"
     depends_on:
       - P0-T2C
