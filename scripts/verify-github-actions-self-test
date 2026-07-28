@@ -19,14 +19,56 @@ VERIFIER_PATH = "scripts/verify-github-actions"
 
 CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"
 
+# Action 固定の変異は 3 つすべてに対して行う。
+# 実装が現時点で汎用であることではなく、
+# 将来一部の Action だけ検査対象から漏れた場合に検出することが目的である。
+ACTION_PINS = {
+  "actions/checkout" => { sha: CHECKOUT_SHA, tag: "v7.0.1" },
+  "ruby/setup-ruby" => { sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b", tag: "v1.321.0" },
+  "actions/setup-node" => { sha: "820762786026740c76f36085b0efc47a31fe5020", tag: "v7.0.0" }
+}.freeze
+
+ACTION_MUTATIONS = ACTION_PINS.flat_map do |action, pin|
+  [
+    [ "#{action} のSHA改ざん", ->(text) { text.sub("#{action}@#{pin.fetch(:sha)}", "#{action}@#{'0' * 40}") } ],
+    [
+      "#{action} のタグ改ざん",
+      lambda do |text|
+        text.sub("#{action}@#{pin.fetch(:sha)} # #{pin.fetch(:tag)}", "#{action}@#{pin.fetch(:sha)} # v999.0.0")
+      end
+    ],
+    [
+      "#{action} の可変タグ参照",
+      ->(text) { text.sub("#{action}@#{pin.fetch(:sha)}", "#{action}@#{pin.fetch(:tag)}") }
+    ],
+    [
+      "#{action} のタグコメント削除",
+      ->(text) { text.sub("#{action}@#{pin.fetch(:sha)} # #{pin.fetch(:tag)}", "#{action}@#{pin.fetch(:sha)}") }
+    ]
+  ]
+end.to_h.freeze
+
 # 変異は正規の Workflow に対する文字列置換で表現する。
 # 置換が適用されなかった場合は、Workflow 側の変更に追随できていないため失敗させる。
-MUTATIONS = {
-  "可変タグ参照" => ->(text) { text.sub("actions/checkout@#{CHECKOUT_SHA}", "actions/checkout@v7") },
-  "承認外のSHA" => ->(text) { text.sub(CHECKOUT_SHA, "0" * 40) },
-  "リリースタグの改ざん" => ->(text) { text.sub("# v7.0.1", "# v999.0.0") },
+MUTATIONS = ACTION_MUTATIONS.merge({
   "引用符付きusesキー" => ->(text) { text.sub("uses: actions/checkout@", "\"uses\": actions/checkout@") },
-  "タグコメントの削除" => ->(text) { text.sub(" # v7.0.1", "") },
+  "onキーをtrueへ変更" => ->(text) { text.sub(/^on:$/, "true:") },
+  "onキーをyesへ変更" => ->(text) { text.sub(/^on:$/, "yes:") },
+  "onキーをONへ変更" => ->(text) { text.sub(/^on:$/, "ON:") },
+  "onキーを引用符付きへ変更" => ->(text) { text.sub(/^on:$/, '"on":') },
+  "cancel-in-progressをyesへ変更" => ->(text) {
+    text.sub("cancel-in-progress: true", "cancel-in-progress: yes")
+  },
+  "persist-credentialsをnoへ変更" => ->(text) {
+    text.sub("persist-credentials: false", "persist-credentials: no")
+  },
+  "bundler-cacheをyesへ変更" => ->(text) { text.sub("bundler-cache: true", "bundler-cache: yes") },
+  "secretsコンテキスト全体の参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ toJSON(secrets) }}")
+  },
+  "secretsコンテキストの裸参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ secrets }}")
+  },
   "concurrency groupの固定値化" => ->(text) {
     text.sub("group: ci-${{ github.workflow }}-${{ github.ref }}", "group: global")
   },
@@ -74,7 +116,7 @@ MUTATIONS = {
     text.sub("    steps:", "    services:\n      db:\n        image: postgres:18.4-bookworm\n\n    steps:")
   },
   "continue-on-error" => ->(text) { text.sub("        run: bin/ci", "        continue-on-error: true\n        run: bin/ci") }
-}.freeze
+}).freeze
 
 # 検証器の終了コードだけを見る。出力は失敗時の説明に使う。
 def verify(path)
