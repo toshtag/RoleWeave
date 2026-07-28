@@ -66,6 +66,10 @@ worker 専用サービス、メール確認用サービス、オブジェクト�
 - サービスは `app` と `db` だけとする
 - `db` はホストへポートを公開しない
 - `app` の公開ポートは `APP_PORT` で上書きできる
+- `app` の公開ポートは IPv4 ループバック `127.0.0.1` だけへバインドする
+- ホスト IP を省略しない。省略すると Docker はすべてのホストインターフェースへ公開する
+- `0.0.0.0`、`::`、その他の LAN 向けアドレスへ公開しない
+- 既定では Docker ホスト自身からだけアクセスできる構成とする
 - `app` は `db` の healthcheck 成功後に起動する（`condition: service_healthy`）
 - bind mount と依存キャッシュ用 named volume を分離する
 - named volume は `bundle`、`node_modules`、`postgres_data` とする
@@ -156,6 +160,9 @@ Docker 固有の検証は `scripts/verify-p0-docker` へ実装し、
 - `app` の build target が `development` である
 - DB イメージが `postgres:18.4-bookworm` である
 - `db` にホスト公開ポートがない
+- `app` の port 定義がちょうど 1 件である
+- `app` の port の `host_ip` が `127.0.0.1` である
+- `app` の port の container target が 3000、protocol が tcp である
 - PostgreSQL の volume target が `/var/lib/postgresql` である
 - `/var/lib/postgresql/data` を使用していない
 - `POSTGRES_HOST_AUTH_METHOD` がない
@@ -186,7 +193,9 @@ YAML のインデントに依存した grep だけで判定しない。
 - `test` の `db:prepare` が成功する
 - Rails 経由でも `server_version_num` が `180004`
 - `db` コンテナの削除・再作成後もデータが残る
-- `app` が healthy になり、ホストから `/up` が 200 を返す
+- `app` が healthy になる
+- `docker compose port app 3000` が `127.0.0.1:<検証用ポート>` を返す
+- ホストから `127.0.0.1:<検証用ポート>/up` が 200 を返す
 
 ### 検証環境の隔離
 
@@ -204,6 +213,8 @@ YAML のインデントに依存した grep だけで判定しない。
 - `db` へ `POSTGRES_HOST_AUTH_METHOD: trust` を追加する
 - `db` へホスト公開ポート `5432:5432` を追加する
 - `app` の `depends_on` を削除する
+- `app` の公開ポートからホスト IP `127.0.0.1:` を削除する
+- `app` の公開ポートのホスト IP を `0.0.0.0` へ変更する
 
 `bin/docker-healthcheck` を `exit 1` へ変更した場合、
 隔離 project での `docker compose up -d --wait app` が非 0 で終了すること。

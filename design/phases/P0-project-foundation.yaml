@@ -248,6 +248,33 @@ tasks:
       - scripts/verify-p0-docker
     acceptance_refs:
       - design/acceptance/P0-T4-docker-compose.md
+  - id: P0-T4A
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: >-
+      ローカル開発用 app サービスの公開ポートを 127.0.0.1 だけへバインドし、
+      同一 LAN や外部インターフェースへの意図しない公開を防ぐ。
+    depends_on:
+      - P0-T4
+    reads:
+      - compose.yaml
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T4-docker-compose.md
+      - design/rules/**
+      - docs/architecture/principles.md
+      - docs/development/code-pact.md
+    writes:
+      - compose.yaml
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T4-docker-compose.md
   - id: P0-T5
     type: architecture
     ambiguity: low
@@ -259,7 +286,7 @@ tasks:
     status: planned
     description: "冪等なセットアップコマンドの追加（ブランチ: p0/t5-idempotent-setup）"
     depends_on:
-      - P0-T4
+      - P0-T4A
   - id: P0-T6
     type: test
     ambiguity: low
