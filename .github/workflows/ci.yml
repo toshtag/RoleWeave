@@ -1,0 +1,60 @@
+# RoleWeave の統一検証を GitHub Actions で実行する。
+#
+# この Workflow は実行環境の準備と bin/ci の起動だけを担当する。
+# 検証内容の正本は bin/verify とし、個別のコマンドをここへ複製しない。
+#
+#   bin/ci -> bin/verify --full -> scripts/verify-p0 -> scripts/verify-p0-docker
+#
+# Action は完全長のコミット SHA へ固定する。タグとブランチは可変であり、
+# 同じ参照が別の実装へ差し替わり得る。末尾のコメントで対応するリリースを記録する。
+#
+# 受け入れ条件の正本は design/acceptance/P0-T7-github-actions.md とする。
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+# CI は push も tag 作成も行わない。
+permissions:
+  contents: read
+
+# 同じブランチまたは PR の古い実行を打ち切る。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: 統一検証
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout 後に認証情報を残さない。
+          persist-credentials: false
+
+      - name: Rubyを準備
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
+        with:
+          # バージョンの正本は version file とし、ここへ数値を重複記述しない。
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Node.jsを準備
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Node.js依存関係を準備
+        # npm install は解決結果によって package-lock.json を書き換え得る。
+        run: npm ci
+
+      - name: 統一検証
+        run: bin/ci

@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
-# P0-T4 / P0-T5 の Docker 検証。
+# P0-T4 / P0-T5 / P0-T6B の Docker 検証。
 #
 # scripts/verify-p0 から、P0-T4 の進捗イベントが記録された時点で呼び出される。
-# P0-T5 の検証は、そのタスクの進捗イベントが記録された時点で追加で有効になる。
+# P0-T5 と P0-T6B の検証は、それぞれのタスクの進捗イベントが記録された時点で追加で有効になる。
 #
-# 受け入れ条件の正本は次の 2 つとする。
+# 受け入れ条件の正本は次の 3 つとする。
 #
 #   design/acceptance/P0-T4-docker-compose.md
 #   design/acceptance/P0-T5-idempotent-setup.md
+#   design/acceptance/P0-T6B-container-git-ownership.md
 #
 # 静的検証は docker compose config --format json の正規化結果を Ruby の JSON で解析する。
 # YAML のインデントに依存した grep だけでは、値の所属先を取り違える。
@@ -207,6 +208,56 @@ if task_has_event "P0-T5"; then
   fi
 fi
 
+# --- 静的検証: コンテナ内の作業ツリー所有者（P0-T6B） ------------------------
+#
+# 動的検証は build とコンテナ起動を伴うため、契約違反はその前に失敗させる。
+
+expected_safe_directory_command='git config --global --replace-all safe.directory /workspace'
+
+if task_has_event "P0-T6B"; then
+  bash -n bin/docker-entrypoint
+
+  # 行全体の完全一致で判定する。
+  # 部分一致の正規表現では、--replace-all を --add へ退行させた実装を検出できない。
+  require_exact_line_once "$expected_safe_directory_command" bin/docker-entrypoint
+
+  # 例外は /workspace だけへ与える。
+  # 別のディレクトリや * を追加した実装は、設定行の総数で検出する。
+  entrypoint_body="$(grep -v '^[[:space:]]*#' bin/docker-entrypoint)"
+
+  safe_directory_line_count="$(
+    printf '%s\n' "$entrypoint_body" | grep -c 'safe\.directory' || true
+  )"
+
+  if [[ "$safe_directory_line_count" -ne 1 ]]; then
+    printf \
+      'bin/docker-entrypoint must configure safe.directory exactly once, found %s\n' \
+      "$safe_directory_line_count" \
+      >&2
+    exit 1
+  fi
+
+  # 設定は exec による置き換えより前に完了させる。
+  # 後ろへ置いた設定は到達しない。
+  safe_directory_line_number="$(
+    grep -nFx "$expected_safe_directory_command" bin/docker-entrypoint | cut -d: -f1
+  )"
+
+  entrypoint_exec_line_number="$(
+    grep -nEx 'exec "\$@"' bin/docker-entrypoint | cut -d: -f1
+  )"
+
+  if [[ -z "$entrypoint_exec_line_number" ]]; then
+    printf 'bin/docker-entrypoint must end by exec-ing the given command\n' >&2
+    exit 1
+  fi
+
+  if [[ "$safe_directory_line_number" -ge "$entrypoint_exec_line_number" ]]; then
+    printf 'bin/docker-entrypoint must configure safe.directory before exec\n' >&2
+    exit 1
+  fi
+fi
+
 # --- 静的検証: Compose 定義 ---------------------------------------------------
 
 if grep -Eq '^version:' compose.yaml; then
@@ -386,6 +437,63 @@ test "$container_rails_version" = "Rails 8.1.3"
 
 compose run --rm --no-deps app bundle check
 compose run --rm --no-deps app npm ls --depth=0 >/dev/null
+
+# --- 動的検証: コンテナ内の作業ツリー所有者（P0-T6B） ------------------------
+#
+# 所有者が写像されるホストでは、修正前でも作業ツリーの Git 索引を読める。
+# そのため、例外の適用範囲と冪等性を必ず併せて確認する。
+
+if task_has_event "P0-T6B"; then
+  # 包含関係ではなく完全一致で判定する。
+  # 一覧に /workspace が含まれることだけでは、別ディレクトリの追加許可を検出できない。
+  container_safe_directories="$(
+    compose run --rm --no-deps app git config --global --get-all safe.directory \
+      | tr -d '\r'
+  )"
+
+  if [[ "$container_safe_directories" != "/workspace" ]]; then
+    printf \
+      'safe.directory must be exactly /workspace in the container, got: %s\n' \
+      "$container_safe_directories" \
+      >&2
+    exit 1
+  fi
+
+  # docker compose run は毎回新しいコンテナを起動するため、
+  # 起動 1 回だけの観測では --add による重複を検出できない。
+  # 同じコンテナ内で entrypoint を追加実行し、設定が蓄積しないことを確認する。
+  compose run --rm --no-deps app sh -c '
+    set -eu
+
+    /workspace/bin/docker-entrypoint true
+    /workspace/bin/docker-entrypoint true
+
+    values="$(git config --global --get-all safe.directory | tr -d "\r")"
+
+    if [ "$values" != "/workspace" ]; then
+      echo "safe.directory must not accumulate, got: $values" >&2
+      exit 1
+    fi
+  '
+
+  # Code Pact が参照するのは追跡ファイル索引である。読めることを直接確認する。
+  compose run --rm --no-deps app git -C /workspace ls-files >/dev/null
+
+  # 例外を無条件に許可した実装は、ここで検出する。
+  compose run --rm --no-deps app sh -c '
+    set -eu
+
+    mkdir -p /tmp/foreign-repository
+    cd /tmp/foreign-repository
+    git init -q .
+    chown -R 1234:1234 /tmp/foreign-repository
+
+    if git ls-files >/dev/null 2>&1; then
+      echo "git must still reject repositories outside /workspace" >&2
+      exit 1
+    fi
+  '
+fi
 
 # --- 動的検証: 依存が欠けた状態からのセットアップ（P0-T5） --------------------
 #

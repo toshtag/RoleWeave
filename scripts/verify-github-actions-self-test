@@ -1,0 +1,236 @@
+#!/usr/bin/env ruby
+# scripts/verify-github-actions の回帰検査。
+#
+# scripts/verify-p0 から、P0-T7 の進捗イベントが記録された時点で呼び出される。
+#
+# 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+# 負の検証を実行時の手作業に依存させると、検証器が退行しても気づけない。
+# ここでは正規の Workflow へ変異を加え、すべてが拒否されることを毎回確認する。
+#
+# 変異は一時ディレクトリへ複製した Workflow に対してのみ行う。
+# .github/workflows/ci.yml は読み取るだけで、書き換えない。
+#
+# 受け入れ条件の正本は次の 3 つとする。
+#
+#   design/acceptance/P0-T7-github-actions.md
+#   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+#   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+#   design/acceptance/P0-T7C-github-actions-static-fields.md
+
+require "tmpdir"
+
+WORKFLOW_PATH = ".github/workflows/ci.yml"
+VERIFIER_PATH = "scripts/verify-github-actions"
+
+CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"
+
+# Action 固定の変異は 3 つすべてに対して行う。
+# 実装が現時点で汎用であることではなく、
+# 将来一部の Action だけ検査対象から漏れた場合に検出することが目的である。
+ACTION_PINS = {
+  "actions/checkout" => { sha: CHECKOUT_SHA, tag: "v7.0.1" },
+  "ruby/setup-ruby" => { sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b", tag: "v1.321.0" },
+  "actions/setup-node" => { sha: "820762786026740c76f36085b0efc47a31fe5020", tag: "v7.0.0" }
+}.freeze
+
+ACTION_MUTATIONS = ACTION_PINS.flat_map do |action, pin|
+  [
+    [ "#{action} のSHA改ざん", ->(text) { text.sub("#{action}@#{pin.fetch(:sha)}", "#{action}@#{'0' * 40}") } ],
+    [
+      "#{action} のタグ改ざん",
+      lambda do |text|
+        text.sub("#{action}@#{pin.fetch(:sha)} # #{pin.fetch(:tag)}", "#{action}@#{pin.fetch(:sha)} # v999.0.0")
+      end
+    ],
+    [
+      "#{action} の可変タグ参照",
+      ->(text) { text.sub("#{action}@#{pin.fetch(:sha)}", "#{action}@#{pin.fetch(:tag)}") }
+    ],
+    [
+      "#{action} のタグコメント削除",
+      ->(text) { text.sub("#{action}@#{pin.fetch(:sha)} # #{pin.fetch(:tag)}", "#{action}@#{pin.fetch(:sha)}") }
+    ]
+  ]
+end.to_h.freeze
+
+# 変異は正規の Workflow に対する文字列置換で表現する。
+# 置換が適用されなかった場合は、Workflow 側の変更に追随できていないため失敗させる。
+MUTATIONS = ACTION_MUTATIONS.merge({
+  "引用符付きusesキー" => ->(text) { text.sub("uses: actions/checkout@", "\"uses\": actions/checkout@") },
+  "onキーをtrueへ変更" => ->(text) { text.sub(/^on:$/, "true:") },
+  "onキーをyesへ変更" => ->(text) { text.sub(/^on:$/, "yes:") },
+  "onキーをONへ変更" => ->(text) { text.sub(/^on:$/, "ON:") },
+  "onキーを引用符付きへ変更" => ->(text) { text.sub(/^on:$/, '"on":') },
+  "cancel-in-progressをyesへ変更" => ->(text) {
+    text.sub("cancel-in-progress: true", "cancel-in-progress: yes")
+  },
+  "persist-credentialsをnoへ変更" => ->(text) {
+    text.sub("persist-credentials: false", "persist-credentials: no")
+  },
+  "bundler-cacheをyesへ変更" => ->(text) { text.sub("bundler-cache: true", "bundler-cache: yes") },
+  "secretsコンテキスト全体の参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ toJSON(secrets) }}")
+  },
+  "secretsコンテキストの裸参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ secrets }}")
+  },
+  "concurrency groupの固定値化" => ->(text) {
+    text.sub("group: ci-${{ github.workflow }}-${{ github.ref }}", "group: global")
+  },
+  "concurrencyの削除" => ->(text) {
+    text.sub(
+      "concurrency:\n  group: ci-${{ github.workflow }}-${{ github.ref }}\n  cancel-in-progress: true\n\n",
+      ""
+    )
+  },
+  "secretsのドット参照" => ->(text) {
+    text.sub("        run: bin/ci", "        env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: bin/ci")
+  },
+  "secretsの添字参照" => ->(text) {
+    text.sub("    name: 統一検証", "    name: ${{ secrets['TOKEN'] }}")
+  },
+  "write権限" => ->(text) { text.sub("  contents: read", "  contents: write") },
+  "pull_request_target" => ->(text) { text.sub("  pull_request:", "  pull_request_target:") },
+  "統一入口の迂回" => ->(text) { text.sub("        run: bin/ci", "        run: bin/verify --full") },
+  "個別検証の複製" => ->(text) {
+    text.sub(
+      "      - name: 統一検証",
+      "      - name: Rubyスタイル\n        run: bin/rubocop\n\n      - name: 統一検証"
+    )
+  },
+  "複数job" => ->(text) {
+    text +
+      "\n  extra:\n" \
+      "    name: 追加\n" \
+      "    runs-on: ubuntu-24.04\n" \
+      "    timeout-minutes: 5\n" \
+      "    steps:\n" \
+      "      - name: 何もしない\n" \
+      "        run: \"true\"\n"
+  },
+  "ubuntu-latest" => ->(text) { text.sub("    runs-on: ubuntu-24.04", "    runs-on: ubuntu-latest") },
+  "version fileの重複記述" => ->(text) {
+    text.sub("          ruby-version: .ruby-version", "          ruby-version: 4.0.6")
+  },
+  "npm install" => ->(text) { text.sub("        run: npm ci", "        run: npm install") },
+  "認証情報の保持" => ->(text) {
+    text.sub("          persist-credentials: false", "          persist-credentials: true")
+  },
+  "timeoutの削除" => ->(text) { text.sub("    timeout-minutes: 30\n", "") },
+  "service containerの追加" => ->(text) {
+    text.sub("    steps:", "    services:\n      db:\n        image: postgres:18.4-bookworm\n\n    steps:")
+  },
+  "continue-on-error" => ->(text) { text.sub("        run: bin/ci", "        continue-on-error: true\n        run: bin/ci") },
+
+  # 重複した mapping key。
+  # Psych は後勝ちで畳み込むため、前方の定義は解析結果から消える。
+  "pushの重複" => ->(text) {
+    text.sub(
+      "  push:\n    branches:\n      - main\n",
+      "  push:\n    branches:\n      - feature\n  push:\n    branches:\n      - main\n"
+    )
+  },
+  "contentsの重複" => ->(text) { text.sub("  contents: read", "  contents: write\n  contents: read") },
+  "verify jobの重複" => ->(text) {
+    text.sub(
+      "  verify:\n",
+      "  verify:\n    name: 無効な定義\n    runs-on: ubuntu-latest\n    steps: []\n  verify:\n"
+    )
+  },
+  "step runの重複" => ->(text) { text.sub("        run: bin/ci", "        run: echo bypass\n        run: bin/ci") },
+  "step nameの重複" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ secrets.TOKEN }}\n        name: 統一検証")
+  },
+  "引用符違いのキー重複" => ->(text) { text.sub("  contents: read", "  \"contents\": write\n  contents: read") },
+  "flow mapping内のキー重複" => ->(text) {
+    text.sub(
+      "        with:\n          node-version-file: .node-version\n          cache: npm",
+      "        with: { node-version-file: .node-version, cache: yarn, cache: npm }"
+    )
+  },
+
+  # 複数 document。YAML.safe_load は最初の document だけを返す。
+  "空の2件目document" => ->(text) { "#{text}---\n" },
+  "引用符付きキーを持つ2件目document" => ->(text) { "#{text}---\n\"x\": \"extra\"\n" },
+  "secretsを含む2件目document" => ->(text) { "#{text}---\n\"x\": \"${{ secrets.TOKEN }}\"\n" },
+  "document終端後の裸のscalar" => ->(text) { "#{text}...\n\nplain-trailing-content\n" },
+  "document終端後のsecrets式" => ->(text) { "#{text}...\n\n${{ secrets.TOKEN }}\n" },
+
+  # 表示名。正規値へ固定しないと、GitHub 式の評価結果を表示名として出力できる。
+  "job名を別の固定値へ変更" => ->(text) { text.sub("    name: 統一検証", "    name: 無関係な表示名") },
+  "job名からgithub式を参照" => ->(text) { text.sub("    name: 統一検証", "    name: ${{ github.ref }}") },
+  "job名からgithub.tokenを参照" => ->(text) { text.sub("    name: 統一検証", "    name: ${{ github.token }}") },
+  "step名を別の固定値へ変更" => ->(text) { text.sub("      - name: 統一検証", "      - name: 無関係な表示名") },
+  "step名からgithub.tokenを参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ github.token }}")
+  },
+  "step名からgithub['token']を参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ github['token'] }}")
+  },
+  'step名からgithub["token"]を参照' => ->(text) {
+    text.sub("      - name: 統一検証", '      - name: ${{ github["token"] }}')
+  },
+  "step名からgithub全体を参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ toJSON(github) }}")
+  },
+  "step名から裸のgithubコンテキストを参照" => ->(text) {
+    text.sub("      - name: 統一検証", "      - name: ${{ github }}")
+  },
+
+  # 数値スカラー。解析結果では 30 と等値になる別表記を拒否する。
+  "timeoutを浮動小数へ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: 30.0") },
+  "timeoutをfloatタグ付きへ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: !!float 30") },
+  "timeoutを16進数へ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: 0x1e") },
+  "timeoutを符号付きへ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: +30") },
+  "timeoutを文字列へ変更" => ->(text) { text.sub("timeout-minutes: 30", 'timeout-minutes: "30"') }
+}).freeze
+
+# 検証器の終了コードだけを見る。出力は失敗時の説明に使う。
+def verify(path)
+  output = IO.popen([ VERIFIER_PATH, path ], err: [ :child, :out ], &:read)
+  [ $?.success?, output ]
+end
+
+unless ARGV.empty?
+  warn "使用方法: scripts/verify-github-actions-self-test"
+  exit 1
+end
+
+unless File.file?(WORKFLOW_PATH)
+  warn "workflow is missing: #{WORKFLOW_PATH}"
+  exit 1
+end
+
+original = File.read(WORKFLOW_PATH, encoding: "UTF-8")
+failures = []
+
+Dir.mktmpdir("verify-github-actions-self-test") do |directory|
+  path = File.join(directory, "ci.yml")
+
+  # 陽性対照。正規の Workflow が通過しない検証器は、負の検証も信用できない。
+  File.write(path, original, encoding: "UTF-8")
+  passed, output = verify(path)
+
+  unless passed
+    failures << "the canonical workflow must pass the structural check:\n#{output}"
+  end
+
+  MUTATIONS.each do |label, mutate|
+    mutated = mutate.call(original)
+
+    if mutated == original
+      failures << "mutation #{label.inspect} did not change the workflow. update the self test"
+      next
+    end
+
+    File.write(path, mutated, encoding: "UTF-8")
+    passed, = verify(path)
+
+    failures << "mutation #{label.inspect} must be rejected by #{VERIFIER_PATH}" if passed
+  end
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("self test failure: #{failure}") }
+  exit 1
+end

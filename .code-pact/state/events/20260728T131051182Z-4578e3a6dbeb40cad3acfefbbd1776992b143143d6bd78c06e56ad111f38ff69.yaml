@@ -1,0 +1,12 @@
+task_id: P0-T7C
+status: done
+at: 2026-07-28T13:10:51.182Z
+actor: agent
+agent: generic
+author: Pocket
+evidence:
+  - commands
+  - decision
+source: loop
+verification_ref: evidence:sha256:254e9a482c5e83065a233b0d02f1444fe71a0f6760b8fb5ca339c391e77459bc
+id: 4578e3a6dbeb40cad3acfefbbd1776992b143143d6bd78c06e56ad111f38ff69

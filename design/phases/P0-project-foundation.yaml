@@ -374,18 +374,161 @@ tasks:
       - scripts/verify-p0
     acceptance_refs:
       - design/acceptance/P0-T6A-ci-wrapper-enforcement.md
-  - id: P0-T7
-    type: architecture
+  - id: P0-T6B
+    type: bugfix
     ambiguity: low
-    risk: low
+    risk: medium
     context_size: small
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）"
+    status: done
+    description: bind mount した作業ツリーの所有者がコンテナの実行ユーザーと異なるホストで、 コンテナ内の Git
+      が作業ツリーを拒否し、Code Pact が追跡ファイル索引を読めない問題を修正する。 docker compose run --rm app
+      bin/verify を Linux ホストでも成立させる。
     depends_on:
       - P0-T6A
+    reads:
+      - bin/docker-entrypoint
+      - bin/verify
+      - bin/ci
+      - Dockerfile
+      - compose.yaml
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T6-unified-verification.md
+      - design/acceptance/P0-T6B-container-git-ownership.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - bin/docker-entrypoint
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T6B-container-git-ownership.md
+  - id: P0-T7
+    type: architecture
+    ambiguity: low
+    risk: medium
+    context_size: medium
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: "GitHub Actions による検証（ブランチ: p0/t7-github-actions）。 Pull Request と
+      main ブランチへの push に対して GitHub Actions を実行し、 既存の統一検証入口である bin/ci から
+      bin/verify --full へ委譲する。 Workflow へ個別の検証定義を複製せず、最小権限と承認済みの不変な Action
+      参照を保証する。"
+    depends_on:
+      - P0-T6B
+    reads:
+      - .ruby-version
+      - .node-version
+      - Gemfile
+      - Gemfile.lock
+      - package.json
+      - package-lock.json
+      - bin/ci
+      - bin/verify
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T7-github-actions.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T7-github-actions.md
+  - id: P0-T7A
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: Ruby の YAML 1.1 解釈によって GitHub Actions の非正規なキーと真偽値表現が
+      正規構造として受理される問題、および secrets コンテキスト全体への参照を検出できない問題を修正する。
+      構造検査自身の変異テストを追加し、P0-T6B の Docker 累積検証コメントも実際の authority へ合わせる。
+    depends_on:
+      - P0-T7
+    reads:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - scripts/verify-p0
+      - scripts/verify-p0-docker
+      - design/acceptance/P0-T6B-container-git-ownership.md
+      - design/acceptance/P0-T7-github-actions.md
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - scripts/verify-p0-docker
+    acceptance_refs:
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+  - id: P0-T7B
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: GitHub Actions 構造検査器が YAML の最初の document だけを検査し、 mapping
+      内の重複キーを後勝ちで受理する問題を修正する。 YAML ストリーム全体が単一 document であり、 すべての mapping key
+      が一意であることを解析木から検証する。
+    depends_on:
+      - P0-T7A
+    reads:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - design/acceptance/P0-T7-github-actions.md
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+      - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+    acceptance_refs:
+      - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+  - id: P0-T7C
+    type: bugfix
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: GitHub Actions 構造検査器が job 名と step 名へ任意の式を許し、 github.token や github
+      コンテキスト全体への参照を受理する問題を修正する。 あわせて timeout-minutes が整数 30
+      以外のソース表現でも通過する問題を修正し、 表示名と数値スカラーの正規形を固定する。
+    depends_on:
+      - P0-T7B
+    reads:
+      - .github/workflows/ci.yml
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+      - design/acceptance/P0-T7-github-actions.md
+      - design/acceptance/P0-T7A-github-actions-verifier-hardening.md
+      - design/acceptance/P0-T7B-github-actions-yaml-integrity.md
+      - design/acceptance/P0-T7C-github-actions-static-fields.md
+      - design/rules/**
+      - docs/development/code-pact.md
+    writes:
+      - scripts/verify-github-actions
+      - scripts/verify-github-actions-self-test
+    acceptance_refs:
+      - design/acceptance/P0-T7C-github-actions-static-fields.md
   - id: P0-T8
     type: feature
     ambiguity: low
@@ -421,6 +564,10 @@ tasks:
     status: planned
     description: "Foundation 完了検証（ブランチ: p0/t10-foundation-verification）"
     depends_on:
+      - P0-T6B
       - P0-T7
+      - P0-T7A
+      - P0-T7B
+      - P0-T7C
       - P0-T8
       - P0-T9

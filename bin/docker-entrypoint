@@ -8,4 +8,17 @@ set -euo pipefail
 # 前回の異常終了で残った Puma の PID ファイルだけを取り除く。
 rm -f /workspace/tmp/pids/server.pid
 
+# bind mount した作業ツリーの所有者は、ホスト側の実行ユーザーによって決まる。
+# Linux ホストではコンテナの root と一致しないため、
+# Git は作業ツリーを dubious ownership として拒否する。
+#
+# Code Pact は reads の glob を Git の追跡ファイル索引に対して解決する。
+# 索引を読めないと厳格 lint が TASK_READS_UNAVAILABLE を返し、標準検証が成立しない。
+#
+# 例外は /workspace だけへ与える。safe.directory へ * を設定して一括で許可しない。
+# 所有者そのものは書き換えない。bind mount 先の所有者はホストの責務とする。
+#
+# --replace-all により、コンテナを何度起動しても設定が重複して蓄積しない。
+git config --global --replace-all safe.directory /workspace
+
 exec "$@"

@@ -126,14 +126,39 @@ if ! task_has_event "P0-T4"; then
   test ! -e bin/docker-entrypoint
 fi
 
-# --- P0-T7 以前: GitHub Actions 関連ファイルの混入を拒否 ---------------------
+# --- P0-T7: GitHub Actions による統一検証 -------------------------------------
 #
-# bin/ci はローカル検証の入口であり、GitHub Actions ではない。これは拒否しない。
+# P0-T7 が開始された時点で、混入の拒否から Workflow 契約の検査へ切り替える。
+# Workflow 構造検査は Docker build より前へ置き、契約違反を build より先に失敗させる。
+# 受け入れ条件の詳細は design/acceptance/P0-T7-github-actions.md を参照する。
+#
+# bin/ci はローカル検証の入口であり、GitHub Actions ではない。これは開始前も拒否しない。
 # bin/verify との関係は P0-T6 の検証で確定する。
 
 if ! task_has_event "P0-T7"; then
   test ! -e .github/workflows
   test ! -e .github/dependabot.yml
+else
+  test -d .github/workflows
+  test -f .github/workflows/ci.yml
+  test -x scripts/verify-github-actions
+  test -x scripts/verify-github-actions-self-test
+
+  # Dependabot は P0-T9 の非目標であり、P0 では持ち込まない。
+  test ! -e .github/dependabot.yml
+
+  # P0 では Workflow を ci.yml の 1 つに限定する。
+  # 検証入口が増えると、bin/verify を正本とする委譲経路が成立しなくなる。
+  workflow_count="$(
+    find .github/workflows -maxdepth 1 -type f | wc -l | tr -d ' '
+  )"
+  test "$workflow_count" = "1"
+
+  scripts/verify-github-actions
+
+  # 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+  # 負の検証を実行時の手作業に依存させると、検証器の退行に気づけない。
+  scripts/verify-github-actions-self-test
 fi
 
 # --- P0-T3: Rails アプリケーションの実体 -------------------------------------
