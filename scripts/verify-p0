@@ -284,7 +284,42 @@ if task_has_event "P0-T6"; then
   fi
 
   # bin/ci は委譲するだけの互換ラッパーとする。
-  grep -Fq 'exec "$APP_ROOT/bin/verify" --full "$@"' bin/ci
+  #
+  # 委譲行の存在確認では、その前後へ独自の検証コマンドを置いた bin/ci を検出できない。
+  # コメントと空行を除いた実行行を、完全一致で検査する。
+  ruby - <<'RUBY'
+    path = "bin/ci"
+    lines = File.readlines(path, chomp: true, encoding: "UTF-8")
+
+    shebang = lines.shift
+
+    unless shebang == "#!/usr/bin/env bash"
+      warn "bin/ci must use the expected shebang"
+      exit 1
+    end
+
+    executable_lines = lines.reject do |line|
+      line.strip.empty? || line.lstrip.start_with?("#")
+    end
+
+    expected_lines = [
+      "set -euo pipefail",
+      'APP_ROOT="$(',
+      '  cd "$(dirname "${BASH_SOURCE[0]}")/.."',
+      "  pwd",
+      ')"',
+      'exec "$APP_ROOT/bin/verify" --full "$@"'
+    ]
+
+    unless executable_lines == expected_lines
+      warn "bin/ci must only delegate to bin/verify --full"
+      warn "expected:"
+      expected_lines.each { |line| warn("  #{line}") }
+      warn "actual:"
+      executable_lines.each { |line| warn("  #{line}") }
+      exit 1
+    end
+RUBY
 
   # 完全モードをコンテナ内から呼ぶと、この検証自身を無限に呼び戻す。
   docker_verification_body="$(grep -v '^[[:space:]]*#' scripts/verify-p0-docker)"

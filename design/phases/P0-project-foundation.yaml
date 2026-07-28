@@ -357,7 +357,7 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
+    status: done
     description: bin/ci が bin/verify --full へ委譲するだけの互換ラッパーであることを、
       部分文字列ではなく実行構造全体で検証し、 独立した検証定義の混入を拒否する。
     depends_on:
