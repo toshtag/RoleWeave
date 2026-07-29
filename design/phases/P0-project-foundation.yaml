@@ -606,9 +606,9 @@ tasks:
     write_surface: medium
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: i18n フォールバック設定の単一正本を構造的に検証し、 環境別設定による再定義を拒否する。 あわせて、Code
-      Pact 2.8.0 で実際に成立する complete、finalize、verify の順序へ開発文書を統一する。
+    status: done
+    description: i18n フォールバック設定の単一正本を構造的に検証し、 環境別設定による再定義を拒否する。 あわせて、Code Pact 2.8.0
+      で実際に成立する complete、finalize、verify の順序へ開発文書を統一する。
     depends_on:
       - P0-T8A
     reads:
