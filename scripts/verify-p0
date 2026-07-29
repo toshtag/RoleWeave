@@ -477,6 +477,119 @@ if task_has_event "P0-T8A"; then
 RUBY
 fi
 
+# --- P0-T8B: i18n フォールバックの単一正本 ------------------------------------
+#
+# P0-T8B が開始された時点で有効になる。
+# 受け入れ条件の詳細は
+# design/acceptance/P0-T8B-i18n-and-code-pact-contract.md を参照する。
+#
+# P0-T8A の production 検査と役割が異なる。
+# boot 検査は「実際にフォールバックしないこと」を、この検査は
+# 「設定の正本が 1 か所だけであること」を保証する。どちらも削除しない。
+#
+# 重複した false や別環境での再定義は、現在の挙動を変えないため
+# boot 検査では検出できない。しかし正本が 2 つになった時点で、
+# 次に片方だけ変更されたときの矛盾が生まれる。
+
+if task_has_event "P0-T8B"; then
+  ruby - <<'RUBY'
+    require "ripper"
+
+    # 環境設定はアプリケーション共通設定より後に読み込まれ、上書きできる。
+    # 上書きが起こりうる範囲だけを対象にする。
+    target_files = [
+      "config/application.rb",
+      "config/environments/development.rb",
+      "config/environments/test.rb",
+      "config/environments/production.rb"
+    ]
+
+    # 空白、改行、コメントは代入の構造に関与しない。
+    # コメントと文字列リテラルはそれぞれ 1 つのトークンにまとまるため、
+    # ここで除外することで文書中の例示を代入として数えなくなる。
+    ignored_token_types = %i[
+      on_sp
+      on_nl
+      on_ignored_nl
+      on_comment
+      on_embdoc_beg
+      on_embdoc
+      on_embdoc_end
+    ]
+
+    assignment_prefix_types = %i[
+      on_ident
+      on_period
+      on_ident
+      on_period
+      on_ident
+      on_op
+    ]
+
+    assignment_prefix_values = [ "config", ".", "i18n", ".", "fallbacks", "=" ]
+
+    # 空白と改行を落としたトークン列を歩く。
+    # 行を跨いだ代入や空白の増減で検査を回避できないようにする。
+    find_assignments = lambda do |path|
+      source = File.read(path, encoding: "UTF-8")
+
+      tokens = Ripper.lex(source).reject do |(_position, type, _token, _state)|
+        ignored_token_types.include?(type)
+      end
+
+      found = []
+
+      tokens.each_index do |index|
+        window = tokens[index, assignment_prefix_types.length]
+
+        next unless window && window.length == assignment_prefix_types.length
+
+        types = window.map { |(_position, type, _token, _state)| type }
+        values = window.map { |(_position, _type, token, _state)| token }
+
+        next unless types == assignment_prefix_types
+        next unless values == assignment_prefix_values
+
+        value_token = tokens[index + assignment_prefix_types.length]
+
+        found << {
+          path: path,
+          line: window.first.first.first,
+          value: value_token ? value_token[2] : "(missing)"
+        }
+      end
+
+      found
+    end
+
+    actual = target_files.flat_map { |path| find_assignments.call(path) }
+
+    expected_path = "config/application.rb"
+    expected_value = "false"
+
+    valid =
+      actual.length == 1 &&
+      actual.first[:path] == expected_path &&
+      actual.first[:value] == expected_value
+
+    unless valid
+      warn "expected exactly one i18n fallback assignment"
+      warn "  #{expected_path}: config.i18n.fallbacks = #{expected_value}"
+      warn "actual:"
+
+      if actual.empty?
+        warn "  (none)"
+      else
+        actual.each do |assignment|
+          warn "  #{assignment[:path]}:#{assignment[:line]}: #{assignment[:value]}"
+        end
+      end
+
+      exit 1
+    end
+RUBY
+fi
+
 # --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
 #
 # P0-T4 が開始された時点で有効になる。
