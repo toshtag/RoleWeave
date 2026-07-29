@@ -66,22 +66,28 @@ config.i18n.raise_on_missing_translations = true
 Rails 生成時のコメントアウト行がある場合は、その行を有効化する。
 同じ設定を別の行へ重複して追加しない。
 
-production は今回変更しない。
-production での欠落時挙動は、運用方針とエラー監視が整うフェーズで決定する。
+production の `raise_on_missing_translations` は変更しない。
+production で翻訳欠落をどう扱うか（例外化するか、監視へ送るか、
+利用者へどう見せるか）は、運用方針とエラー監視が整うフェーズで決定する。
 
 ## フォールバック
 
 日本語に存在して英語に存在しない文言を、日本語へ暗黙にフォールバックさせない。
 日英同時実装の原則を、フォールバックで隠さない。
 
-`config/environments/production.rb` には Rails 生成時の
-`config.i18n.fallbacks = true` が残る。
-これは production の欠落時挙動そのものであり、上記の理由により今回は判断しない。
-`config/application.rb` の `fallbacks = false` は
-development と test へ適用され、そこで検証する。
+これは production を含むすべての実行環境で成立させる。
+フォールバックは「欠落をどう扱うか」ではなく「欠落を欠落として観測できるか」の問題であり、
+有効なままでは欠落そのものが観測できない。
+したがって、上の `raise_on_missing_translations` に関する後続判断を待たない。
 
-production のフォールバック方針は、`raise_on_missing_translations` の
-production 設定と同じフェーズで一括して決定する。P0-T8 の残課題として報告する。
+P0-T8 の実装時点では、`config/application.rb` の `fallbacks = false` を
+`config/environments/production.rb` に残った Rails 生成時の
+`config.i18n.fallbacks = true` が上書きしており、production だけが対象外になっていた。
+この不整合は P0-T8A で解消済みである。
+
+- 正本は `config/application.rb` の `config.i18n.fallbacks = false` だけとする
+- production 側の上書きは削除する
+- production の実測検証は `design/acceptance/P0-T8A-production-i18n-fallback.md` を参照する
 
 ## 共通ロケールデータ
 
@@ -248,12 +254,16 @@ HTML の lang 属性変更
 翻訳管理サービスとの連携
 翻訳管理用の独自 DSL
 JavaScript 側の翻訳基盤
-production のフォールバックと欠落時挙動の決定
+production での翻訳欠落の扱い（例外化・監視・利用者への表示）
 セキュリティと依存関係検査（P0-T9）
 Foundation 完了検証（P0-T10）
 ```
 
 リクエスト単位の言語選択と URL 設計は、P1 の画面・ルーティング契約と同時に決定する。
+
+production の i18n フォールバックは非目標ではない。
+P0-T8 の実装時点では対象外としていたが、それは目的を満たさない範囲設定であり、
+P0-T8A で是正した。
 
 ## 変更禁止範囲
 
@@ -261,7 +271,7 @@ Foundation 完了検証（P0-T10）
 
 ```text
 config/routes.rb
-config/environments/production.rb
+config/environments/production.rb（P0-T8A で是正対象とした）
 app/**
 README.md / README.en.md
 compose.yaml
