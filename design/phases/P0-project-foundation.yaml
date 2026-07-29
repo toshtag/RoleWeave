@@ -577,7 +577,7 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
+    status: done
     description: config/environments/production.rb に残る Rails 生成時の i18n fallback 設定が
       アプリケーション共通設定を上書きし、 英語の翻訳欠落を日本語で隠す問題を修正する。 production
       を含む全環境でフォールバック無効を実測検証する。
