@@ -432,6 +432,51 @@ if task_has_event "P0-T8"; then
 RUBY
 fi
 
+# --- P0-T8A: production の i18n フォールバック -------------------------------
+#
+# P0-T8A が開始された時点で有効になる。
+# 受け入れ条件の詳細は design/acceptance/P0-T8A-production-i18n-fallback.md を参照する。
+#
+# test/configuration/i18n_configuration_test.rb は test 環境で実行されるため、
+# production の設定を検証できない。環境設定はアプリケーション共通設定より後に
+# 読み込まれ、上書きできる。production は実際に boot して確認する。
+
+if task_has_event "P0-T8A"; then
+  # フォールバックの正本は config/application.rb だけとする。
+  if grep -Eq \
+    '^[[:space:]]*config\.i18n\.fallbacks[[:space:]]*=[[:space:]]*true' \
+    config/environments/production.rb
+  then
+    printf 'production must not enable i18n fallbacks\n' >&2
+    exit 1
+  fi
+
+  # production は boot 時に SECRET_KEY_BASE を要求する。
+  # 検証用の使い捨て値を都度生成し、リポジトリへ秘密情報を持ち込まない。
+  secret_key_base="$(
+    ruby -rsecurerandom -e 'print SecureRandom.hex(64)'
+  )"
+
+  env \
+    RAILS_ENV=production \
+    SECRET_KEY_BASE="$secret_key_base" \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_production \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails runner - <<'RUBY'
+    # 祖先クラス名の確認だけでは、フォールバックの経路が変わったときに追随できない。
+    # 日本語だけの翻訳を登録し、英語から解決されない振る舞いそのものを確認する。
+    key = :p0_t8a_production_fallback_probe
+    I18n.backend.store_translations(:ja, { key => "日本語だけの文言" })
+
+    begin
+      I18n.t(key, locale: :en, raise: true)
+      abort "production i18n fallback is enabled"
+    rescue I18n::MissingTranslationData
+      # 期待どおり、英語の欠落を日本語では補わない
+    end
+RUBY
+fi
+
 # --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
 #
 # P0-T4 が開始された時点で有効になる。
