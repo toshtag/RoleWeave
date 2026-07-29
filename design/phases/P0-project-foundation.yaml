@@ -598,6 +598,36 @@ tasks:
       - scripts/verify-p0
     acceptance_refs:
       - design/acceptance/P0-T8A-production-i18n-fallback.md
+  - id: P0-T8B
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: medium
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: i18n フォールバック設定の単一正本を構造的に検証し、 環境別設定による再定義を拒否する。 あわせて、Code
+      Pact 2.8.0 で実際に成立する complete、finalize、verify の順序へ開発文書を統一する。
+    depends_on:
+      - P0-T8A
+    reads:
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - scripts/verify-p0
+      - docs/development/code-pact.md
+      - design/rules/code-pact-execution.md
+      - design/acceptance/P0-T8A-production-i18n-fallback.md
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+      - docs/code-pact/agent-instructions.md
+    writes:
+      - scripts/verify-p0
+      - docs/development/code-pact.md
+      - design/rules/code-pact-execution.md
+    acceptance_refs:
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
   - id: P0-T9
     type: test
     ambiguity: low
@@ -609,7 +639,7 @@ tasks:
     status: planned
     description: "セキュリティと依存関係検査の追加（ブランチ: p0/t9-security-checks）"
     depends_on:
-      - P0-T6
+      - P0-T8B
   - id: P0-T10
     type: test
     ambiguity: low
@@ -628,4 +658,5 @@ tasks:
       - P0-T7C
       - P0-T8
       - P0-T8A
+      - P0-T8B
       - P0-T9

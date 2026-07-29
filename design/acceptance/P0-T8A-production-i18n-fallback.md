@@ -189,3 +189,31 @@ P0-T8 はすでに finalize 済みであり、履歴を改変せずに是正タ�
   `--base-ref` には P0-T8A の契約コミットを指定する
 - `write_audit` の不整合をダミー差分で解消しない。原因を報告して停止する
 - 実行していない検証を成功として報告しない
+
+### 実行後の追記
+
+上の `code-pact verify --task` に関する記述は不完全だった。
+
+P0-T8A の実行中、`task complete` 直後の `code-pact verify` は、
+フェーズ YAML の status が `done` になっていないため `task_status` で失敗した。
+`verify` は done イベントだけでなくフェーズ YAML の status も確認するため、
+`task finalize --write` より前には成功しない。
+
+Code Pact 2.8.0 における RoleWeave の正規順序は次のとおりである。
+
+```text
+task complete → task finalize --write → code-pact verify
+```
+
+この文書の実行時記述と、`docs/development/code-pact.md` および
+`design/rules/code-pact-execution.md` との不整合は P0-T8B で是正した。
+詳細は `design/acceptance/P0-T8B-i18n-and-code-pact-contract.md` を参照する。
+
+### 検証の不足
+
+P0-T8A で追加した静的検査は `config/environments/production.rb` の
+`config.i18n.fallbacks = true` だけを拒否する。
+production へ重複した `false` を追加しても、development や test へ再定義を追加しても通過する。
+
+「正本は `config/application.rb` の 1 件だけ」という上の要件は、
+P0-T8A の時点では回帰検査で固定できていなかった。P0-T8B で構造的な検査を追加した。
