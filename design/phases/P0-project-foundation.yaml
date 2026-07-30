@@ -628,6 +628,32 @@ tasks:
       - design/rules/code-pact-execution.md
     acceptance_refs:
       - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+  - id: P0-T8C
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: P0-T8B の字句列検査が ||= や &&= などの有効な Ruby 代入を 検出できない問題を修正する。Ripper
+      の構文木から assign と opassign を検出し、 config/application.rb の plain assignment false 1
+      件だけを許可する。
+    depends_on:
+      - P0-T8B
+    reads:
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
   - id: P0-T9
     type: test
     ambiguity: low
@@ -639,7 +665,7 @@ tasks:
     status: planned
     description: "セキュリティと依存関係検査の追加（ブランチ: p0/t9-security-checks）"
     depends_on:
-      - P0-T8B
+      - P0-T8C
   - id: P0-T10
     type: test
     ambiguity: low
@@ -659,4 +685,5 @@ tasks:
       - P0-T8
       - P0-T8A
       - P0-T8B
+      - P0-T8C
       - P0-T9
