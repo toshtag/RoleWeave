@@ -493,15 +493,25 @@ if task_has_event "P0-T8A"; then
           references << {
             path: path,
             line: line,
-            text: source.lines[line - 1].to_s.strip
+            text: source.lines[line - 1].to_s.strip,
+            type: type,
+            token: token.to_s
           }
         end
       end
 
+      # canonical はソース行の一致だけでは判定できない。
+      # ヒアドキュメントの内容トークンでは、その内容行そのものが返るため、
+      # 実際の設定代入がなくても canonical 行と一致してしまう。
+      # トークンがコード上の識別子であることまで確認する。
+      canonical_reference = references.first
+
       canonical =
         references.length == 1 &&
-        references.first[:path] == CANONICAL_PATH &&
-        references.first[:text] == CANONICAL_LINE
+        canonical_reference[:path] == CANONICAL_PATH &&
+        canonical_reference[:text] == CANONICAL_LINE &&
+        canonical_reference[:type] == :on_ident &&
+        canonical_reference[:token] == "fallbacks"
 
       next [] if canonical
 
@@ -513,7 +523,9 @@ if task_has_event "P0-T8A"; then
         failures << "  (none)"
       else
         references.each do |reference|
-          failures << "  #{reference[:path]}:#{reference[:line]}: #{reference[:text]}"
+          failures << "  #{reference[:path]}:#{reference[:line]}:"
+          failures << "    text=#{reference[:text]}"
+          failures << "    type=#{reference[:type]} token=#{reference[:token].strip}"
         end
       end
 
@@ -555,6 +567,21 @@ if task_has_event "P0-T8A"; then
       if inspect_sources.call(sources).empty?
         warn "source policy self-test failed: #{label} must be rejected"
         warn "  source: #{source}"
+        exit 1
+      end
+    end
+
+    # canonical 行と同じ文字列を、実際の設定ではない位置へ置いた場合も拒否する。
+    # 行の一致だけを見ると、実際の設定代入がなくても通過する。
+    canonical_lookalikes = [
+      [ "heredoc canonical text", "ignored = <<~TEXT\n#{CANONICAL_LINE}\nTEXT\n" ],
+      [ "string canonical text", %(message = "#{CANONICAL_LINE}"\n) ]
+    ]
+
+    canonical_lookalikes.each do |(label, source)|
+      if inspect_sources.call([ [ CANONICAL_PATH, source ] ]).empty?
+        warn "source policy self-test failed: #{label} must be rejected"
+        warn "  source: #{source.inspect}"
         exit 1
       end
     end
