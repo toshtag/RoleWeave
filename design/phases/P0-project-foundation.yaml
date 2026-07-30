@@ -712,7 +712,7 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
+    status: done
     description: P0-T8E のソース規約がヒアドキュメント内の文字列を canonical な i18n
       フォールバック設定として誤認する問題を修正する。 canonical 候補を on_ident の fallbacks トークンへ限定し、 独自
       AST 解析器を再導入せずに文字列誤認を防止する。
