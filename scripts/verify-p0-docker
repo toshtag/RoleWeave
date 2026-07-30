@@ -1,14 +1,8 @@
 #!/usr/bin/env bash
-# P0-T4 / P0-T5 / P0-T6B の Docker 検証。
+# Docker Compose と PostgreSQL を含む Foundation の検証。
 #
-# scripts/verify-p0 から、P0-T4 の進捗イベントが記録された時点で呼び出される。
-# P0-T5 と P0-T6B の検証は、それぞれのタスクの進捗イベントが記録された時点で追加で有効になる。
-#
-# 受け入れ条件の正本は次の 3 つとする。
-#
-#   design/acceptance/P0-T4-docker-compose.md
-#   design/acceptance/P0-T5-idempotent-setup.md
-#   design/acceptance/P0-T6B-container-git-ownership.md
+# 過去タスクの実行履歴ではなく、現在の Foundation 契約を検証する。
+# scripts/verify-p0 から呼ばれる内部実装とする。
 #
 # 静的検証は docker compose config --format json の正規化結果を Ruby の JSON で解析する。
 # YAML のインデントに依存した grep だけでは、値の所属先を取り違える。
@@ -16,13 +10,6 @@
 # 動的検証は専用の Compose project name と空きポートを使い、
 # 通常の開発用 project や volume へ影響を与えない。
 set -euo pipefail
-
-# 進捗イベントの有無でタスクの開始を判定する。
-# started / done のいずれかが記録されていれば、そのタスクの検証を有効にする。
-task_has_event() {
-  local task_id="$1"
-  grep -Rqs "^task_id: ${task_id}$" .code-pact/state/events
-}
 
 # 必須の行がちょうど 1 件だけ存在することを確認する。
 # 欠落と重複の両方を失敗として扱う。
@@ -73,18 +60,13 @@ test ! -e docker-compose.yml
 # ARG の既定値と FROM の参照先の両方を検査し、フローティングタグを拒否する。
 
 require_exact_line_once "ARG RUBY_VERSION=4.0.6" Dockerfile
-require_exact_line_once "ARG NODE_VERSION=24.18.0" Dockerfile
-require_exact_line_once \
-  'FROM node:${NODE_VERSION}-bookworm-slim AS node_runtime' \
-  Dockerfile
 require_exact_line_once \
   'FROM ruby:${RUBY_VERSION}-slim-bookworm AS development' \
   Dockerfile
 
 unexpected_from="$(
   awk '
-    $1 == "FROM" && $2 != "node:${NODE_VERSION}-bookworm-slim" \
-      && $2 != "ruby:${RUBY_VERSION}-slim-bookworm" { print $2 }
+    $1 == "FROM" && $2 != "ruby:${RUBY_VERSION}-slim-bookworm" { print $2 }
   ' Dockerfile
 )"
 
@@ -93,16 +75,14 @@ if [[ -n "$unexpected_from" ]]; then
   exit 1
 fi
 
-# Node.js は必要な実体だけを取得する。/usr/local 全体をコピーすると Ruby を壊す。
-if grep -Eq '^COPY --from=node_runtime /usr/local/?[[:space:]]' Dockerfile; then
-  printf 'Dockerfile must not copy the whole /usr/local from the node image\n' >&2
-  exit 1
-fi
-
 # lockfile を変更できない状態で依存を解決していること。
 grep -Fq "BUNDLE_FROZEN=true bundle install" Dockerfile
-grep -Fq "npm ci" Dockerfile
-! grep -Eq '^[[:space:]]*RUN[[:space:]].*npm[[:space:]]+install' Dockerfile
+
+# Node.js は P0-R1 で撤去した。開発イメージへ再導入しない。
+if grep -Eiq 'node|npm' Dockerfile; then
+  printf 'Dockerfile must not reference Node.js or npm\n' >&2
+  exit 1
+fi
 
 # 本番向けの処理を開発用イメージへ持ち込まない。
 ! grep -Fq "assets:precompile" Dockerfile
@@ -115,10 +95,6 @@ dockerignore_lines=(
   ".git"
   ".context"
   ".local"
-  ".code-pact/cache"
-  ".code-pact/locks"
-  ".code-pact/state/locks"
-  "node_modules"
   ".bundle"
   ".env*"
   "config/*.key"
@@ -137,8 +113,8 @@ for line in "${dockerignore_lines[@]}"; do
   require_exact_line_once "$line" .dockerignore
 done
 
-# Code Pact の制御面と検証スクリプトは build context に残す。
-for kept in design docs scripts .code-pact; do
+# 検証スクリプトと設計文書は build context に残す。
+for kept in design docs scripts; do
   if awk -v kept="$kept" '
     $0 == kept || $0 == kept "/" || $0 == kept "/*" || $0 == "/" kept { found = 1 }
     END { exit found ? 0 : 1 }
@@ -167,95 +143,47 @@ if grep -Eq '^[[:space:]]*host:[[:space:]]*db[[:space:]]*$' config/database.yml;
   exit 1
 fi
 
-# --- 静的検証: bin/setup（P0-T5） --------------------------------------------
+# --- 静的検証: bin/setup ------------------------------------------------------
 #
 # 動的検証は build とコンテナ起動を伴うため、契約違反はその前に失敗させる。
 
-if task_has_event "P0-T5"; then
-  test -x bin/setup
-  ruby -c bin/setup >/dev/null
+test -x bin/setup
+ruby -c bin/setup >/dev/null
 
-  # lockfile を変更できない状態で解決し、lockfile どおりに再現していること。
-  grep -Fq 'BUNDLE_FROZEN' bin/setup
-  grep -Fq '"npm", "ci"' bin/setup
-  grep -Fq '"bin/rails", "db:prepare"' bin/setup
+# lockfile を変更できない状態で解決していること。
+grep -Fq 'BUNDLE_FROZEN' bin/setup
+grep -Fq '"bin/rails", "db:prepare"' bin/setup
 
-  if grep -Fq 'db:reset' bin/setup; then
-    printf 'bin/setup must not run db:reset\n' >&2
-    exit 1
-  fi
-
-  if grep -Fq 'bin/dev' bin/setup; then
-    printf 'bin/setup must not start bin/dev\n' >&2
-    exit 1
-  fi
-
-  # プロセス置換で常駐すると docker compose run --rm が終了しない。
-  if grep -Eq '(^|[^[:alnum:]_])exec([[:space:](]|$)' bin/setup; then
-    printf 'bin/setup must not replace itself with a server process\n' >&2
-    exit 1
-  fi
-
-  if grep -Eq 'rails([[:space:]]+|", ")server' bin/setup; then
-    printf 'bin/setup must not start the Rails server\n' >&2
-    exit 1
-  fi
-
-  # npm install は解決結果によって package-lock.json を書き換え得る。
-  if grep -Eq 'npm[",[:space:]]+install' bin/setup; then
-    printf 'bin/setup must use npm ci instead of npm install\n' >&2
-    exit 1
-  fi
+if grep -Fq 'db:reset' bin/setup; then
+  printf 'bin/setup must not run db:reset\n' >&2
+  exit 1
 fi
 
-# --- 静的検証: コンテナ内の作業ツリー所有者（P0-T6B） ------------------------
+if grep -Fq 'bin/dev' bin/setup; then
+  printf 'bin/setup must not start bin/dev\n' >&2
+  exit 1
+fi
+
+# プロセス置換で常駐すると docker compose run --rm が終了しない。
+if grep -Eq '(^|[^[:alnum:]_])exec([[:space:](]|$)' bin/setup; then
+  printf 'bin/setup must not replace itself with a server process\n' >&2
+  exit 1
+fi
+
+if grep -Eq 'rails([[:space:]]+|", ")server' bin/setup; then
+  printf 'bin/setup must not start the Rails server\n' >&2
+  exit 1
+fi
+
+# --- 静的検証: bin/docker-entrypoint ------------------------------------------
 #
-# 動的検証は build とコンテナ起動を伴うため、契約違反はその前に失敗させる。
+# entrypoint は前処理だけを行い、与えられたコマンドへ制御を渡す。
 
-expected_safe_directory_command='git config --global --replace-all safe.directory /workspace'
+bash -n bin/docker-entrypoint
 
-if task_has_event "P0-T6B"; then
-  bash -n bin/docker-entrypoint
-
-  # 行全体の完全一致で判定する。
-  # 部分一致の正規表現では、--replace-all を --add へ退行させた実装を検出できない。
-  require_exact_line_once "$expected_safe_directory_command" bin/docker-entrypoint
-
-  # 例外は /workspace だけへ与える。
-  # 別のディレクトリや * を追加した実装は、設定行の総数で検出する。
-  entrypoint_body="$(grep -v '^[[:space:]]*#' bin/docker-entrypoint)"
-
-  safe_directory_line_count="$(
-    printf '%s\n' "$entrypoint_body" | grep -c 'safe\.directory' || true
-  )"
-
-  if [[ "$safe_directory_line_count" -ne 1 ]]; then
-    printf \
-      'bin/docker-entrypoint must configure safe.directory exactly once, found %s\n' \
-      "$safe_directory_line_count" \
-      >&2
-    exit 1
-  fi
-
-  # 設定は exec による置き換えより前に完了させる。
-  # 後ろへ置いた設定は到達しない。
-  safe_directory_line_number="$(
-    grep -nFx "$expected_safe_directory_command" bin/docker-entrypoint | cut -d: -f1
-  )"
-
-  entrypoint_exec_line_number="$(
-    grep -nEx 'exec "\$@"' bin/docker-entrypoint | cut -d: -f1
-  )"
-
-  if [[ -z "$entrypoint_exec_line_number" ]]; then
-    printf 'bin/docker-entrypoint must end by exec-ing the given command\n' >&2
-    exit 1
-  fi
-
-  if [[ "$safe_directory_line_number" -ge "$entrypoint_exec_line_number" ]]; then
-    printf 'bin/docker-entrypoint must configure safe.directory before exec\n' >&2
-    exit 1
-  fi
+if ! grep -qEx 'exec "\$@"' bin/docker-entrypoint; then
+  printf 'bin/docker-entrypoint must end by exec-ing the given command\n' >&2
+  exit 1
 fi
 
 # --- 静的検証: Compose 定義 ---------------------------------------------------
@@ -292,7 +220,7 @@ db = services["db"] || {}
 build = app["build"] || {}
 check(failures, build["target"] == "development", "app build target must be development, got #{build["target"].inspect}")
 check(failures, (build["args"] || {})["RUBY_VERSION"] == "4.0.6", "app build arg RUBY_VERSION must be 4.0.6")
-check(failures, (build["args"] || {})["NODE_VERSION"] == "24.18.0", "app build arg NODE_VERSION must be 24.18.0")
+check(failures, !(build["args"] || {}).key?("NODE_VERSION"), "app build must not declare NODE_VERSION")
 
 # db: 固定イメージ
 check(failures, db["image"] == "postgres:18.4-bookworm", "db image must be postgres:18.4-bookworm, got #{db["image"].inspect}")
@@ -354,17 +282,14 @@ end
 app_volumes = Array(app["volumes"])
 workspace = app_volumes.find { |volume| volume["target"] == "/workspace" }
 check(failures, workspace && workspace["type"] == "bind", "app must bind mount the working tree at /workspace")
-{
-  "/usr/local/bundle" => "bundle",
-  "/workspace/node_modules" => "node_modules"
-}.each do |target, source|
-  mount = app_volumes.find { |volume| volume["target"] == target }
-  check(failures, mount && mount["type"] == "volume" && mount["source"] == source, "app must mount the named volume #{source} at #{target}")
-end
+
+bundle_mount = app_volumes.find { |volume| volume["target"] == "/usr/local/bundle" }
+check(failures, bundle_mount && bundle_mount["type"] == "volume" && bundle_mount["source"] == "bundle", "app must mount the named volume bundle at /usr/local/bundle")
+
 check(failures, app_volumes.none? { |volume| volume["type"] == "volume" && volume["source"].to_s.empty? }, "app must not use anonymous volumes")
 
 # named volume
-check(failures, config.fetch("volumes", {}).keys.sort == %w[bundle node_modules postgres_data], "named volumes must be exactly bundle, node_modules and postgres_data")
+check(failures, config.fetch("volumes", {}).keys.sort == %w[bundle postgres_data], "named volumes must be exactly bundle and postgres_data")
 
 # 運用上の固定を持ち込まない
 services.each do |name, service|
@@ -429,118 +354,59 @@ compose build app
 compose run --rm --no-deps app \
   ruby -e 'abort "unexpected Ruby #{RUBY_VERSION}" unless RUBY_VERSION == "4.0.6"'
 
-container_node_version="$(compose run --rm --no-deps app node --version | tr -d '\r\n')"
-test "$container_node_version" = "v24.18.0"
-
 container_rails_version="$(compose run --rm --no-deps app bundle exec rails --version | tr -d '\r\n')"
 test "$container_rails_version" = "Rails 8.1.3"
 
 compose run --rm --no-deps app bundle check
-compose run --rm --no-deps app npm ls --depth=0 >/dev/null
 
-# --- 動的検証: コンテナ内の作業ツリー所有者（P0-T6B） ------------------------
-#
-# 所有者が写像されるホストでは、修正前でも作業ツリーの Git 索引を読める。
-# そのため、例外の適用範囲と冪等性を必ず併せて確認する。
-
-if task_has_event "P0-T6B"; then
-  # 包含関係ではなく完全一致で判定する。
-  # 一覧に /workspace が含まれることだけでは、別ディレクトリの追加許可を検出できない。
-  container_safe_directories="$(
-    compose run --rm --no-deps app git config --global --get-all safe.directory \
-      | tr -d '\r'
-  )"
-
-  if [[ "$container_safe_directories" != "/workspace" ]]; then
-    printf \
-      'safe.directory must be exactly /workspace in the container, got: %s\n' \
-      "$container_safe_directories" \
-      >&2
-    exit 1
-  fi
-
-  # docker compose run は毎回新しいコンテナを起動するため、
-  # 起動 1 回だけの観測では --add による重複を検出できない。
-  # 同じコンテナ内で entrypoint を追加実行し、設定が蓄積しないことを確認する。
-  compose run --rm --no-deps app sh -c '
-    set -eu
-
-    /workspace/bin/docker-entrypoint true
-    /workspace/bin/docker-entrypoint true
-
-    values="$(git config --global --get-all safe.directory | tr -d "\r")"
-
-    if [ "$values" != "/workspace" ]; then
-      echo "safe.directory must not accumulate, got: $values" >&2
-      exit 1
-    fi
-  '
-
-  # Code Pact が参照するのは追跡ファイル索引である。読めることを直接確認する。
-  compose run --rm --no-deps app git -C /workspace ls-files >/dev/null
-
-  # 例外を無条件に許可した実装は、ここで検出する。
-  compose run --rm --no-deps app sh -c '
-    set -eu
-
-    mkdir -p /tmp/foreign-repository
-    cd /tmp/foreign-repository
-    git init -q .
-    chown -R 1234:1234 /tmp/foreign-repository
-
-    if git ls-files >/dev/null 2>&1; then
-      echo "git must still reject repositories outside /workspace" >&2
-      exit 1
-    fi
-  '
+# Node.js は P0-R1 で撤去した。イメージへ残っていないことを実測する。
+if compose run --rm --no-deps app sh -c 'command -v node || command -v npm'; then
+  printf 'the app image must not contain Node.js or npm\n' >&2
+  exit 1
 fi
 
-# --- 動的検証: 依存が欠けた状態からのセットアップ（P0-T5） --------------------
+# --- 動的検証: 依存が欠けた状態からのセットアップ ------------------------------
 #
-# 対象は検証専用 project の named volume だけであり、ホストの node_modules は削除しない。
+# 対象は検証専用 project の named volume だけである。
 # db はここで起動しない。正規コマンドと同じく Compose の depends_on に任せる。
 
-if task_has_event "P0-T5"; then
-  compose run --rm --no-deps app sh -c '
-    set -eu
-    find /usr/local/bundle -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-    find /workspace/node_modules -mindepth 1 -maxdepth 1 -exec rm -rf {} +
-  '
+compose run --rm --no-deps app sh -c '
+  set -eu
+  find /usr/local/bundle -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+'
 
-  # Docker は空の named volume に対して、次のコンテナ作成時にイメージの内容を再投入する。
-  # 空にするだけでは gem の欠落を再現できず、bundle install の経路を検証できない。
-  # 再投入された内容から一部だけを取り除き、bundle check を確実に失敗させる。
-  compose run --rm --no-deps app sh -c '
-    set -eu
+# Docker は空の named volume に対して、次のコンテナ作成時にイメージの内容を再投入する。
+# 空にするだけでは gem の欠落を再現できず、bundle install の経路を検証できない。
+# 再投入された内容から一部だけを取り除き、bundle check を確実に失敗させる。
+compose run --rm --no-deps app sh -c '
+  set -eu
 
-    gem_dir="$(find /usr/local/bundle/ruby/*/gems -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
-    test -n "$gem_dir"
+  gem_dir="$(find /usr/local/bundle/ruby/*/gems -mindepth 1 -maxdepth 1 -type d | sort | head -n 1)"
+  test -n "$gem_dir"
 
-    # gemspec を残すと RubyGems は導入済みとして扱う。実体と併せて取り除く。
-    rm -rf "$gem_dir"
-    rm -f "${gem_dir%/gems/*}/specifications/$(basename "$gem_dir").gemspec"
-  '
+  # gemspec を残すと RubyGems は導入済みとして扱う。実体と併せて取り除く。
+  rm -rf "$gem_dir"
+  rm -f "${gem_dir%/gems/*}/specifications/$(basename "$gem_dir").gemspec"
+'
 
-  # 復旧を検証する前提が成立していること。
-  if compose run --rm --no-deps app bundle check; then
-    printf 'the verification failed to reproduce a missing dependency\n' >&2
-    exit 1
-  fi
-
-  # 作業ツリーは bind mount されている。
-  # セットアップが追跡対象ファイルや lockfile を書き換えないことを前後比較で確認する。
-  setup_git_state_before="$(git status --porcelain=v1 --untracked-files=all)"
-
-  # 正規コマンドと同じ形で実行する。
-  # 常駐すると --rm の一時コンテナが終了せず、ここで停止する。
-  compose run --rm app bin/setup
-
-  setup_git_state_after_first="$(git status --porcelain=v1 --untracked-files=all)"
-  test "$setup_git_state_after_first" = "$setup_git_state_before"
-
-  compose run --rm --no-deps app bundle check
-  compose run --rm --no-deps app npm ls --depth=0 >/dev/null
+# 復旧を検証する前提が成立していること。
+if compose run --rm --no-deps app bundle check; then
+  printf 'the verification failed to reproduce a missing dependency\n' >&2
+  exit 1
 fi
+
+# 作業ツリーは bind mount されている。
+# セットアップが追跡対象ファイルや lockfile を書き換えないことを前後比較で確認する。
+setup_git_state_before="$(git status --porcelain=v1 --untracked-files=all)"
+
+# 正規コマンドと同じ形で実行する。
+# 常駐すると --rm の一時コンテナが終了せず、ここで停止する。
+compose run --rm app bin/setup
+
+setup_git_state_after_first="$(git status --porcelain=v1 --untracked-files=all)"
+test "$setup_git_state_after_first" = "$setup_git_state_before"
+
+compose run --rm --no-deps app bundle check
 
 # --- 動的検証: PostgreSQL ------------------------------------------------------
 
@@ -553,126 +419,112 @@ container_server_version="$(
 )"
 test "$container_server_version" = "180004"
 
-# --- 動的検証: Rails からの DB 準備 -------------------------------------------
-#
-# P0-T5 以降、development の準備は bin/setup の責務とする。
-# 過去 tree では従来どおり db:prepare を直接実行する。
+# --- 動的検証: bin/setup の冪等性 ----------------------------------------------
 
-if task_has_event "P0-T5"; then
-  psql_development() {
-    compose exec -T db \
-      psql \
-      -U roleweave \
-      -d role_weave_development \
-      -At \
-      -v ON_ERROR_STOP=1 \
-      -c "$1"
-  }
-
-  # development データベースの決定的な状態をテキストとして取得する。
-  # 「2 回目に何もしないこと」ではなく、「2 回目も同じ状態へ収束すること」を確認する。
-  #
-  # 業務モデル導入前は schema_migrations と ar_internal_metadata が存在しない。
-  # 存在の有無そのものも比較対象に含める。
-  database_state() {
-    local tables
-
-    tables="$(
-      psql_development "
-        SELECT tablename FROM pg_tables
-        WHERE schemaname = 'public'
-        ORDER BY tablename;
-      "
-    )"
-
-    printf 'tables:\n%s\n' "$tables"
-
-    if printf '%s\n' "$tables" | grep -qx schema_migrations; then
-      printf 'migrations:\n%s\n' \
-        "$(psql_development 'SELECT version FROM schema_migrations ORDER BY version;')"
-    else
-      printf 'migrations: absent\n'
-    fi
-
-    if printf '%s\n' "$tables" | grep -qx ar_internal_metadata; then
-      printf 'metadata:\n%s\n' \
-        "$(psql_development "
-          SELECT key || '=' || COALESCE(value, '')
-          FROM ar_internal_metadata
-          ORDER BY key;
-        ")"
-    else
-      printf 'metadata: absent\n'
-    fi
-
-    printf 'probe:\n%s\n' \
-      "$(psql_development 'SELECT value FROM setup_idempotency_probe ORDER BY value;')"
-  }
-
-  # 検証専用のテーブルと行。既存の同名テーブルは削除せず、衝突を失敗として扱う。
+psql_development() {
   compose exec -T db \
     psql \
     -U roleweave \
     -d role_weave_development \
+    -At \
     -v ON_ERROR_STOP=1 \
-    -q \
-    -c "
-      CREATE TABLE setup_idempotency_probe (value text PRIMARY KEY);
-      INSERT INTO setup_idempotency_probe (value) VALUES ('preserved');
-    "
+    -c "$1"
+}
 
-  database_state_after_first="$(database_state)"
-
-  # 同じ project、同じ named volume に対する 2 回目の実行。
-  compose run --rm app bin/setup
-
-  setup_git_state_after_second="$(git status --porcelain=v1 --untracked-files=all)"
-  test "$setup_git_state_after_second" = "$setup_git_state_before"
-
-  compose run --rm --no-deps app bundle check
-  compose run --rm --no-deps app npm ls --depth=0 >/dev/null
-
-  database_state_after_second="$(database_state)"
-  test "$database_state_after_second" = "$database_state_after_first"
-
-  # 状態全体の比較に加えて、検証用の行が残っていることを直接確認する。
-  probe_value="$(
-    psql_development 'SELECT value FROM setup_idempotency_probe;' | tr -d '\r\n'
-  )"
-  test "$probe_value" = "preserved"
-
-  # 破壊的な操作を隠れたオプションとして提供しない。
-  for rejected_argument in --reset --skip-server unexpected-argument; do
-    if compose run --rm app bin/setup "$rejected_argument"; then
-      printf 'bin/setup must reject the argument: %s\n' "$rejected_argument" >&2
-      exit 1
-    fi
-  done
-
-  # 引数を拒否した後も、既存データが残っていること。
-  database_state_after_rejected_arguments="$(database_state)"
-  test "$database_state_after_rejected_arguments" = "$database_state_after_first"
-
-  compose exec -T db \
-    psql -U roleweave -d role_weave_development -v ON_ERROR_STOP=1 -q -c \
-    'DROP TABLE setup_idempotency_probe;'
-else
-  compose run --rm app bin/rails db:prepare
-fi
-
-# --- 動的検証: コンテナ内の標準検証（P0-T6） ---------------------------------
+# development データベースの決定的な状態をテキストとして取得する。
+# 「2 回目に何もしないこと」ではなく、「2 回目も同じ状態へ収束すること」を確認する。
 #
-# P0-T6 以降、test DB の準備は bin/verify の責務とする。
+# 業務モデル導入前は schema_migrations と ar_internal_metadata が存在しない。
+# 存在の有無そのものも比較対象に含める。
+database_state() {
+  local tables
+
+  tables="$(
+    psql_development "
+      SELECT tablename FROM pg_tables
+      WHERE schemaname = 'public'
+      ORDER BY tablename;
+    "
+  )"
+
+  printf 'tables:\n%s\n' "$tables"
+
+  if printf '%s\n' "$tables" | grep -qx schema_migrations; then
+    printf 'migrations:\n%s\n' \
+      "$(psql_development 'SELECT version FROM schema_migrations ORDER BY version;')"
+  else
+    printf 'migrations: absent\n'
+  fi
+
+  if printf '%s\n' "$tables" | grep -qx ar_internal_metadata; then
+    printf 'metadata:\n%s\n' \
+      "$(psql_development "
+        SELECT key || '=' || COALESCE(value, '')
+        FROM ar_internal_metadata
+        ORDER BY key;
+      ")"
+  else
+    printf 'metadata: absent\n'
+  fi
+
+  printf 'probe:\n%s\n' \
+    "$(psql_development 'SELECT value FROM setup_idempotency_probe ORDER BY value;')"
+}
+
+# 検証専用のテーブルと行。既存の同名テーブルは削除せず、衝突を失敗として扱う。
+compose exec -T db \
+  psql \
+  -U roleweave \
+  -d role_weave_development \
+  -v ON_ERROR_STOP=1 \
+  -q \
+  -c "
+    CREATE TABLE setup_idempotency_probe (value text PRIMARY KEY);
+    INSERT INTO setup_idempotency_probe (value) VALUES ('preserved');
+  "
+
+database_state_after_first="$(database_state)"
+
+# 同じ project、同じ named volume に対する 2 回目の実行。
+compose run --rm app bin/setup
+
+setup_git_state_after_second="$(git status --porcelain=v1 --untracked-files=all)"
+test "$setup_git_state_after_second" = "$setup_git_state_before"
+
+compose run --rm --no-deps app bundle check
+
+database_state_after_second="$(database_state)"
+test "$database_state_after_second" = "$database_state_after_first"
+
+# 状態全体の比較に加えて、検証用の行が残っていることを直接確認する。
+probe_value="$(
+  psql_development 'SELECT value FROM setup_idempotency_probe;' | tr -d '\r\n'
+)"
+test "$probe_value" = "preserved"
+
+# 破壊的な操作を隠れたオプションとして提供しない。
+for rejected_argument in --reset --skip-server unexpected-argument; do
+  if compose run --rm app bin/setup "$rejected_argument"; then
+    printf 'bin/setup must reject the argument: %s\n' "$rejected_argument" >&2
+    exit 1
+  fi
+done
+
+# 引数を拒否した後も、既存データが残っていること。
+database_state_after_rejected_arguments="$(database_state)"
+test "$database_state_after_rejected_arguments" = "$database_state_after_first"
+
+compose exec -T db \
+  psql -U roleweave -d role_weave_development -v ON_ERROR_STOP=1 -q -c \
+  'DROP TABLE setup_idempotency_probe;'
+
+# --- 動的検証: コンテナ内の標準検証 --------------------------------------------
+#
+# test DB の準備は bin/verify の責務とする。
 # 検証内容をここへ複製せず、正規コマンドをそのまま実測する。
 # bin/verify --full をコンテナ内から呼ぶと再帰するため、標準モードだけを実行する。
-#
-# 過去 tree では従来どおり db:prepare を直接実行する。
 
-if task_has_event "P0-T6"; then
-  compose run --rm app bin/verify
-else
-  compose run --rm -e RAILS_ENV=test app bin/rails db:prepare
-fi
+compose run --rm app bin/verify
 
 compose run --rm app bin/rails runner \
   'abort "unexpected server version" unless ActiveRecord::Base.connection.select_value("SHOW server_version_num").to_i == 180004'
@@ -724,6 +576,4 @@ ruby -rnet/http -e '
 
 git diff --quiet HEAD -- \
   Gemfile \
-  Gemfile.lock \
-  package.json \
-  package-lock.json
+  Gemfile.lock

@@ -1,20 +1,12 @@
 #!/usr/bin/env bash
-# P0 Project Foundation の累積検証。
+# P0 Project Foundation の検証。
 #
-# P0 のタスクが進むたびに検証を追加していく。
-# 各検証は、対応するタスクが開始された時点で自動的に有効になる。
-# これにより、実装していないタスクを Code Pact の構造検査だけで完了できない状態を保つ。
+# 過去タスクの実行履歴ではなく、現在の Foundation 契約を検証する。
+# 検証はイベントや進捗台帳の有無に依存せず、常にすべて実行する。
 #
-# P0-T6 以降、このスクリプトは bin/verify --full から呼ばれる内部実装とする。
+# このスクリプトは bin/verify --full から呼ばれる内部実装とする。
 # 利用者と CI が直接実行する入口にはしない。
 set -euo pipefail
-
-# 進捗イベントの有無でタスクの開始を判定する。
-# started / done のいずれかが記録されていれば、そのタスクの検証を有効にする。
-task_has_event() {
-  local task_id="$1"
-  grep -Rqs "^task_id: ${task_id}$" .code-pact/state/events
-}
 
 # 必須の行がちょうど 1 件だけ存在することを確認する。
 # 欠落と重複の両方を失敗として扱う。
@@ -48,53 +40,39 @@ require_exact_line_once() {
   fi
 }
 
-# --- 開発ランタイム -----------------------------------------------------------
+# --- 撤去済みの開発依存を持ち込まない ------------------------------------------
 #
-# ファイルに書かれたバージョンだけでなく、実際に動いている Node.js を検査する。
-# バージョンマネージャーの切り替え漏れを、Code Pact の検証より前に失敗させる。
+# code-pact と Node.js は P0-R1 で撤去した。
+# 進捗・契約の正本はロードマップと GitHub Issues であり、
+# ツール固有の制御面やイベント台帳を再導入しない。
 
-test -f .node-version
+test ! -e .code-pact
+test ! -e .node-version
+test ! -e package.json
+test ! -e package-lock.json
+test ! -e docs/development/code-pact.md
+test ! -e design/rules/code-pact-execution.md
 
-expected_node_version="$(tr -d '\r\n' < .node-version)"
-
-test "$expected_node_version" = "24.18.0"
-test "$(node --version)" = "v${expected_node_version}"
-
-node -e '
-  const packageJson = require("./package.json");
-
-  if (packageJson.engines?.node !== ">=24.18.0 <25") {
-    console.error(
-      `unexpected package.json engines.node: ${packageJson.engines?.node}`
-    );
-    process.exit(1);
-  }
-'
-
-# --- P0-T2 / P0-T2A / P0-T2B / P0-T2C: Code Pact 制御面 ----------------------
-#
-# plan lint は必ず strict で実行する。
-# --strict でのみ終了コードへ反映される警告（TASK_ID_PHASE_PREFIX など）を見逃さない。
-
-npm run pact:validate >/dev/null
-npm run pact:lint >/dev/null
+# --- 設計文書の正本 -------------------------------------------------------------
 
 test -f design/brief.md
 test -f design/constitution.md
+test -f design/roadmap.yaml
 test -f design/rules/coding-style.md
-test -f design/rules/code-pact-execution.md
-test -f design/acceptance/P0-T3-rails-bootstrap.md
-test -f docs/development/code-pact.md
+test -f design/rules/task-scope.md
+test -f docs/architecture/principles.md
+test -f docs/development/language-policy.md
+
+# ロードマップとフェーズ定義は YAML として常に解析できること。
+ruby -ryaml -e '
+  Dir["design/**/*.yaml"].sort.each do |path|
+    YAML.load_file(path)
+  end
+'
 
 # --- 既存 .gitignore 設定の保持 -----------------------------------------------
-#
-# P0-T3 で Rails 用の除外設定を追記する際、これらを置換・削除・重複させない。
 
 project_gitignore_lines=(
-  "/node_modules/"
-  "/.code-pact/locks/"
-  "/.code-pact/state/locks/"
-  "/.code-pact/cache/"
   "/.local/"
   "/.context/"
 )
@@ -116,329 +94,284 @@ test ! -e .devcontainer
 test ! -e config/master.key
 test ! -e config/credentials.yml.enc
 
-# --- P0-T4 以前: Docker 関連ファイルの混入を拒否 -----------------------------
-
-if ! task_has_event "P0-T4"; then
-  test ! -e Dockerfile
-  test ! -e compose.yaml
-  test ! -e docker-compose.yml
-  test ! -e .dockerignore
-  test ! -e bin/docker-entrypoint
-fi
-
-# --- P0-T7: GitHub Actions による統一検証 -------------------------------------
+# --- GitHub Actions による統一検証 -------------------------------------------
 #
-# P0-T7 が開始された時点で、混入の拒否から Workflow 契約の検査へ切り替える。
 # Workflow 構造検査は Docker build より前へ置き、契約違反を build より先に失敗させる。
-# 受け入れ条件の詳細は design/acceptance/P0-T7-github-actions.md を参照する。
+
+test -d .github/workflows
+test -f .github/workflows/ci.yml
+test -x scripts/verify-github-actions
+test -x scripts/verify-github-actions-self-test
+
+# Dependabot は P0-T9 の非目標であり、P0 では持ち込まない。
+test ! -e .github/dependabot.yml
+
+# P0 では Workflow を ci.yml の 1 つに限定する。
+# 検証入口が増えると、bin/verify を正本とする委譲経路が成立しなくなる。
+workflow_count="$(
+  find .github/workflows -maxdepth 1 -type f | wc -l | tr -d ' '
+)"
+test "$workflow_count" = "1"
+
+scripts/verify-github-actions
+
+# 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+# 負の検証を実行時の手作業に依存させると、検証器の退行に気づけない。
+scripts/verify-github-actions-self-test
+
+# --- Rails アプリケーションの実体 -------------------------------------------
+
+test -f Gemfile
+test -f Gemfile.lock
+test -f Rakefile
+test -f config.ru
+test -x bin/rails
+test -f config/application.rb
+test -f config/database.yml
+test -d app
+test -d test
+
+# 固定バージョン。ファイルの内容だけでなく実行中のランタイムを検査する。
+test -f .ruby-version
+test "$(tr -d '\r\n' < .ruby-version)" = "4.0.6"
+test "$(ruby -e 'print RUBY_VERSION')" = "4.0.6"
+test "$(bundle exec rails --version)" = "Rails 8.1.3"
+
+test -f .gitignore
+test -f .gitattributes
+test -f .rubocop.yml
+
+# Rails 8.1.3 標準の除外設定。
+# .keep の除外解除がないと、維持すると宣言した .keep が Git 管理対象にならない。
+rails_gitignore_lines=(
+  "/.bundle"
+  "/.env*"
+  "/log/*"
+  "!/log/.keep"
+  "/tmp/*"
+  "!/tmp/.keep"
+  "/tmp/pids/*"
+  "!/tmp/pids/"
+  "!/tmp/pids/.keep"
+  "/storage/*"
+  "!/storage/.keep"
+  "/tmp/storage/*"
+  "!/tmp/storage/"
+  "!/tmp/storage/.keep"
+  "/public/assets"
+  "/config/*.key"
+)
+
+for line in "${rails_gitignore_lines[@]}"; do
+  require_exact_line_once "$line" .gitignore
+done
+
+require_exact_line_once "db/schema.rb linguist-generated" .gitattributes
+require_exact_line_once "vendor/* linguist-vendored" .gitattributes
+
+grep -Eq 'gem[[:space:]]+["'\'']pg["'\'']' Gemfile
+grep -Eq 'adapter:[[:space:]]*postgresql' config/database.yml
+grep -Eq 'module[[:space:]]+RoleWeave' config/application.rb
+
+bundle check
+
+# PostgreSQL サーバーがない状態で boot できることを確認する。
+# 接続不能な DATABASE_URL を与え、boot 中に不用意な DB 接続が起きていないことを検出する。
+env \
+  RAILS_ENV=test \
+  DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+  PGCONNECT_TIMEOUT=1 \
+  bundle exec rails zeitwerk:check
+
+env \
+  RAILS_ENV=test \
+  DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+  PGCONNECT_TIMEOUT=1 \
+  bundle exec rails runner \
+  'abort "unexpected application namespace" unless Rails.application.class.module_parent_name == "RoleWeave"'
+
+# README が事実誤認を残していないこと
+! grep -Fq 'アプリケーションは実装されていません' README.md
+! grep -Fq 'application itself has not been implemented' README.en.md
+
+# --- 統一検証コマンド --------------------------------------------------------
 #
-# bin/ci はローカル検証の入口であり、GitHub Actions ではない。これは開始前も拒否しない。
-# bin/verify との関係は P0-T6 の検証で確定する。
-
-if ! task_has_event "P0-T7"; then
-  test ! -e .github/workflows
-  test ! -e .github/dependabot.yml
-else
-  test -d .github/workflows
-  test -f .github/workflows/ci.yml
-  test -x scripts/verify-github-actions
-  test -x scripts/verify-github-actions-self-test
-
-  # Dependabot は P0-T9 の非目標であり、P0 では持ち込まない。
-  test ! -e .github/dependabot.yml
-
-  # P0 では Workflow を ci.yml の 1 つに限定する。
-  # 検証入口が増えると、bin/verify を正本とする委譲経路が成立しなくなる。
-  workflow_count="$(
-    find .github/workflows -maxdepth 1 -type f | wc -l | tr -d ' '
-  )"
-  test "$workflow_count" = "1"
-
-  scripts/verify-github-actions
-
-  # 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
-  # 負の検証を実行時の手作業に依存させると、検証器の退行に気づけない。
-  scripts/verify-github-actions-self-test
-fi
-
-# --- P0-T3: Rails アプリケーションの実体 -------------------------------------
-#
-# P0-T3 が開始された時点で有効になる。
-# 受け入れ条件の詳細は design/acceptance/P0-T3-rails-bootstrap.md を参照する。
-
-if task_has_event "P0-T3"; then
-  test -f Gemfile
-  test -f Gemfile.lock
-  test -f Rakefile
-  test -f config.ru
-  test -x bin/rails
-  test -f config/application.rb
-  test -f config/database.yml
-  test -d app
-  test -d test
-
-  # 固定バージョン。ファイルの内容だけでなく実行中のランタイムを検査する。
-  test -f .ruby-version
-  test "$(tr -d '\r\n' < .ruby-version)" = "4.0.6"
-  test "$(ruby -e 'print RUBY_VERSION')" = "4.0.6"
-  test "$(bundle exec rails --version)" = "Rails 8.1.3"
-
-  # --skip-git で生成されない Git 管理ファイルを補っていること
-  test -f .gitignore
-  test -f .gitattributes
-  test -f .rubocop.yml
-
-  # Rails 8.1.3 標準の除外設定。
-  # .keep の除外解除がないと、維持すると宣言した .keep が Git 管理対象にならない。
-  rails_gitignore_lines=(
-    "/.bundle"
-    "/.env*"
-    "/log/*"
-    "!/log/.keep"
-    "/tmp/*"
-    "!/tmp/.keep"
-    "/tmp/pids/*"
-    "!/tmp/pids/"
-    "!/tmp/pids/.keep"
-    "/storage/*"
-    "!/storage/.keep"
-    "/tmp/storage/*"
-    "!/tmp/storage/"
-    "!/tmp/storage/.keep"
-    "/public/assets"
-    "/config/*.key"
-  )
-
-  for line in "${rails_gitignore_lines[@]}"; do
-    require_exact_line_once "$line" .gitignore
-  done
-
-  require_exact_line_once "db/schema.rb linguist-generated" .gitattributes
-  require_exact_line_once "vendor/* linguist-vendored" .gitattributes
-
-  grep -Eq 'gem[[:space:]]+["'\'']pg["'\'']' Gemfile
-  grep -Eq 'adapter:[[:space:]]*postgresql' config/database.yml
-  grep -Eq 'module[[:space:]]+RoleWeave' config/application.rb
-
-  bundle check
-
-  # PostgreSQL サーバーがない状態で boot できることを確認する。
-  # 接続不能な DATABASE_URL を与え、boot 中に不用意な DB 接続が起きていないことを検出する。
-  env \
-    RAILS_ENV=test \
-    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
-    PGCONNECT_TIMEOUT=1 \
-    bundle exec rails zeitwerk:check
-
-  env \
-    RAILS_ENV=test \
-    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
-    PGCONNECT_TIMEOUT=1 \
-    bundle exec rails runner \
-    'abort "unexpected application namespace" unless Rails.application.class.module_parent_name == "RoleWeave"'
-
-  # Rails 生成後、README が事実誤認を残していないこと
-  ! grep -Fq 'アプリケーションは実装されていません' README.md
-  ! grep -Fq 'application itself has not been implemented' README.en.md
-fi
-
-# --- P0-T6: 統一検証コマンド --------------------------------------------------
-#
-# P0-T6 が開始された時点で有効になる。
 # Docker 検証は build とコンテナ起動を伴うため、契約違反はその前に失敗させる。
-# 受け入れ条件の詳細は design/acceptance/P0-T6-unified-verification.md を参照する。
 
-if task_has_event "P0-T6"; then
-  test -x bin/verify
-  test -x bin/ci
+test -x bin/verify
+test -x bin/ci
 
-  # 検証定義の二重正本を残さない。
-  test ! -e config/ci.rb
+# 検証定義の二重正本を残さない。
+test ! -e config/ci.rb
 
-  bash -n bin/verify
-  bash -n bin/ci
+bash -n bin/verify
+bash -n bin/ci
 
-  # フェーズ検証コマンドは YAML として解析する。
-  # Code Pact の serializer は表記を正規化するため、インデント前提の grep では検出できない。
-  ruby -ryaml -e '
-    phase = YAML.load_file("design/phases/P0-project-foundation.yaml")
-    commands = phase.fetch("verification").fetch("commands")
+# フェーズ検証コマンドは YAML として解析する。
+# インデント前提の grep では、値の所属先を取り違える。
+ruby -ryaml -e '
+  phase = YAML.load_file("design/phases/P0-project-foundation.yaml")
+  commands = phase.fetch("verification").fetch("commands")
 
-    abort "unexpected P0 verification command: #{commands.inspect}" \
-      unless commands == ["bin/verify --full"]
-  '
+  abort "unexpected P0 verification command: #{commands.inspect}" \
+    unless commands == ["bin/verify --full"]
+'
 
-  # コメント行は検査対象から外す。
-  # 正規コマンドを説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
-  verify_body="$(grep -v '^[[:space:]]*#' bin/verify)"
+# コメント行は検査対象から外す。
+# 正規コマンドを説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
+verify_body="$(grep -v '^[[:space:]]*#' bin/verify)"
 
-  required_verify_commands=(
-    'bundle check'
-    'npm ls --depth=0'
-    'npm run pact:validate'
-    'npm run pact:lint'
-    'bin/rubocop'
-    'env RAILS_ENV=test bin/rails db:prepare'
-    'env RAILS_ENV=test bin/rails zeitwerk:check'
-    'env RAILS_ENV=test bin/rails test'
-  )
+required_verify_commands=(
+  'bundle check'
+  'bin/rubocop'
+  'env RAILS_ENV=test bin/rails db:prepare'
+  'env RAILS_ENV=test bin/rails zeitwerk:check'
+  'env RAILS_ENV=test bin/rails test'
+)
 
-  for command in "${required_verify_commands[@]}"; do
-    if ! printf '%s\n' "$verify_body" | grep -Fq "$command"; then
-      printf 'bin/verify is missing required command: %s\n' "$command" >&2
-      exit 1
-    fi
-  done
-
-  # 標準モードは Docker を起動しない。基盤検証は完全モードの責務とする。
-  if printf '%s\n' "$verify_body" | grep -Eq '(^|[[:space:]])docker([[:space:]]|$)'; then
-    printf 'bin/verify standard mode must not invoke Docker directly\n' >&2
+for command in "${required_verify_commands[@]}"; do
+  if ! printf '%s\n' "$verify_body" | grep -Fq "$command"; then
+    printf 'bin/verify is missing required command: %s\n' "$command" >&2
     exit 1
   fi
+done
 
-  # セットアップと検証を混在させない。
-  if printf '%s\n' "$verify_body" | grep -Fq 'bin/setup'; then
-    printf 'bin/verify must not perform setup\n' >&2
-    exit 1
-  fi
-
-  # セキュリティ・依存関係検査の必須化は P0-T9 で扱う。
-  if printf '%s\n' "$verify_body" | grep -Eq 'bundler-audit|importmap audit|brakeman'; then
-    printf 'security audits belong to P0-T9\n' >&2
-    exit 1
-  fi
-
-  # bin/ci は委譲するだけの互換ラッパーとする。
-  #
-  # 委譲行の存在確認では、その前後へ独自の検証コマンドを置いた bin/ci を検出できない。
-  # コメントと空行を除いた実行行を、完全一致で検査する。
-  ruby - <<'RUBY'
-    path = "bin/ci"
-    lines = File.readlines(path, chomp: true, encoding: "UTF-8")
-
-    shebang = lines.shift
-
-    unless shebang == "#!/usr/bin/env bash"
-      warn "bin/ci must use the expected shebang"
-      exit 1
-    end
-
-    executable_lines = lines.reject do |line|
-      line.strip.empty? || line.lstrip.start_with?("#")
-    end
-
-    expected_lines = [
-      "set -euo pipefail",
-      'APP_ROOT="$(',
-      '  cd "$(dirname "${BASH_SOURCE[0]}")/.."',
-      "  pwd",
-      ')"',
-      'exec "$APP_ROOT/bin/verify" --full "$@"'
-    ]
-
-    unless executable_lines == expected_lines
-      warn "bin/ci must only delegate to bin/verify --full"
-      warn "expected:"
-      expected_lines.each { |line| warn("  #{line}") }
-      warn "actual:"
-      executable_lines.each { |line| warn("  #{line}") }
-      exit 1
-    end
-RUBY
-
-  # 完全モードをコンテナ内から呼ぶと、この検証自身を無限に呼び戻す。
-  docker_verification_body="$(grep -v '^[[:space:]]*#' scripts/verify-p0-docker)"
-
-  if printf '%s\n' "$docker_verification_body" | grep -Fq 'bin/verify --full'; then
-    printf 'scripts/verify-p0-docker must not invoke the full mode\n' >&2
-    exit 1
-  fi
+# 標準モードは Docker を起動しない。基盤検証は完全モードの責務とする。
+if printf '%s\n' "$verify_body" | grep -Eq '(^|[[:space:]])docker([[:space:]]|$)'; then
+  printf 'bin/verify standard mode must not invoke Docker directly\n' >&2
+  exit 1
 fi
 
-# --- P0-T8: 日本語・英語の i18n 基盤 ------------------------------------------
-#
-# P0-T8 が開始された時点で有効になる。
-# Docker 検証より前へ置き、契約違反を build より先に失敗させる。
-# 受け入れ条件の詳細は design/acceptance/P0-T8-i18n-bootstrap.md を参照する。
-
-if task_has_event "P0-T8"; then
-  test -f config/locales/ja.yml
-  test -f config/locales/en.yml
-  test -f test/configuration/i18n_configuration_test.rb
-
-  # 共通の日本語ロケールデータは依存で賄う。同じ gem を複数の行で宣言しない。
-  # 宣言が重複すると、後の行のバージョン指定が黙って優先される。
-  rails_i18n_declarations="$(
-    grep -Ec '^[[:space:]]*gem[[:space:]]+["'\'']rails-i18n["'\'']' Gemfile || true
-  )"
-
-  if [[ "$rails_i18n_declarations" -ne 1 ]]; then
-    printf \
-      'expected exactly one rails-i18n declaration in Gemfile, found %s\n' \
-      "$rails_i18n_declarations" \
-      >&2
-    exit 1
-  fi
-
-  # 設定ファイルの記述ではなく、boot 後の I18n の実測値を検査する。
-  # Rails は config.i18n の一部のキーを初期化時に取り除くため、
-  # 設定オブジェクトを読み返しても実際の挙動は分からない。
-  env \
-    RAILS_ENV=test \
-    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
-    PGCONNECT_TIMEOUT=1 \
-    bundle exec rails runner - <<'RUBY'
-    expected_locales = %i[ja en].to_set
-    actual_locales = I18n.available_locales.map(&:to_sym).to_set
-
-    abort "unexpected available locales: #{actual_locales.to_a.inspect}" \
-      unless actual_locales == expected_locales
-
-    abort "unexpected default locale: #{I18n.default_locale.inspect}" \
-      unless I18n.default_locale == :ja
-
-    begin
-      I18n.with_locale(:fr) { nil }
-      abort "unsupported locale was accepted: fr"
-    rescue I18n::InvalidLocale
-      # 期待どおり拒否された
-    end
-
-    fallbacks_enabled = I18n.backend.class.ancestors.any? do |ancestor|
-      ancestor.name == "I18n::Backend::Fallbacks"
-    end
-
-    abort "i18n fallbacks must be disabled" if fallbacks_enabled
-
-    begin
-      I18n.t("verify_p0_missing_translation_probe")
-      abort "missing translations must raise in the test environment"
-    rescue I18n::MissingTranslationData
-      # 期待どおり検出された
-    end
-
-    %i[ja en].each do |locale|
-      name = I18n.t("application.name", locale: locale)
-
-      abort "unexpected application.name for #{locale}: #{name.inspect}" \
-        unless name == "RoleWeave"
-
-      path = Rails.root.join("config/locales/#{locale}.yml")
-      dictionary = YAML.safe_load_file(path, aliases: false, permitted_classes: [])
-
-      abort "generated sample translation remains in #{path}" \
-        if dictionary.fetch(locale.to_s).key?("hello")
-    end
-RUBY
+# セットアップと検証を混在させない。
+if printf '%s\n' "$verify_body" | grep -Fq 'bin/setup'; then
+  printf 'bin/verify must not perform setup\n' >&2
+  exit 1
 fi
 
-# --- P0-T8A / P0-T8E: i18n フォールバックの単一正本と実動作 -------------------
+# セキュリティ・依存関係検査の必須化は P0-T9 で扱う。
+if printf '%s\n' "$verify_body" | grep -Eq 'bundler-audit|importmap audit|brakeman'; then
+  printf 'security audits belong to P0-T9\n' >&2
+  exit 1
+fi
+
+# bin/ci は委譲するだけの互換ラッパーとする。
 #
-# P0-T8A が開始された時点で有効になる。
-# 受け入れ条件の正本は次の 2 つとする。
-#
-#   design/acceptance/P0-T8A-production-i18n-fallback.md
-#   design/acceptance/P0-T8E-i18n-verifier-simplification.md
+# 委譲行の存在確認では、その前後へ独自の検証コマンドを置いた bin/ci を検出できない。
+# コメントと空行を除いた実行行を、完全一致で検査する。
+ruby - <<'RUBY'
+  path = "bin/ci"
+  lines = File.readlines(path, chomp: true, encoding: "UTF-8")
+
+  shebang = lines.shift
+
+  unless shebang == "#!/usr/bin/env bash"
+    warn "bin/ci must use the expected shebang"
+    exit 1
+  end
+
+  executable_lines = lines.reject do |line|
+    line.strip.empty? || line.lstrip.start_with?("#")
+  end
+
+  expected_lines = [
+    "set -euo pipefail",
+    'APP_ROOT="$(',
+    '  cd "$(dirname "${BASH_SOURCE[0]}")/.."',
+    "  pwd",
+    ')"',
+    'exec "$APP_ROOT/bin/verify" --full "$@"'
+  ]
+
+  unless executable_lines == expected_lines
+    warn "bin/ci must only delegate to bin/verify --full"
+    warn "expected:"
+    expected_lines.each { |line| warn("  #{line}") }
+    warn "actual:"
+    executable_lines.each { |line| warn("  #{line}") }
+    exit 1
+  end
+RUBY
+
+# 完全モードをコンテナ内から呼ぶと、この検証自身を無限に呼び戻す。
+docker_verification_body="$(grep -v '^[[:space:]]*#' scripts/verify-p0-docker)"
+
+if printf '%s\n' "$docker_verification_body" | grep -Fq 'bin/verify --full'; then
+  printf 'scripts/verify-p0-docker must not invoke the full mode\n' >&2
+  exit 1
+fi
+
+# --- 日本語・英語の i18n 基盤 ------------------------------------------------
+
+test -f config/locales/ja.yml
+test -f config/locales/en.yml
+test -f test/configuration/i18n_configuration_test.rb
+
+# 共通の日本語ロケールデータは依存で賄う。同じ gem を複数の行で宣言しない。
+# 宣言が重複すると、後の行のバージョン指定が黙って優先される。
+rails_i18n_declarations="$(
+  grep -Ec '^[[:space:]]*gem[[:space:]]+["'\'']rails-i18n["'\'']' Gemfile || true
+)"
+
+if [[ "$rails_i18n_declarations" -ne 1 ]]; then
+  printf \
+    'expected exactly one rails-i18n declaration in Gemfile, found %s\n' \
+    "$rails_i18n_declarations" \
+    >&2
+  exit 1
+fi
+
+# 設定ファイルの記述ではなく、boot 後の I18n の実測値を検査する。
+# Rails は config.i18n の一部のキーを初期化時に取り除くため、
+# 設定オブジェクトを読み返しても実際の挙動は分からない。
+env \
+  RAILS_ENV=test \
+  DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+  PGCONNECT_TIMEOUT=1 \
+  bundle exec rails runner - <<'RUBY'
+  expected_locales = %i[ja en].to_set
+  actual_locales = I18n.available_locales.map(&:to_sym).to_set
+
+  abort "unexpected available locales: #{actual_locales.to_a.inspect}" \
+    unless actual_locales == expected_locales
+
+  abort "unexpected default locale: #{I18n.default_locale.inspect}" \
+    unless I18n.default_locale == :ja
+
+  begin
+    I18n.with_locale(:fr) { nil }
+    abort "unsupported locale was accepted: fr"
+  rescue I18n::InvalidLocale
+    # 期待どおり拒否された
+  end
+
+  fallbacks_enabled = I18n.backend.class.ancestors.any? do |ancestor|
+    ancestor.name == "I18n::Backend::Fallbacks"
+  end
+
+  abort "i18n fallbacks must be disabled" if fallbacks_enabled
+
+  begin
+    I18n.t("verify_p0_missing_translation_probe")
+    abort "missing translations must raise in the test environment"
+  rescue I18n::MissingTranslationData
+    # 期待どおり検出された
+  end
+
+  %i[ja en].each do |locale|
+    name = I18n.t("application.name", locale: locale)
+
+    abort "unexpected application.name for #{locale}: #{name.inspect}" \
+      unless name == "RoleWeave"
+
+    path = Rails.root.join("config/locales/#{locale}.yml")
+    dictionary = YAML.safe_load_file(path, aliases: false, permitted_classes: [])
+
+    abort "generated sample translation remains in #{path}" \
+      if dictionary.fetch(locale.to_s).key?("hello")
+  end
+RUBY
+
+# --- i18n フォールバックの単一正本と実動作 -------------------------------------
 #
 # 検証は 2 段構えとする。
 #
@@ -451,202 +384,196 @@ fi
 # config.i18n は ActiveSupport::OrderedOptions であり Hash を継承するため、
 # 代入構文を列挙する方式では設定変更経路を網羅できない。
 
-if task_has_event "P0-T8A"; then
-  # --- ソース規約 -------------------------------------------------------------
-  #
-  # Rails の I18n 初期化はアプリケーション initializer より後に実行される。
-  # environments だけでなく initializers からも上書きできるため、
-  # config 配下の Ruby ファイルすべてを対象にする。
+# --- ソース規約 -----------------------------------------------------------------
+#
+# Rails の I18n 初期化はアプリケーション initializer より後に実行される。
+# environments だけでなく initializers からも上書きできるため、
+# config 配下の Ruby ファイルすべてを対象にする。
 
-  ruby - <<'RUBY'
-    require "ripper"
+ruby - <<'RUBY'
+  require "ripper"
 
-    CANONICAL_PATH = "config/application.rb"
-    CANONICAL_LINE = "config.i18n.fallbacks = false"
+  CANONICAL_PATH = "config/application.rb"
+  CANONICAL_LINE = "config.i18n.fallbacks = false"
 
-    # コメントと埋め込みドキュメントは規約の対象外とする。
-    # それ以外のトークンは、文字列・symbol・label・識別子をすべて対象にする。
-    # 意味を判定せず、fallbacks という語そのものを禁止する。
-    IGNORED_TOKEN_TYPES = %i[
-      on_comment
-      on_embdoc_beg
-      on_embdoc
-      on_embdoc_end
-    ].freeze
+  # コメントと埋め込みドキュメントは規約の対象外とする。
+  # それ以外のトークンは、文字列・symbol・label・識別子をすべて対象にする。
+  # 意味を判定せず、fallbacks という語そのものを禁止する。
+  IGNORED_TOKEN_TYPES = %i[
+    on_comment
+    on_embdoc_beg
+    on_embdoc
+    on_embdoc_end
+  ].freeze
 
-    # 与えられたソース群から fallbacks を含むトークンを集め、失敗理由を返す。
-    # 実ファイルと自己検査を同じ経路へ通す。
-    inspect_sources = lambda do |sources|
-      references = []
+  # 与えられたソース群から fallbacks を含むトークンを集め、失敗理由を返す。
+  # 実ファイルと自己検査を同じ経路へ通す。
+  inspect_sources = lambda do |sources|
+    references = []
 
-      sources.each do |(path, source)|
-        if Ripper.sexp(source).nil?
-          next references << { path: path, line: 0, text: "(failed to parse as Ruby)" }
-        end
-
-        Ripper.lex(source).each do |(position, type, token, _state)|
-          next if IGNORED_TOKEN_TYPES.include?(type)
-          next unless token.to_s.include?("fallbacks")
-
-          line = position.first
-
-          references << {
-            path: path,
-            line: line,
-            text: source.lines[line - 1].to_s.strip,
-            type: type,
-            token: token.to_s
-          }
-        end
+    sources.each do |(path, source)|
+      if Ripper.sexp(source).nil?
+        next references << { path: path, line: 0, text: "(failed to parse as Ruby)" }
       end
 
-      # canonical はソース行の一致だけでは判定できない。
-      # ヒアドキュメントの内容トークンでは、その内容行そのものが返るため、
-      # 実際の設定代入がなくても canonical 行と一致してしまう。
-      # トークンがコード上の識別子であることまで確認する。
-      canonical_reference = references.first
+      Ripper.lex(source).each do |(position, type, token, _state)|
+        next if IGNORED_TOKEN_TYPES.include?(type)
+        next unless token.to_s.include?("fallbacks")
 
-      canonical =
-        references.length == 1 &&
-        canonical_reference[:path] == CANONICAL_PATH &&
-        canonical_reference[:text] == CANONICAL_LINE &&
-        canonical_reference[:type] == :on_ident &&
-        canonical_reference[:token] == "fallbacks"
+        line = position.first
 
-      next [] if canonical
-
-      failures = ["expected exactly one i18n fallback reference in config/**/*.rb"]
-      failures << "  #{CANONICAL_PATH}: #{CANONICAL_LINE}"
-      failures << "actual:"
-
-      if references.empty?
-        failures << "  (none)"
-      else
-        references.each do |reference|
-          failures << "  #{reference[:path]}:#{reference[:line]}:"
-          failures << "    text=#{reference[:text]}"
-          failures << "    type=#{reference[:type]} token=#{reference[:token].strip}"
-        end
-      end
-
-      failures
-    end
-
-    # --- 検証器自身の検査 -----------------------------------------------------
-
-    canonical_source = [ [ CANONICAL_PATH, "#{CANONICAL_LINE}\n" ] ]
-
-    accepted_probes = [
-      [ "canonical", "#{CANONICAL_LINE}\n" ],
-      [ "indented canonical", "    #{CANONICAL_LINE}\n" ],
-      [ "comment", "# config.i18n.fallbacks = true\n#{CANONICAL_LINE}\n" ]
-    ]
-
-    accepted_probes.each do |(label, source)|
-      failures = inspect_sources.call([ [ CANONICAL_PATH, source ] ])
-
-      unless failures.empty?
-        warn "source policy self-test failed: #{label} must be accepted"
-        failures.each { |line| warn "  #{line}" }
-        exit 1
+        references << {
+          path: path,
+          line: line,
+          text: source.lines[line - 1].to_s.strip,
+          type: type,
+          token: token.to_s
+        }
       end
     end
 
-    rejected_probes = [
-      [ "string index", 'config.i18n["fallbacks"] = true' ],
-      [ "symbol index", "config.i18n[:fallbacks] = true" ],
-      [ "merge!", "config.i18n.merge!(fallbacks: true)" ],
-      [ "symbol setter", 'config.i18n.public_send(:"fallbacks=", true)' ],
-      [ "plain true", "config.i18n.fallbacks = true" ],
-      [ "unrelated setting", "config.other.fallbacks = false" ]
-    ]
+    # canonical はソース行の一致だけでは判定できない。
+    # ヒアドキュメントの内容トークンでは、その内容行そのものが返るため、
+    # 実際の設定代入がなくても canonical 行と一致してしまう。
+    # トークンがコード上の識別子であることまで確認する。
+    canonical_reference = references.first
 
-    rejected_probes.each do |(label, source)|
-      sources = canonical_source + [ [ "config/environments/development.rb", "#{source}\n" ] ]
+    canonical =
+      references.length == 1 &&
+      canonical_reference[:path] == CANONICAL_PATH &&
+      canonical_reference[:text] == CANONICAL_LINE &&
+      canonical_reference[:type] == :on_ident &&
+      canonical_reference[:token] == "fallbacks"
 
-      if inspect_sources.call(sources).empty?
-        warn "source policy self-test failed: #{label} must be rejected"
-        warn "  source: #{source}"
-        exit 1
+    next [] if canonical
+
+    failures = ["expected exactly one i18n fallback reference in config/**/*.rb"]
+    failures << "  #{CANONICAL_PATH}: #{CANONICAL_LINE}"
+    failures << "actual:"
+
+    if references.empty?
+      failures << "  (none)"
+    else
+      references.each do |reference|
+        failures << "  #{reference[:path]}:#{reference[:line]}:"
+        failures << "    text=#{reference[:text]}"
+        failures << "    type=#{reference[:type]} token=#{reference[:token].strip}"
       end
     end
 
-    # canonical 行と同じ文字列を、実際の設定ではない位置へ置いた場合も拒否する。
-    # 行の一致だけを見ると、実際の設定代入がなくても通過する。
-    canonical_lookalikes = [
-      [ "heredoc canonical text", "ignored = <<~TEXT\n#{CANONICAL_LINE}\nTEXT\n" ],
-      [ "string canonical text", %(message = "#{CANONICAL_LINE}"\n) ]
-    ]
+    failures
+  end
 
-    canonical_lookalikes.each do |(label, source)|
-      if inspect_sources.call([ [ CANONICAL_PATH, source ] ]).empty?
-        warn "source policy self-test failed: #{label} must be rejected"
-        warn "  source: #{source.inspect}"
-        exit 1
-      end
-    end
+  # --- 検証器自身の検査 -----------------------------------------------------
 
-    # --- 実ファイルの検査 -----------------------------------------------------
+  canonical_source = [ [ CANONICAL_PATH, "#{CANONICAL_LINE}\n" ] ]
 
-    failures = inspect_sources.call(
-      Dir.glob("config/**/*.rb").sort.map { |path| [ path, File.read(path, encoding: "UTF-8") ] }
-    )
+  accepted_probes = [
+    [ "canonical", "#{CANONICAL_LINE}\n" ],
+    [ "indented canonical", "    #{CANONICAL_LINE}\n" ],
+    [ "comment", "# config.i18n.fallbacks = true\n#{CANONICAL_LINE}\n" ]
+  ]
+
+  accepted_probes.each do |(label, source)|
+    failures = inspect_sources.call([ [ CANONICAL_PATH, source ] ])
 
     unless failures.empty?
-      failures.each { |line| warn line }
+      warn "source policy self-test failed: #{label} must be accepted"
+      failures.each { |line| warn "  #{line}" }
       exit 1
     end
+  end
+
+  rejected_probes = [
+    [ "string index", 'config.i18n["fallbacks"] = true' ],
+    [ "symbol index", "config.i18n[:fallbacks] = true" ],
+    [ "merge!", "config.i18n.merge!(fallbacks: true)" ],
+    [ "symbol setter", 'config.i18n.public_send(:"fallbacks=", true)' ],
+    [ "plain true", "config.i18n.fallbacks = true" ],
+    [ "unrelated setting", "config.other.fallbacks = false" ]
+  ]
+
+  rejected_probes.each do |(label, source)|
+    sources = canonical_source + [ [ "config/environments/development.rb", "#{source}\n" ] ]
+
+    if inspect_sources.call(sources).empty?
+      warn "source policy self-test failed: #{label} must be rejected"
+      warn "  source: #{source}"
+      exit 1
+    end
+  end
+
+  # canonical 行と同じ文字列を、実際の設定ではない位置へ置いた場合も拒否する。
+  # 行の一致だけを見ると、実際の設定代入がなくても通過する。
+  canonical_lookalikes = [
+    [ "heredoc canonical text", "ignored = <<~TEXT\n#{CANONICAL_LINE}\nTEXT\n" ],
+    [ "string canonical text", %(message = "#{CANONICAL_LINE}"\n) ]
+  ]
+
+  canonical_lookalikes.each do |(label, source)|
+    if inspect_sources.call([ [ CANONICAL_PATH, source ] ]).empty?
+      warn "source policy self-test failed: #{label} must be rejected"
+      warn "  source: #{source.inspect}"
+      exit 1
+    end
+  end
+
+  # --- 実ファイルの検査 -----------------------------------------------------
+
+  failures = inspect_sources.call(
+    Dir.glob("config/**/*.rb").sort.map { |path| [ path, File.read(path, encoding: "UTF-8") ] }
+  )
+
+  unless failures.empty?
+    failures.each { |line| warn line }
+    exit 1
+  end
 RUBY
 
-  # --- 実動作検査 -------------------------------------------------------------
-  #
-  # ソース規約は静的なトークン検査であり、Ruby のメタプログラミングを証明しない。
-  # 有効な動作保証はここが担う。
-  #
-  # I18n Railtie は初期化状態をプロセス内で保持するため、環境ごとに別プロセスで実行する。
-  # production は boot 時に SECRET_KEY_BASE を要求するので、
-  # 使い捨ての値を都度生成し、リポジトリへ秘密情報を持ち込まない。
-  # 到達不能な DATABASE_URL を与え、boot 中の不用意な DB 接続も併せて検出する。
-
-  verify_i18n_fallback_disabled() {
-    local environment_name="$1"
-    local secret_key_base
-
-    secret_key_base="$(
-      ruby -rsecurerandom -e 'print SecureRandom.hex(64)'
-    )"
-
-    env \
-      RAILS_ENV="$environment_name" \
-      SECRET_KEY_BASE="$secret_key_base" \
-      DATABASE_URL="postgresql://127.0.0.1:1/roleweave_${environment_name}" \
-      PGCONNECT_TIMEOUT=1 \
-      bundle exec rails runner - <<'RUBY'
-      # 祖先クラス名の確認だけでは、フォールバックの経路が変わったときに追随できない。
-      # 日本語だけの翻訳を登録し、英語から解決されない振る舞いそのものを確認する。
-      key = :p0_t8e_i18n_fallback_probe
-      I18n.backend.store_translations(:ja, { key => "日本語だけの文言" })
-
-      begin
-        I18n.t(key, locale: :en, raise: true)
-        abort "#{Rails.env} i18n fallback is enabled"
-      rescue I18n::MissingTranslationData
-        # 期待どおり、英語の欠落を日本語では補わない
-      end
-RUBY
-  }
-
-  verify_i18n_fallback_disabled development
-  verify_i18n_fallback_disabled test
-  verify_i18n_fallback_disabled production
-fi
-
-# --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
+# --- 実動作検査 -----------------------------------------------------------------
 #
-# P0-T4 が開始された時点で有効になる。
-# Docker daemon への接続とコンテナの起動を伴うため、検証本体は別スクリプトへ分ける。
-# 受け入れ条件の詳細は design/acceptance/P0-T4-docker-compose.md を参照する。
+# ソース規約は静的なトークン検査であり、Ruby のメタプログラミングを証明しない。
+# 有効な動作保証はここが担う。
+#
+# I18n Railtie は初期化状態をプロセス内で保持するため、環境ごとに別プロセスで実行する。
+# production は boot 時に SECRET_KEY_BASE を要求するので、
+# 使い捨ての値を都度生成し、リポジトリへ秘密情報を持ち込まない。
+# 到達不能な DATABASE_URL を与え、boot 中の不用意な DB 接続も併せて検出する。
 
-if task_has_event "P0-T4"; then
-  scripts/verify-p0-docker
-fi
+verify_i18n_fallback_disabled() {
+  local environment_name="$1"
+  local secret_key_base
+
+  secret_key_base="$(
+    ruby -rsecurerandom -e 'print SecureRandom.hex(64)'
+  )"
+
+  env \
+    RAILS_ENV="$environment_name" \
+    SECRET_KEY_BASE="$secret_key_base" \
+    DATABASE_URL="postgresql://127.0.0.1:1/roleweave_${environment_name}" \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails runner - <<'RUBY'
+    # 祖先クラス名の確認だけでは、フォールバックの経路が変わったときに追随できない。
+    # 日本語だけの翻訳を登録し、英語から解決されない振る舞いそのものを確認する。
+    key = :p0_i18n_fallback_probe
+    I18n.backend.store_translations(:ja, { key => "日本語だけの文言" })
+
+    begin
+      I18n.t(key, locale: :en, raise: true)
+      abort "#{Rails.env} i18n fallback is enabled"
+    rescue I18n::MissingTranslationData
+      # 期待どおり、英語の欠落を日本語では補わない
+    end
+RUBY
+}
+
+verify_i18n_fallback_disabled development
+verify_i18n_fallback_disabled test
+verify_i18n_fallback_disabled production
+
+# --- Docker Compose と PostgreSQL ---------------------------------------------
+#
+# Docker daemon への接続とコンテナの起動を伴うため、検証本体は別スクリプトへ分ける。
+
+scripts/verify-p0-docker

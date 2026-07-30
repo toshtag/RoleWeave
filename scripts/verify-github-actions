@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # GitHub Actions Workflow の構造検査。
 #
-# scripts/verify-p0 から、P0-T7 の進捗イベントが記録された時点で呼び出される。
+# scripts/verify-p0 から呼び出される。
 #
 #   scripts/verify-github-actions                 .github/workflows/ci.yml を検査する
 #   scripts/verify-github-actions path/to/ci.yml  指定した Workflow を検査する
@@ -16,13 +16,6 @@
 # 解析結果だけを見ると、ファイルの一部しか検査していないことに気づけない。
 # 重複した mapping key は後勝ちで畳み込まれ、2 件目以降の document は読み捨てられる。
 # そのため、値を読む前に解析木でストリーム全体の完全性を確認する。
-#
-# 受け入れ条件の正本は次の 3 つとする。
-#
-#   design/acceptance/P0-T7-github-actions.md
-#   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
-#   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
-#   design/acceptance/P0-T7C-github-actions-static-fields.md
 
 require "yaml"
 
@@ -42,10 +35,6 @@ APPROVED_ACTION_PINS = {
   "ruby/setup-ruby" => {
     sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b",
     tag: "v1.321.0"
-  },
-  "actions/setup-node" => {
-    sha: "820762786026740c76f36085b0efc47a31fe5020",
-    tag: "v7.0.0"
   }
 }.freeze
 
@@ -69,12 +58,6 @@ EXPECTED_STEPS = [
     action: "ruby/setup-ruby",
     with: { "ruby-version" => ".ruby-version", "bundler-cache" => true }
   },
-  {
-    name: "Node.jsを準備",
-    action: "actions/setup-node",
-    with: { "node-version-file" => ".node-version", "cache" => "npm" }
-  },
-  { name: "Node.js依存関係を準備", run: "npm ci" },
   { name: "統一検証", run: "bin/ci" }
 ].freeze
 
@@ -115,6 +98,7 @@ EXPECTED_SOURCE_SCALAR_VALUES = {
 TOP_LEVEL_KEY_LINE = /\A([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]|\z)/
 
 # 検証内容の正本は bin/verify とする。個別のコマンドを Workflow へ複製しない。
+# npm は P0-R1 で撤去した Node.js 基盤の再導入経路として拒否する。
 FORBIDDEN_RUN_FRAGMENTS = %w[
   bin/rubocop
   bin/rails
@@ -124,6 +108,7 @@ FORBIDDEN_RUN_FRAGMENTS = %w[
   docker
   bundler-audit
   brakeman
+  npm
 ].freeze
 
 # secrets コンテキストへの参照そのものを禁止する。

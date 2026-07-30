@@ -1,7 +1,7 @@
 #!/usr/bin/env ruby
 # scripts/verify-github-actions の回帰検査。
 #
-# scripts/verify-p0 から、P0-T7 の進捗イベントが記録された時点で呼び出される。
+# scripts/verify-p0 から呼び出される。
 #
 # 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
 # 負の検証を実行時の手作業に依存させると、検証器が退行しても気づけない。
@@ -9,13 +9,6 @@
 #
 # 変異は一時ディレクトリへ複製した Workflow に対してのみ行う。
 # .github/workflows/ci.yml は読み取るだけで、書き換えない。
-#
-# 受け入れ条件の正本は次の 3 つとする。
-#
-#   design/acceptance/P0-T7-github-actions.md
-#   design/acceptance/P0-T7A-github-actions-verifier-hardening.md
-#   design/acceptance/P0-T7B-github-actions-yaml-integrity.md
-#   design/acceptance/P0-T7C-github-actions-static-fields.md
 
 require "tmpdir"
 
@@ -29,8 +22,7 @@ CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"
 # 将来一部の Action だけ検査対象から漏れた場合に検出することが目的である。
 ACTION_PINS = {
   "actions/checkout" => { sha: CHECKOUT_SHA, tag: "v7.0.1" },
-  "ruby/setup-ruby" => { sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b", tag: "v1.321.0" },
-  "actions/setup-node" => { sha: "820762786026740c76f36085b0efc47a31fe5020", tag: "v7.0.0" }
+  "ruby/setup-ruby" => { sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b", tag: "v1.321.0" }
 }.freeze
 
 ACTION_MUTATIONS = ACTION_PINS.flat_map do |action, pin|
@@ -112,7 +104,23 @@ MUTATIONS = ACTION_MUTATIONS.merge({
   "version fileの重複記述" => ->(text) {
     text.sub("          ruby-version: .ruby-version", "          ruby-version: 4.0.6")
   },
-  "npm install" => ->(text) { text.sub("        run: npm ci", "        run: npm install") },
+  # Node.js 基盤は P0-R1 で撤去した。再導入は期待 step との不一致として拒否する。
+  "Node.js stepの追加" => ->(text) {
+    text.sub(
+      "      - name: 統一検証",
+      "      - name: Node.jsを準備\n" \
+      "        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0\n" \
+      "        with:\n" \
+      "          node-version: 24.18.0\n\n" \
+      "      - name: 統一検証"
+    )
+  },
+  "npm ciステップの追加" => ->(text) {
+    text.sub(
+      "      - name: 統一検証",
+      "      - name: Node.js依存関係を準備\n        run: npm ci\n\n      - name: 統一検証"
+    )
+  },
   "認証情報の保持" => ->(text) {
     text.sub("          persist-credentials: false", "          persist-credentials: true")
   },
@@ -144,8 +152,8 @@ MUTATIONS = ACTION_MUTATIONS.merge({
   "引用符違いのキー重複" => ->(text) { text.sub("  contents: read", "  \"contents\": write\n  contents: read") },
   "flow mapping内のキー重複" => ->(text) {
     text.sub(
-      "        with:\n          node-version-file: .node-version\n          cache: npm",
-      "        with: { node-version-file: .node-version, cache: yarn, cache: npm }"
+      "        with:\n          # バージョンの正本は version file とし、ここへ数値を重複記述しない。\n          ruby-version: .ruby-version\n          bundler-cache: true",
+      "        with: { ruby-version: .ruby-version, bundler-cache: false, bundler-cache: true }"
     )
   },
 
