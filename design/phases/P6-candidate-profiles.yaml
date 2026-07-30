@@ -4,6 +4,8 @@ weight: 8
 confidence: medium
 risk: high
 status: planned
+depends_on:
+  - P2
 objective: |-
   求職者が応募に必要な情報を管理できるようにする。
 

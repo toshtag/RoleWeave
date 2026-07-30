@@ -37,6 +37,9 @@
 
 ## 記録
 
+- 中長期計画は `design/roadmap.yaml` と `design/phases/` を正本とする。
+- 実行タスクと不具合は GitHub Issues、実装内容と検証結果は Pull Requests を正本とする。
+  詳細は [`docs/development/workflow.md`](../docs/development/workflow.md) を参照する。
 - 計画上の判断は `design/decisions/` に ADR として記録する。
 - 完了条件は決定論的に検証できるものにする。
 - 実行していない検証を成功として報告しない。

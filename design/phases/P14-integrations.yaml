@@ -4,6 +4,8 @@ weight: 8
 confidence: low
 risk: medium
 status: planned
+depends_on:
+  - P12
 objective: |-
   外部サービスへ密結合せず、必要な連携を追加できるようにする。
   v0.1.0 後の拡張として扱い、P13 とは独立に着手できる。

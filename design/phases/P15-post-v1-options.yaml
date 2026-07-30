@@ -4,6 +4,8 @@ weight: 3
 confidence: low
 risk: low
 status: planned
+depends_on:
+  - P12
 objective: |-
   利用実績や外部要望を確認してから、追加投資の対象を判断する。
   このフェーズは検討候補の一覧であり、実装の約束ではない。

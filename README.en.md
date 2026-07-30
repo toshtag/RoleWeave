@@ -70,12 +70,15 @@ described above. Setup and usage documentation will be provided in both language
 - [Roadmap](design/roadmap.yaml) — phase index from P0 through P15
 - [Architecture principles](docs/architecture/principles.md) — how structural decisions are made
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
-- [code-pact operations guide](docs/development/code-pact.md) — how the development control plane is used
+- [Development workflow](docs/development/workflow.md) — responsibilities of the roadmap, issues, PRs, and ADRs
 
 ## How development proceeds
 
-As a rule, each task produces one verifiable result and one pull request.
-See the [architecture principles](docs/architecture/principles.md) for details.
+The roadmap is the source of truth for long-term planning, GitHub Issues for
+implementation tasks and bugs, and pull requests for implementation results
+and verification records. As a rule, each issue produces one verifiable result
+and one pull request. See the [development workflow](docs/development/workflow.md)
+for details.
 
 ## License
 

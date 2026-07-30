@@ -4,6 +4,8 @@ weight: 8
 confidence: low
 risk: medium
 status: planned
+depends_on:
+  - P12
 objective: |-
   最近の採用サービスに必要な候補者発掘機能を、v0.1.0 後の拡張として追加する。
   重要度が低いという意味ではなく、

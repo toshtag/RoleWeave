@@ -64,12 +64,14 @@ Railsアプリケーションの基盤は存在しますが、求人、応募、
 - [ロードマップ](design/roadmap.yaml) — P0 から P15 までのフェーズ索引
 - [アーキテクチャ原則](docs/architecture/principles.md) — 構造に関する判断基準
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
-- [code-pact 運用ガイド](docs/development/code-pact.md) — 開発タスクの制御面の使い方
+- [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
 
 ## 開発の進め方
 
-1 タスクにつき 1 つの確認可能な成果、1 PR を原則としています。
-詳細は[アーキテクチャ原則](docs/architecture/principles.md)を参照してください。
+中長期計画はロードマップ、実行タスクと不具合は GitHub Issues、
+実装内容と検証結果は Pull Request を正本としています。
+1 Issue につき 1 つの確認可能な成果、1 PR を原則としています。
+詳細は[開発工程](docs/development/workflow.md)を参照してください。
 
 ## ライセンス
 

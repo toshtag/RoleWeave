@@ -160,10 +160,11 @@ Redis と OpenSearch は初期段階で必須にしない。
 
 ## 5. ツールの適用範囲
 
-### `code-pact`
+### 開発タスク管理
 
-開発時依存として扱う。用途は開発タスク管理に限定する。
-実行時の業務ロジックに `code-pact` を組み込まない。
+開発タスクの定義と進捗は GitHub Issues と Pull Requests で管理する。
+詳細は[開発工程](../development/workflow.md)を正本とする。
+ツール固有の進捗台帳やイベント履歴を作業ツリーへ持ち込まない。
 
 ### `fsmxjs`
 
@@ -211,7 +212,6 @@ Redis と OpenSearch は初期段階で必須にしない。
 
 正本は [`design/constitution.md`](../../design/constitution.md) と
 [`design/rules/cross-cutting-quality.md`](../../design/rules/cross-cutting-quality.md) に置く。
-後者は code-pact がタスク実行時に読み込むルールファイルである。
 
 P10 Privacy, Security and Operations は、これらの初回実装フェーズではない。
 V1 全体に対する統合検証と、不足の是正を行うフェーズである。

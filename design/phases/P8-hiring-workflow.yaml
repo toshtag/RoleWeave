@@ -4,6 +4,8 @@ weight: 9
 confidence: medium
 risk: medium
 status: planned
+depends_on:
+  - P7
 objective: |-
   企業担当者が応募者の選考を管理できるようにする。
 

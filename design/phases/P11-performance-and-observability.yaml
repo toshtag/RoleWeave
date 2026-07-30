@@ -4,6 +4,8 @@ weight: 7
 confidence: low
 risk: medium
 status: planned
+depends_on:
+  - P10
 objective: |-
   推測ではなく計測結果から性能を改善できるようにする。
 

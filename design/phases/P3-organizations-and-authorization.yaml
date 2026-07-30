@@ -4,6 +4,8 @@ weight: 8
 confidence: medium
 risk: high
 status: planned
+depends_on:
+  - P2
 objective: |-
   企業・団体と、その担当者の権限を管理できるようにする。
 

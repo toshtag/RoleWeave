@@ -4,6 +4,8 @@ weight: 9
 confidence: medium
 risk: medium
 status: planned
+depends_on:
+  - P4
 objective: |-
   求職者が公開求人を発見でき、検索エンジンにも適切に認識されるようにする。
 

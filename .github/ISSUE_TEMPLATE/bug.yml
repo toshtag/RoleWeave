@@ -1,0 +1,53 @@
+name: 不具合報告
+description: 期待どおりに動かない振る舞いを報告する
+labels:
+  - bug
+body:
+  - type: textarea
+    id: symptom
+    attributes:
+      label: 現象
+      description: 何が起きているかを記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 再現手順
+      description: 実行したコマンドや操作を、再現できる順序で記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期待結果
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: 実際の結果
+      description: エラーメッセージや終了コードは省略せずに記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: impact
+    attributes:
+      label: 影響
+      description: この不具合によって何ができないか、どの範囲へ波及するかを記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 環境
+      description: OS、Docker の有無、関連するバージョンなどを記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: 検証案
+      description: 修正が完了したことをどう確認するかの案を記載します。
+    validations:
+      required: false
