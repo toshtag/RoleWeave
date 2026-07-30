@@ -245,15 +245,25 @@ ruby -ryaml -e '
   end
 '
 
-# --- 既存 .gitignore 設定の保持 -----------------------------------------------
+# --- 撤去済みのローカル制御面 ---------------------------------------------------
+#
+# .context と .local は code-pact 時代のローカルディレクトリ契約であり、P0-R2 で撤去した。
+# ignore 対象から外すことで、再生成された場合に git status で可視化される。
+#
+# 作業ツリー上の存在そのものは契約にしない。
+# Git 管理外のローカル状態は新規 clone と CI には存在せず、
+# リポジトリの契約は ignore 設定と追跡ファイルで保証できる。
 
-project_gitignore_lines=(
-  "/.local/"
+removed_local_control_ignores=(
   "/.context/"
+  "/.local/"
 )
 
-for line in "${project_gitignore_lines[@]}"; do
-  require_exact_line_once "$line" .gitignore
+for line in "${removed_local_control_ignores[@]}"; do
+  if grep -Fxq "$line" .gitignore; then
+    printf '.gitignore must not ignore %s\n' "$line" >&2
+    exit 1
+  fi
 done
 
 # --- P0 全体で持ち込まない生成物 ---------------------------------------------
