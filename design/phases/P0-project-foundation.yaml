@@ -636,10 +636,10 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
+    status: done
     description: P0-T8B の字句列検査が ||= や &&= などの有効な Ruby 代入を 検出できない問題を修正する。Ripper
-      の構文木から assign と opassign を検出し、 config/application.rb の plain assignment false 1
-      件だけを許可する。
+      の構文木から assign と opassign を検出し、 config/application.rb の plain assignment
+      false 1 件だけを許可する。
     depends_on:
       - P0-T8B
     reads:
