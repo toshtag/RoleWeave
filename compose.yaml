@@ -11,7 +11,6 @@ services:
       target: development
       args:
         RUBY_VERSION: "4.0.6"
-        NODE_VERSION: "24.18.0"
     init: true
     command:
       - bin/rails
@@ -32,7 +31,6 @@ services:
       # 作業ツリーは bind mount し、依存キャッシュは named volume で分離する。
       - .:/workspace
       - bundle:/usr/local/bundle
-      - node_modules:/workspace/node_modules
     depends_on:
       db:
         condition: service_healthy
@@ -68,5 +66,4 @@ services:
 
 volumes:
   bundle:
-  node_modules:
   postgres_data:

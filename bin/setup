@@ -5,15 +5,13 @@
 #
 #   docker compose run --rm app bin/setup
 #
-# このスクリプトは依存関係と development データベースを準備して終了する。
+# このスクリプトは Ruby 依存関係と development データベースを準備して終了する。
 # 開発サーバーの起動は docker compose up の責務とし、ここでは行わない。
 # プロセスを置き換えて常駐すると、上記の一時コンテナが終了しなくなる。
 #
 # 何度実行しても同じ開発可能な状態へ収束させる。
 # 既存データ、依存定義、追跡対象ファイルを破壊しない。
 # 破壊的な作り直しが必要な場合は、利用者が Rails の DB コマンドを明示的に実行する。
-#
-# 受け入れ条件の正本は design/acceptance/P0-T5-idempotent-setup.md とする。
 
 require "fileutils"
 
@@ -42,11 +40,6 @@ FileUtils.chdir APP_ROOT do
   unless system(BUNDLE_ENVIRONMENT, "bundle", "check")
     system!("bundle", "install", environment: BUNDLE_ENVIRONMENT)
   end
-
-  puts "\n== Node.js 依存関係を準備 =="
-
-  # npm ci は lockfile どおりに再現し、依存定義を書き換えない。
-  system!("npm", "ci")
 
   puts "\n== データベースを準備 =="
 

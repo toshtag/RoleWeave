@@ -3,7 +3,7 @@
 #
 # 正規の実行方法は次の 2 つだけとする。
 #
-#   docker compose run --rm app bin/verify   アプリケーションと制御面の標準検証
+#   docker compose run --rm app bin/verify   アプリケーションの標準検証
 #   bin/verify --full                        Docker 基盤と冪等性を含む P0 完全検証
 #
 # scripts/verify-p0 と scripts/verify-p0-docker は --full から呼ばれる内部実装であり、
@@ -12,8 +12,6 @@
 # 標準モードは検証だけを行う。
 # 依存関係のインストール、lockfile の更新、development データベースの変更、
 # サーバーの起動は行わない。準備は bin/setup の責務とする。
-#
-# 受け入れ条件の正本は design/acceptance/P0-T6-unified-verification.md とする。
 set -euo pipefail
 
 APP_ROOT="$(
@@ -46,15 +44,6 @@ run_step() {
 
 run_step "Ruby 依存関係" \
   bundle check
-
-run_step "Node.js 依存関係" \
-  npm ls --depth=0
-
-run_step "Code Pact 構造検査" \
-  npm run pact:validate
-
-run_step "Code Pact 厳格 lint" \
-  npm run pact:lint
 
 run_step "Ruby スタイル" \
   bin/rubocop

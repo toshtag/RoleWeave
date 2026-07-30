@@ -1,7 +1,3 @@
-/node_modules/
-/.code-pact/locks/
-/.code-pact/state/locks/
-/.code-pact/cache/
 /.local/
 /.context/
 
