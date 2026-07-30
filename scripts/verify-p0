@@ -53,7 +53,7 @@ test ! -e package-lock.json
 test ! -e docs/development/code-pact.md
 test ! -e design/rules/code-pact-execution.md
 
-# --- 設計文書の正本 -------------------------------------------------------------
+# --- 設計文書と開発工程の正本 ---------------------------------------------------
 
 test -f design/brief.md
 test -f design/constitution.md
@@ -62,6 +62,45 @@ test -f design/rules/coding-style.md
 test -f design/rules/task-scope.md
 test -f docs/architecture/principles.md
 test -f docs/development/language-policy.md
+test -f docs/development/workflow.md
+
+# 実行タスクの入口である Issue テンプレートも P0 の必須成果物とする。
+test -f .github/ISSUE_TEMPLATE/bug.yml
+test -f .github/ISSUE_TEMPLATE/implementation.yml
+
+ruby -ryaml -e '
+  %w[
+    .github/ISSUE_TEMPLATE/bug.yml
+    .github/ISSUE_TEMPLATE/implementation.yml
+  ].each do |path|
+    document = YAML.load_file(path)
+    abort "#{path} must be a mapping" unless document.is_a?(Hash)
+  end
+'
+
+# 削除済みの design/acceptance/ を現在の正本として再参照しない。
+# 過去の受け入れ計画は Git 履歴で参照し、現在有効な契約は実装・テスト・検証器が保持する。
+# このスクリプト自身は検査文字列を含むため、検索対象へ含めない。
+acceptance_reference_targets=(
+  README.md
+  README.en.md
+  app
+  config
+  db
+  design
+  docs
+  lib
+  test
+  .github
+)
+
+if grep -RIn \
+  --exclude-dir=.git \
+  -F 'design/acceptance/' \
+  "${acceptance_reference_targets[@]}"; then
+  printf 'deleted acceptance documents must not be referenced\n' >&2
+  exit 1
+fi
 
 # ロードマップとフェーズ定義は YAML として常に解析できること。
 ruby -ryaml -e '
@@ -73,11 +112,66 @@ ruby -ryaml -e '
 # フェーズ YAML はフェーズレベルの情報だけを持つ。
 # タスク単位の進捗・完了実績の正本は GitHub Issues と PR であり、
 # フェーズ定義へ複製する構造を再導入しない。
+#
+# ID の一意性は Hash 化の前に検査する。to_h は重複キーを黙って上書きするため、
+# 先に検査しないと 1 フェーズが検査対象から消えても成功してしまう。
+# 循環依存は自己依存に限定せず、任意の長さの循環を DFS で拒否する。
 ruby -ryaml -e '
-  paths = Dir["design/phases/*.yaml"].sort
-  phases = paths.to_h do |path|
-    phase = YAML.load_file(path)
+  phase_paths = Dir["design/phases/*.yaml"].sort
+
+  records = phase_paths.map do |path|
+    [path, YAML.load_file(path)]
+  end
+
+  ids = records.map do |_path, phase|
+    id = phase.fetch("id")
+    abort "phase id must not be empty" if id.to_s.strip.empty?
+    id
+  end
+
+  duplicate_ids = ids.tally.select { |_id, count| count > 1 }
+
+  unless duplicate_ids.empty?
+    abort "duplicate phase ids: #{duplicate_ids.keys.sort.join(", ")}"
+  end
+
+  phases = records.to_h do |_path, phase|
     [phase.fetch("id"), phase]
+  end
+
+  # ロードマップとフェーズファイルは同じフェーズ集合を指す。
+  roadmap_entries = YAML.load_file("design/roadmap.yaml").fetch("phases")
+
+  roadmap_ids = roadmap_entries.map { |entry| entry.fetch("id") }
+  roadmap_paths = roadmap_entries.map { |entry| entry.fetch("path") }
+
+  duplicate_roadmap_ids = roadmap_ids.tally.select { |_id, count| count > 1 }
+
+  unless duplicate_roadmap_ids.empty?
+    abort "duplicate roadmap ids: #{duplicate_roadmap_ids.keys.sort.join(", ")}"
+  end
+
+  duplicate_roadmap_paths = roadmap_paths.tally.select { |_path, count| count > 1 }
+
+  unless duplicate_roadmap_paths.empty?
+    abort "duplicate roadmap paths: #{duplicate_roadmap_paths.keys.sort.join(", ")}"
+  end
+
+  unless roadmap_ids.sort == ids.sort
+    abort "roadmap ids must match phase file ids. " \
+      "roadmap only: #{(roadmap_ids - ids).sort.inspect}, " \
+      "files only: #{(ids - roadmap_ids).sort.inspect}"
+  end
+
+  roadmap_entries.each do |entry|
+    path = entry.fetch("path")
+    abort "roadmap path is missing: #{path}" unless File.file?(path)
+
+    file_id = YAML.load_file(path).fetch("id")
+
+    unless entry.fetch("id") == file_id
+      abort "roadmap id #{entry.fetch("id")} does not match #{path} (#{file_id})"
+    end
   end
 
   phases.each do |id, phase|
@@ -94,6 +188,35 @@ ruby -ryaml -e '
   end
 
   abort "P0 depends_on must be empty" unless phases.fetch("P0").fetch("depends_on") == []
+
+  # 任意の長さの循環依存を拒否する。
+  states = {}
+  stack = []
+
+  visit = lambda do |id|
+    case states[id]
+    when :done
+      next
+    when :visiting
+      start = stack.index(id) || 0
+      cycle = stack[start..] + [id]
+      abort "phase dependency cycle: #{cycle.join(" -> ")}"
+    end
+
+    states[id] = :visiting
+    stack << id
+
+    phases.fetch(id).fetch("depends_on").each do |dependency|
+      visit.call(dependency)
+    end
+
+    stack.pop
+    states[id] = :done
+  end
+
+  phases.each_key do |id|
+    visit.call(id)
+  end
 '
 
 # --- 既存 .gitignore 設定の保持 -----------------------------------------------
