@@ -679,6 +679,31 @@ tasks:
       - scripts/verify-p0
     acceptance_refs:
       - design/acceptance/P0-T8D-i18n-assignment-coverage.md
+  - id: P0-T8E
+    type: refactor
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: P0-T8B から P0-T8D で拡張した独自 Ruby 代入解析器を撤去する。 全 config Ruby
+      ファイルの単純なソース規約と、 development・test・production の独立 boot probe へ置き換え、
+      検証器の複雑性と過剰な保証表現を解消する。
+    depends_on:
+      - P0-T8D
+    reads:
+      - config/**/*.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
+      - design/acceptance/P0-T8D-i18n-assignment-coverage.md
+      - design/acceptance/P0-T8E-i18n-verifier-simplification.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8E-i18n-verifier-simplification.md
   - id: P0-T9
     type: test
     ambiguity: low
@@ -690,7 +715,7 @@ tasks:
     status: planned
     description: "セキュリティと依存関係検査の追加（ブランチ: p0/t9-security-checks）"
     depends_on:
-      - P0-T8D
+      - P0-T8E
   - id: P0-T10
     type: test
     ambiguity: low
@@ -712,4 +737,5 @@ tasks:
       - P0-T8B
       - P0-T8C
       - P0-T8D
+      - P0-T8E
       - P0-T9

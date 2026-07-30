@@ -324,3 +324,59 @@ P0-T8、P0-T8A、P0-T8B、P0-T8C の進捗イベントを変更・削除しな�
   `--base-ref` には P0-T8D の契約コミットを指定する
 - `write_audit` の不整合をダミー差分で解消しない。原因を報告して停止する
 - 実行していない検証を成功として報告しない
+
+## 実行後の追記
+
+P0-T8D の完了後、次が判明した。
+
+### Hash・文字列経路を検出しない
+
+P0-T8D は field 代入ノードと `:on_ident` の識別子位置を中心に検査していた。
+`config.i18n` は `ActiveSupport::OrderedOptions` であり `Hash` を継承するため、
+field 代入以外の経路でも設定を変更できる。
+
+次はいずれも exit 0 で通過した。
+
+```ruby
+config.i18n["fallbacks"] = true
+config.i18n.merge!(fallbacks: true)
+config.i18n.public_send(:"fallbacks=", true)
+config.i18n.public_send("fall" + "backs=", true)
+```
+
+development で実際に boot して確認したところ、4 経路すべてが
+フォールバックを有効化した（英語の欠落が日本語で解決された）。
+
+### 検査対象に initializer を含めていなかった
+
+検査対象を 4 ファイルへ限定していたが、
+Rails の I18n 初期化はアプリケーション initializer より後に実行されるため、
+`config/initializers/**/*.rb` からも設定を変更できる。
+
+```ruby
+# config/initializers/i18n_override.rb
+Rails.application.config.i18n.fallbacks = true
+```
+
+これも exit 0 で通過し、development boot で実際にフォールバックが有効になった。
+
+「上書きが起こりうる範囲だけを対象にする」という
+`scripts/verify-p0` のコメントは、実際の Rails ライフサイクルと一致していなかった。
+
+### 無関係な fallbacks を過剰に拒否した
+
+この文書は `config.other.fallbacks = false` を
+「検出も未分類扱いもしない」と定めていたが、
+実装は未分類参照として exit 1 にした。受け入れ条件と実装が逆になっていた。
+
+### 方針の限界
+
+P0-T8B から P0-T8D まで、Ruby の代入構文を個別に列挙して補修してきた。
+その結果、i18n の 1 設定を静的に証明するためだけに約 350 行の
+独自 Ruby 解析器を抱えながら、動的な設定方法を網羅できていない。
+
+過小検出と過剰検出を同時に持つ状態であり、
+Rails 更新や Ruby 構文への追随も必要な別の保守対象になっていた。
+
+P0-T8E で独自解析器を撤去し、単純なソース規約と全環境の実動作検査へ置き換えた。
+詳細は `design/acceptance/P0-T8E-i18n-verifier-simplification.md` を参照する。
