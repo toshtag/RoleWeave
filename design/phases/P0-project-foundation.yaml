@@ -687,7 +687,7 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
+    status: done
     description: P0-T8B から P0-T8D で拡張した独自 Ruby 代入解析器を撤去する。 全 config Ruby
       ファイルの単純なソース規約と、 development・test・production の独立 boot probe へ置き換え、
       検証器の複雑性と過剰な保証表現を解消する。
