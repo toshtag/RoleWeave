@@ -662,9 +662,9 @@ tasks:
     write_surface: low
     verification_strength: strong
     expected_duration: short
-    status: planned
-    description: P0-T8C の構文木検査が多重代入と括弧付き receiver を 検出できない問題を修正する。massign
-      の左辺を検査し、 receiver の括弧を正規化する。分類できない fallbacks 参照を fail-closed で拒否する。
+    status: done
+    description: P0-T8C の構文木検査が多重代入と括弧付き receiver を 検出できない問題を修正する。massign の左辺を検査し、
+      receiver の括弧を正規化する。分類できない fallbacks 参照を fail-closed で拒否する。
     depends_on:
       - P0-T8C
     reads:
