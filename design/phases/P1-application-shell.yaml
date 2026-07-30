@@ -4,6 +4,8 @@ weight: 5
 confidence: high
 risk: low
 status: planned
+depends_on:
+  - P0
 objective: |-
   日本語・英語で利用できる最小の画面基盤を作る。
 

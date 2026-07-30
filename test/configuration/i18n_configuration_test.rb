@@ -1,7 +1,6 @@
 require "test_helper"
 
 # i18n 基盤の契約を検証する。
-# 受け入れ条件の正本は design/acceptance/P0-T8-i18n-bootstrap.md とする。
 #
 # 検証対象はアプリケーションが所有する辞書と Rails の I18n 設定であり、
 # rails-i18n と Rails 本体が提供する共通ロケールデータの内容そのものではない。

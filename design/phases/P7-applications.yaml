@@ -4,6 +4,9 @@ weight: 8
 confidence: medium
 risk: high
 status: planned
+depends_on:
+  - P5
+  - P6
 objective: |-
   求職者が求人へ応募し、応募状況を確認できるようにする。
 

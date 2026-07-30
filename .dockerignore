@@ -1,16 +1,12 @@
 # build context から除外する対象。
 #
 # design/、docs/、scripts/ は除外しない。
-# コンテナ内でも Code Pact の制御面と検証スクリプトを実行できる状態を保つ。
+# コンテナ内でも検証スクリプトを実行できる状態を保つ。
 
 .git
 .context
 .local
-.code-pact/cache
-.code-pact/locks
-.code-pact/state/locks
 
-node_modules
 .bundle
 
 # 秘密情報を build context へ持ち込まない。

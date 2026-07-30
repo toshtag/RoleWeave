@@ -1,0 +1,66 @@
+name: 実装タスク
+description: 1 つの確認可能な振る舞いを実装するタスクを定義する
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: 目的
+      description: このタスクが完了すると、何ができるようになるかを記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景
+      description: なぜ今このタスクが必要かを記載します。関連するフェーズがあれば記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: write-scope
+    attributes:
+      label: 変更可能範囲
+      description: 変更してよいファイル・ディレクトリを記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: frozen-scope
+    attributes:
+      label: 変更禁止範囲
+      description: このタスクで変更してはならないファイル・仕様を記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 受け入れ条件
+      description: 完了と判断できる、決定論的に検証可能な条件を記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: positive-verification
+    attributes:
+      label: 正の検証
+      description: できるべきことが、できることを確認する方法を記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: negative-verification
+    attributes:
+      label: 負の検証
+      description: できてはいけないことが、できないことを確認する方法を記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: 非目標
+      description: このタスクで意図的に扱わない範囲を記載します。
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: 依存 Issue
+      description: 先に完了している必要がある Issue を記載します。ない場合は「なし」。
+    validations:
+      required: true

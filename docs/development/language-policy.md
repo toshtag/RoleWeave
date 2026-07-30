@@ -123,8 +123,8 @@ chore: Docker開発環境を追加
 
 ```text
 p0/t1-project-policy
-p0/t2-code-pact-setup
 p0/t3-rails-bootstrap
+p0/t8-i18n-bootstrap
 p4/t2-job-draft-creation
 ```
 

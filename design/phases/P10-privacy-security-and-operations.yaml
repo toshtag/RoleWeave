@@ -4,6 +4,8 @@ weight: 9
 confidence: medium
 risk: high
 status: planned
+depends_on:
+  - P9
 objective: |-
   P2 から P9 までで実装した安全策を横断的に検証し、個人情報を扱う V1 として
   不足している対策を是正する。

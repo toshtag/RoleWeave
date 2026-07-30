@@ -4,6 +4,8 @@ weight: 7
 confidence: high
 risk: medium
 status: planned
+depends_on:
+  - P1
 objective: |-
   個人アカウントが安全にログインできるようにする。
 

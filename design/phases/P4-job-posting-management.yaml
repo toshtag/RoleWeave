@@ -4,6 +4,8 @@ weight: 10
 confidence: medium
 risk: medium
 status: planned
+depends_on:
+  - P3
 objective: |-
   企業担当者が求人を作成し、審査を経て公開できるようにする。
 

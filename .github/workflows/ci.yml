@@ -7,8 +7,6 @@
 #
 # Action は完全長のコミット SHA へ固定する。タグとブランチは可変であり、
 # 同じ参照が別の実装へ差し替わり得る。末尾のコメントで対応するリリースを記録する。
-#
-# 受け入れ条件の正本は design/acceptance/P0-T7-github-actions.md とする。
 name: CI
 
 on:
@@ -45,16 +43,6 @@ jobs:
           # バージョンの正本は version file とし、ここへ数値を重複記述しない。
           ruby-version: .ruby-version
           bundler-cache: true
-
-      - name: Node.jsを準備
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .node-version
-          cache: npm
-
-      - name: Node.js依存関係を準備
-        # npm install は解決結果によって package-lock.json を書き換え得る。
-        run: npm ci
 
       - name: 統一検証
         run: bin/ci

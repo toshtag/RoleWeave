@@ -1,8 +1,0 @@
-name: RoleWeave
-version: 0.1.0
-locale: ja-JP
-default_agent: generic
-agents:
-  - name: generic
-    profile: agent-profiles/generic.yaml
-    enabled: true

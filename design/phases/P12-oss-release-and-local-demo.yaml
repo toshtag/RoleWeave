@@ -4,6 +4,8 @@ weight: 6
 confidence: medium
 risk: low
 status: planned
+depends_on:
+  - P11
 objective: |-
   第三者が安全かつ簡単に評価できる最初の OSS リリースを作る。
   v0.1.0 の範囲は P0 から P12 までとし、
