@@ -455,9 +455,15 @@ ruby - <<'RUBY'
       failures << "  (none)"
     else
       references.each do |reference|
+        # 構文解析に失敗した参照には :type と :token がない。
+        # 診断の表示自体が NoMethodError で落ちると、本来の失敗理由が読めなくなる。
+        type = reference[:type] || "(none)"
+        token = reference[:token]
+        token_text = token ? token.strip : "(none)"
+
         failures << "  #{reference[:path]}:#{reference[:line]}:"
         failures << "    text=#{reference[:text]}"
-        failures << "    type=#{reference[:type]} token=#{reference[:token].strip}"
+        failures << "    type=#{type} token=#{token_text}"
       end
     end
 
@@ -516,6 +522,29 @@ ruby - <<'RUBY'
       warn "  source: #{source.inspect}"
       exit 1
     end
+  end
+
+  # 構文解析に失敗したソースは、例外で落とさずに安全な診断付きで拒否する。
+  broken_sources = canonical_source +
+    [ [ "config/environments/development.rb", "class Broken\n" ] ]
+
+  broken_failures = inspect_sources.call(broken_sources)
+
+  if broken_failures.empty?
+    warn "source policy self-test failed: unparsable Ruby must be rejected"
+    exit 1
+  end
+
+  unless broken_failures.any? { |line| line.include?("(failed to parse as Ruby)") }
+    warn "source policy self-test failed: unparsable Ruby must be reported as a parse failure"
+    broken_failures.each { |line| warn "  #{line}" }
+    exit 1
+  end
+
+  unless broken_failures.any? { |line| line.include?("type=(none) token=(none)") }
+    warn "source policy self-test failed: a parse failure must render safe placeholders"
+    broken_failures.each { |line| warn "  #{line}" }
+    exit 1
   end
 
   # --- 実ファイルの検査 -----------------------------------------------------
