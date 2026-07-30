@@ -318,3 +318,39 @@ P0-T8、P0-T8A、P0-T8B の進捗イベントを変更・削除しない。
   `--base-ref` には P0-T8C の契約コミットを指定する
 - `write_audit` の不整合をダミー差分で解消しない。原因を報告して停止する
 - 実行していない検証を成功として報告しない
+
+## 実行後の追記
+
+P0-T8C の完了後、次の検出漏れが判明した。
+
+### 多重代入を検出しない
+
+検出対象ノードを `:assign` と `:opassign` だけとしたため、
+Ruby の多重代入 `:massign` による設定変更を見逃していた。
+
+```ruby
+config.i18n.fallbacks, other = true, nil
+```
+
+### 括弧付き receiver を検出しない
+
+「receiver の前に何があっても、末尾が `config.i18n.fallbacks` なら検出する」と定めたが、
+実装は receiver が直接 `:call` であることを前提としていた。
+receiver を括弧で囲むと `:paren` が挟まり、対象から外れる。
+
+```ruby
+(config.i18n).fallbacks = true
+(Rails.application.config.i18n).fallbacks = true
+```
+
+値側の括弧は正規化していたが、receiver 側の括弧は正規化していなかった。
+
+### 実測
+
+一時ツリーで `config/environments/development.rb` へ上記を追加したところ、
+3 ケースいずれも exit 0 で通過した。
+
+この文書が定める「複数の代入を拒否する」と
+「receiver の前に何があっても検出する」は、P0-T8C の時点では達成できていなかった。
+P0-T8D で是正した。詳細は
+`design/acceptance/P0-T8D-i18n-assignment-coverage.md` を参照する。
