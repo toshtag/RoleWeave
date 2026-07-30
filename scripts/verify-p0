@@ -51,18 +51,20 @@ test ! -e .node-version
 test ! -e package.json
 test ! -e package-lock.json
 test ! -e docs/development/code-pact.md
-test ! -e design/rules/code-pact-execution.md
 
-# --- 設計文書と開発工程の正本 ---------------------------------------------------
+# --- プロジェクト文書の正本 -----------------------------------------------------
+#
+# 文書の正本は docs/ へ集約する。
+# code-pact 時代の配置を引き継いだ design/ は P0-R2 で撤去した。
 
-test -f design/brief.md
-test -f design/constitution.md
-test -f design/roadmap.yaml
-test -f design/rules/coding-style.md
-test -f design/rules/task-scope.md
+test -f docs/project-overview.md
+test -f docs/project-principles.md
 test -f docs/architecture/principles.md
+test -f docs/development/coding-style.md
 test -f docs/development/language-policy.md
 test -f docs/development/workflow.md
+test -f docs/quality/cross-cutting-requirements.md
+test -f docs/roadmap/index.yaml
 
 # 実行タスクの入口である Issue テンプレートも P0 の必須成果物とする。
 test -f .github/ISSUE_TEMPLATE/bug.yml
@@ -78,9 +80,11 @@ ruby -ryaml -e '
   end
 '
 
-# 削除済みの design/acceptance/ を現在の正本として再参照しない。
-# 過去の受け入れ計画は Git 履歴で参照し、現在有効な契約は実装・テスト・検証器が保持する。
+# 撤去済みの design/ を現在の正本として再導入しない。
+# 過去の設計文書と受け入れ計画は Git 履歴で参照し、
+# 現在有効な契約は docs/ と実装・テスト・検証器が保持する。
 #
+# ディレクトリの復活と、追跡ファイル上の参照の両方を拒否する。
 # 探索対象を固定した一覧にすると、bin や他の検証器、ルート設定ファイルへ
 # 参照を書き戻したときに検出できない。追跡ファイル全体を対象にする。
 #
@@ -90,25 +94,31 @@ ruby -ryaml -e '
 #
 # 検査文字列そのものを含むこのスクリプトは対象から除く。
 # grep へ /dev/null を併せて渡し、単一ファイルでも診断へパスを含める。
-acceptance_reference_found=0
+if git ls-files -- design | grep -q .; then
+  printf 'design/ must not contain tracked files\n' >&2
+  git ls-files -- design >&2
+  exit 1
+fi
+
+design_reference_found=0
 
 while IFS= read -r -d '' path; do
   [[ "$path" == "scripts/verify-p0" ]] && continue
   [[ -f "$path" ]] || continue
 
-  if grep -InI -F 'design/acceptance/' "$path" /dev/null; then
-    acceptance_reference_found=1
+  if grep -InI -F 'design/' "$path" /dev/null; then
+    design_reference_found=1
   fi
 done < <(git ls-files -z)
 
-if [[ "$acceptance_reference_found" -ne 0 ]]; then
-  printf 'deleted acceptance documents must not be referenced\n' >&2
+if [[ "$design_reference_found" -ne 0 ]]; then
+  printf 'the removed design/ documents must not be referenced\n' >&2
   exit 1
 fi
 
 # ロードマップとフェーズ定義は YAML として常に解析できること。
 ruby -ryaml -e '
-  Dir["design/**/*.yaml"].sort.each do |path|
+  Dir["docs/roadmap/**/*.yaml"].sort.each do |path|
     YAML.load_file(path)
   end
 '
@@ -121,7 +131,7 @@ ruby -ryaml -e '
 # 先に検査しないと 1 フェーズが検査対象から消えても成功してしまう。
 # 循環依存は自己依存に限定せず、任意の長さの循環を DFS で拒否する。
 ruby -ryaml -e '
-  phase_paths = Dir["design/phases/*.yaml"].sort
+  phase_paths = Dir["docs/roadmap/phases/*.yaml"].sort
 
   records = phase_paths.map do |path|
     [path, YAML.load_file(path)]
@@ -148,7 +158,7 @@ ruby -ryaml -e '
   end
 
   # ロードマップとフェーズファイルは同じフェーズ集合を指す。
-  roadmap_entries = YAML.load_file("design/roadmap.yaml").fetch("phases")
+  roadmap_entries = YAML.load_file("docs/roadmap/index.yaml").fetch("phases")
 
   roadmap_ids = roadmap_entries.map { |entry| entry.fetch("id") }
   roadmap_paths = roadmap_entries.map { |entry| entry.fetch("path") }
@@ -172,7 +182,7 @@ ruby -ryaml -e '
   end
 
   # 指定先ファイルの ID 一致だけでは、同じ ID を持つ別コピーを正本として
-  # 指すロードマップを受理してしまう。design/phases/*.yaml から得た
+  # 指すロードマップを受理してしまう。docs/roadmap/phases/*.yaml から得た
   # 正規 path との完全一致まで確認し、別コピーと path の別表記を拒否する。
   roadmap_entries.each do |entry|
     id = entry.fetch("id")
@@ -375,7 +385,7 @@ bash -n bin/ci
 # フェーズ検証コマンドは YAML として解析する。
 # インデント前提の grep では、値の所属先を取り違える。
 ruby -ryaml -e '
-  phase = YAML.load_file("design/phases/P0-project-foundation.yaml")
+  phase = YAML.load_file("docs/roadmap/phases/P0-project-foundation.yaml")
   commands = phase.fetch("verification").fetch("commands")
 
   abort "unexpected P0 verification command: #{commands.inspect}" \

@@ -113,8 +113,8 @@ for line in "${dockerignore_lines[@]}"; do
   require_exact_line_once "$line" .dockerignore
 done
 
-# 検証スクリプトと設計文書は build context に残す。
-for kept in design docs scripts; do
+# 検証スクリプトとプロジェクト文書は build context に残す。
+for kept in docs scripts; do
   if awk -v kept="$kept" '
     $0 == kept || $0 == kept "/" || $0 == kept "/*" || $0 == "/" kept { found = 1 }
     END { exit found ? 0 : 1 }
