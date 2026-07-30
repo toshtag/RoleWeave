@@ -80,24 +80,28 @@ ruby -ryaml -e '
 
 # 削除済みの design/acceptance/ を現在の正本として再参照しない。
 # 過去の受け入れ計画は Git 履歴で参照し、現在有効な契約は実装・テスト・検証器が保持する。
-# このスクリプト自身は検査文字列を含むため、検索対象へ含めない。
-acceptance_reference_targets=(
-  README.md
-  README.en.md
-  app
-  config
-  db
-  design
-  docs
-  lib
-  test
-  .github
-)
+#
+# 探索対象を固定した一覧にすると、bin や他の検証器、ルート設定ファイルへ
+# 参照を書き戻したときに検出できない。追跡ファイル全体を対象にする。
+#
+# 追跡ファイルに限るのは、リポジトリの内容だけを契約とするためである。
+# 作業ツリー全体を走査すると、gitignore 済みのローカル作業ファイルによって
+# 手元だけが失敗し、新規 clone と CI では成功する検証になる。
+#
+# 検査文字列そのものを含むこのスクリプトは対象から除く。
+# grep へ /dev/null を併せて渡し、単一ファイルでも診断へパスを含める。
+acceptance_reference_found=0
 
-if grep -RIn \
-  --exclude-dir=.git \
-  -F 'design/acceptance/' \
-  "${acceptance_reference_targets[@]}"; then
+while IFS= read -r -d '' path; do
+  [[ "$path" == "scripts/verify-p0" ]] && continue
+  [[ -f "$path" ]] || continue
+
+  if grep -InI -F 'design/acceptance/' "$path" /dev/null; then
+    acceptance_reference_found=1
+  fi
+done < <(git ls-files -z)
+
+if [[ "$acceptance_reference_found" -ne 0 ]]; then
   printf 'deleted acceptance documents must not be referenced\n' >&2
   exit 1
 fi
@@ -139,6 +143,10 @@ ruby -ryaml -e '
     [phase.fetch("id"), phase]
   end
 
+  phase_paths_by_id = records.to_h do |path, phase|
+    [phase.fetch("id"), path]
+  end
+
   # ロードマップとフェーズファイルは同じフェーズ集合を指す。
   roadmap_entries = YAML.load_file("design/roadmap.yaml").fetch("phases")
 
@@ -163,15 +171,23 @@ ruby -ryaml -e '
       "files only: #{(ids - roadmap_ids).sort.inspect}"
   end
 
+  # 指定先ファイルの ID 一致だけでは、同じ ID を持つ別コピーを正本として
+  # 指すロードマップを受理してしまう。design/phases/*.yaml から得た
+  # 正規 path との完全一致まで確認し、別コピーと path の別表記を拒否する。
   roadmap_entries.each do |entry|
-    path = entry.fetch("path")
-    abort "roadmap path is missing: #{path}" unless File.file?(path)
+    id = entry.fetch("id")
+    actual_path = entry.fetch("path")
+    expected_path = phase_paths_by_id.fetch(id)
 
-    file_id = YAML.load_file(path).fetch("id")
-
-    unless entry.fetch("id") == file_id
-      abort "roadmap id #{entry.fetch("id")} does not match #{path} (#{file_id})"
+    unless actual_path == expected_path
+      abort "roadmap path for #{id} must be #{expected_path}, got #{actual_path}"
     end
+
+    abort "roadmap path is missing: #{actual_path}" unless File.file?(actual_path)
+
+    file_id = YAML.load_file(actual_path).fetch("id")
+
+    abort "roadmap id #{id} does not match #{actual_path} (#{file_id})" unless file_id == id
   end
 
   phases.each do |id, phase|
