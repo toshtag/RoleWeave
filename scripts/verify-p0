@@ -432,298 +432,88 @@ if task_has_event "P0-T8"; then
 RUBY
 fi
 
-# --- P0-T8A: production の i18n フォールバック -------------------------------
+# --- P0-T8A / P0-T8E: i18n フォールバックの単一正本と実動作 -------------------
 #
 # P0-T8A が開始された時点で有効になる。
-# 受け入れ条件の詳細は design/acceptance/P0-T8A-production-i18n-fallback.md を参照する。
+# 受け入れ条件の正本は次の 2 つとする。
 #
-# test/configuration/i18n_configuration_test.rb は test 環境で実行されるため、
-# production の設定を検証できない。環境設定はアプリケーション共通設定より後に
-# 読み込まれ、上書きできる。production は実際に boot して確認する。
+#   design/acceptance/P0-T8A-production-i18n-fallback.md
+#   design/acceptance/P0-T8E-i18n-verifier-simplification.md
+#
+# 検証は 2 段構えとする。
+#
+#   ソース規約  config 配下に fallbacks を含むコードを 1 行だけ許可する保守規約
+#   実動作検査  development / test / production を独立プロセスで boot し、
+#               英語の欠落が日本語へ解決されないことを確認する
+#
+# ソース規約は Ruby の意味解析ではない。動的な文字列結合など、
+# トークン検査を回避できるコードは存在し得る。その保証は実動作検査が担う。
+# config.i18n は ActiveSupport::OrderedOptions であり Hash を継承するため、
+# 代入構文を列挙する方式では設定変更経路を網羅できない。
 
 if task_has_event "P0-T8A"; then
-  # フォールバックの正本は config/application.rb だけとする。
-  if grep -Eq \
-    '^[[:space:]]*config\.i18n\.fallbacks[[:space:]]*=[[:space:]]*true' \
-    config/environments/production.rb
-  then
-    printf 'production must not enable i18n fallbacks\n' >&2
-    exit 1
-  fi
+  # --- ソース規約 -------------------------------------------------------------
+  #
+  # Rails の I18n 初期化はアプリケーション initializer より後に実行される。
+  # environments だけでなく initializers からも上書きできるため、
+  # config 配下の Ruby ファイルすべてを対象にする。
 
-  # production は boot 時に SECRET_KEY_BASE を要求する。
-  # 検証用の使い捨て値を都度生成し、リポジトリへ秘密情報を持ち込まない。
-  secret_key_base="$(
-    ruby -rsecurerandom -e 'print SecureRandom.hex(64)'
-  )"
-
-  env \
-    RAILS_ENV=production \
-    SECRET_KEY_BASE="$secret_key_base" \
-    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_production \
-    PGCONNECT_TIMEOUT=1 \
-    bundle exec rails runner - <<'RUBY'
-    # 祖先クラス名の確認だけでは、フォールバックの経路が変わったときに追随できない。
-    # 日本語だけの翻訳を登録し、英語から解決されない振る舞いそのものを確認する。
-    key = :p0_t8a_production_fallback_probe
-    I18n.backend.store_translations(:ja, { key => "日本語だけの文言" })
-
-    begin
-      I18n.t(key, locale: :en, raise: true)
-      abort "production i18n fallback is enabled"
-    rescue I18n::MissingTranslationData
-      # 期待どおり、英語の欠落を日本語では補わない
-    end
-RUBY
-fi
-
-# --- P0-T8B / P0-T8C / P0-T8D: i18n フォールバックの単一正本 ------------------
-#
-# P0-T8B が開始された時点で有効になる。
-# 受け入れ条件の正本は次の 3 つとする。
-#
-#   design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
-#   design/acceptance/P0-T8C-i18n-assignment-parser.md
-#   design/acceptance/P0-T8D-i18n-assignment-coverage.md
-#
-# P0-T8A の production 検査と役割が異なる。
-# boot 検査は「実際にフォールバックしないこと」を、この検査は
-# 「設定の正本が 1 か所だけであること」を保証する。どちらも削除しない。
-#
-# 重複した false や別環境での再定義は、現在の挙動を変えないため
-# boot 検査では検出できない。しかし正本が 2 つになった時点で、
-# 次に片方だけ変更されたときの矛盾が生まれる。
-#
-# 検査の変遷。
-#
-#   P0-T8B  Ripper.lex のトークン列で `config . i18n . fallbacks =` を探した。
-#           演算子を = へ完全一致させていたため ||= と &&= を検出できなかった。
-#   P0-T8C  Ripper.sexp の :assign / :opassign 検査へ置き換えた。
-#           多重代入と括弧付き receiver を検出できなかった。
-#   P0-T8D  :massign と receiver の括弧正規化を追加し、
-#           分類できない fallbacks 参照を fail-closed で拒否する。
-
-if task_has_event "P0-T8B"; then
   ruby - <<'RUBY'
     require "ripper"
 
-    # 環境設定はアプリケーション共通設定より後に読み込まれ、上書きできる。
-    # 上書きが起こりうる範囲だけを対象にする。
-    target_files = [
-      "config/application.rb",
-      "config/environments/development.rb",
-      "config/environments/test.rb",
-      "config/environments/production.rb"
-    ]
+    CANONICAL_PATH = "config/application.rb"
+    CANONICAL_LINE = "config.i18n.fallbacks = false"
 
-    # 単一式を包む括弧を再帰的に剥がす。
-    # 括弧は意味を変えないため、receiver と値の双方で正規化する。
-    # 値だけを正規化すると (config.i18n).fallbacks = true を見逃す。
-    unwrap_paren = lambda do |node|
-      current = node
+    # コメントと埋め込みドキュメントは規約の対象外とする。
+    # それ以外のトークンは、文字列・symbol・label・識別子をすべて対象にする。
+    # 意味を判定せず、fallbacks という語そのものを禁止する。
+    IGNORED_TOKEN_TYPES = %i[
+      on_comment
+      on_embdoc_beg
+      on_embdoc
+      on_embdoc_end
+    ].freeze
 
-      loop do
-        break unless current.is_a?(Array) && current[0] == :paren
-
-        body = current[1]
-        break unless body.is_a?(Array) && body.length == 1
-
-        current = body[0]
-      end
-
-      current
-    end
-
-    # 呼び出しチェーンの末尾にある識別子名を返す。
-    # config が method call でも local variable でも同じ名前を取り出す。
-    trailing_name = lambda do |node|
-      node = unwrap_paren.call(node)
-
-      next nil unless node.is_a?(Array)
-
-      token =
-        case node[0]
-        when :vcall, :var_ref then node[1]
-        when :call then node[3]
-        end
-
-      next nil unless token.is_a?(Array) && token[0] == :@ident
-
-      token[1]
-    end
-
-    # 代入 target が config.i18n.fallbacks へ到達する field かどうかを判定し、
-    # 該当するなら識別子の位置を返す。
-    #
-    # receiver の前に何があっても、末尾 3 つが config / i18n / fallbacks なら対象とする。
-    # Rails.application.config.i18n.fallbacks = ... も同じ設定を書き換える。
-    fallbacks_field_position = lambda do |target|
-      target = unwrap_paren.call(target)
-
-      next nil unless target.is_a?(Array) && target[0] == :field
-
-      name_token = target[3]
-
-      next nil unless name_token.is_a?(Array) && name_token[0] == :@ident
-      next nil unless name_token[1] == "fallbacks"
-
-      receiver = unwrap_paren.call(target[1])
-
-      next nil unless trailing_name.call(receiver) == "i18n"
-      next nil unless receiver.is_a?(Array) && receiver[0] == :call
-      next nil unless trailing_name.call(receiver[1]) == "config"
-
-      name_token[2]
-    end
-
-    # boolean literal だけを値として認める。
-    # 動的な式、メソッド呼び出し、数値、文字列はここで nil になる。
-    boolean_literal = lambda do |node|
-      node = unwrap_paren.call(node)
-
-      next nil unless node.is_a?(Array) && node[0] == :var_ref
-
-      token = node[1]
-      next nil unless token.is_a?(Array) && token[0] == :@kw
-
-      case token[1]
-      when "true" then true
-      when "false" then false
-      end
-    end
-
-    # 多重代入の左辺を再帰的に走査し、対象 field をすべて集める。
-    # 左辺のどこに現れても同じ設定を書き換える。
-    collect_fallback_fields = lambda do |node, found|
-      next found unless node.is_a?(Array)
-
-      position = fallbacks_field_position.call(node)
-      found << position if position
-
-      node.each do |child|
-        collect_fallback_fields.call(child, found) if child.is_a?(Array)
-      end
-
-      found
-    end
-
-    # 構文木を再帰的に走査し、assign / opassign / massign を集める。
-    collect_assignments = lambda do |node, found|
-      next found unless node.is_a?(Array)
-
-      case node[0]
-      when :assign, :opassign
-        position = fallbacks_field_position.call(node[1])
-
-        if position
-          operator = node[0] == :assign ? "=" : node[2][1]
-          value_node = node[0] == :assign ? node[2] : node[3]
-          literal = boolean_literal.call(value_node)
-
-          found << {
-            position: position,
-            operator: operator,
-            value: literal.nil? ? "(non-boolean)" : literal.to_s
-          }
-        end
-      when :massign
-        # 右辺と左辺を対応付けて許可判定しない。多重代入構文そのものを禁止する。
-        # 設定の正本は 1 行の plain assignment へ固定すればよく、
-        # 左右の対応を解析する複雑さを検証器へ持ち込まない。
-        collect_fallback_fields.call(node[1], []).each do |position|
-          found << {
-            position: position,
-            operator: "massign",
-            value: "(multiple-assignment)"
-          }
-        end
-      end
-
-      node.each { |child| collect_assignments.call(child, found) if child.is_a?(Array) }
-
-      found
-    end
-
-    # コード上に現れる fallbacks 識別子の位置を集める。
-    # コメントと文字列リテラルはトークン種別が異なるため、ここには入らない。
-    fallbacks_identifiers = lambda do |source|
-      Ripper.lex(source).filter_map do |(position, type, token, _state)|
-        next unless type == :on_ident
-        next unless token == "fallbacks" || token == "fallbacks="
-
-        [ position, token ]
-      end
-    end
-
-    parse = lambda do |source, label|
-      sexp = Ripper.sexp(source)
-
-      # 解析できないファイルを「代入 0 件」として扱わない。
-      if sexp.nil?
-        warn "failed to parse as Ruby: #{label}"
-        exit 1
-      end
-
-      assignments = collect_assignments.call(sexp, [])
-      classified = assignments.map { |assignment| assignment[:position] }
-
-      unclassified = fallbacks_identifiers.call(source).reject do |(position, _token)|
-        classified.include?(position)
-      end
-
-      [ assignments, unclassified ]
-    end
-
-    # 対象ソース群を検査し、失敗理由の一覧を返す。
-    #
-    # 実ファイルの検査と検証器自身の検査を同じ経路へ通す。
-    # 判定を実ファイル側にだけ書くと、判定そのものを外した退行を自己検査で拾えない。
+    # 与えられたソース群から fallbacks を含むトークンを集め、失敗理由を返す。
+    # 実ファイルと自己検査を同じ経路へ通す。
     inspect_sources = lambda do |sources|
-      assignments = []
-      unclassified_references = []
+      references = []
 
-      sources.each do |(label, source)|
-        found, unclassified = parse.call(source, label)
+      sources.each do |(path, source)|
+        if Ripper.sexp(source).nil?
+          next references << { path: path, line: 0, text: "(failed to parse as Ruby)" }
+        end
 
-        assignments.concat(found.map { |assignment| assignment.merge(path: label) })
-        unclassified_references.concat(
-          unclassified.map { |(position, token)| { path: label, position: position, token: token } }
-        )
-      end
+        Ripper.lex(source).each do |(position, type, token, _state)|
+          next if IGNORED_TOKEN_TYPES.include?(type)
+          next unless token.to_s.include?("fallbacks")
 
-      failures = []
+          line = position.first
 
-      unless unclassified_references.empty?
-        failures << "unclassified i18n fallback reference"
-
-        unclassified_references.each do |reference|
-          line, column = reference[:position]
-          failures << "  #{reference[:path]}:#{line}:#{column} token=#{reference[:token]}"
+          references << {
+            path: path,
+            line: line,
+            text: source.lines[line - 1].to_s.strip
+          }
         end
       end
 
-      expected = { path: "config/application.rb", operator: "=", value: "false" }
+      canonical =
+        references.length == 1 &&
+        references.first[:path] == CANONICAL_PATH &&
+        references.first[:text] == CANONICAL_LINE
 
-      valid =
-        assignments.length == 1 &&
-        assignments.first[:path] == expected[:path] &&
-        assignments.first[:operator] == expected[:operator] &&
-        assignments.first[:value] == expected[:value]
+      next [] if canonical
 
-      unless valid
-        failures << "expected exactly one i18n fallback assignment"
-        failures << "  #{expected[:path]}: config.i18n.fallbacks #{expected[:operator]} #{expected[:value]}"
-        failures << "actual:"
+      failures = ["expected exactly one i18n fallback reference in config/**/*.rb"]
+      failures << "  #{CANONICAL_PATH}: #{CANONICAL_LINE}"
+      failures << "actual:"
 
-        if assignments.empty?
-          failures << "  (none)"
-        else
-          assignments.each do |assignment|
-            failures << (
-              "  #{assignment[:path]}:#{assignment[:position].first} " \
-              "operator=#{assignment[:operator]} value=#{assignment[:value]}"
-            )
-          end
+      if references.empty?
+        failures << "  (none)"
+      else
+        references.each do |reference|
+          failures << "  #{reference[:path]}:#{reference[:line]}: #{reference[:text]}"
         end
       end
 
@@ -731,95 +521,39 @@ if task_has_event "P0-T8B"; then
     end
 
     # --- 検証器自身の検査 -----------------------------------------------------
-    #
-    # P0-T8B の検出漏れは、検証器を検証する仕組みがなかったために見逃された。
-    # P0-T8C でも構文の網羅性までは確認できていなかった。
-    # 同じ退行が起きたら、通常の bin/verify で気づけるようにする。
 
-    detected_probes = [
-      [ "config.i18n.fallbacks = false", "=", "false" ],
-      [ "config.i18n.fallbacks ||= true", "||=", "true" ],
-      [ "config.i18n.fallbacks &&= false", "&&=", "false" ],
-      [ "config.i18n.fallbacks += 1", "+=", "(non-boolean)" ],
-      [ "Rails.application.config.i18n.fallbacks = true", "=", "true" ],
-      [ "config.i18n.fallbacks = (false)", "=", "false" ],
-      [ "config.i18n.fallbacks = dynamic_value", "=", "(non-boolean)" ],
-      [ "(config.i18n).fallbacks = true", "=", "true" ],
-      [ "((config.i18n)).fallbacks = true", "=", "true" ],
-      [ "(Rails.application.config.i18n).fallbacks = true", "=", "true" ],
-      [ "(config).i18n.fallbacks = true", "=", "true" ],
-      [ "config.i18n.fallbacks, other = true, nil", "massign", "(multiple-assignment)" ],
-      [ "other, config.i18n.fallbacks = nil, true", "massign", "(multiple-assignment)" ],
-      [ "config.i18n.fallbacks, = true", "massign", "(multiple-assignment)" ]
+    canonical_source = [ [ CANONICAL_PATH, "#{CANONICAL_LINE}\n" ] ]
+
+    accepted_probes = [
+      [ "canonical", "#{CANONICAL_LINE}\n" ],
+      [ "indented canonical", "    #{CANONICAL_LINE}\n" ],
+      [ "comment", "# config.i18n.fallbacks = true\n#{CANONICAL_LINE}\n" ]
     ]
 
-    detected_probes.each do |(source, operator, value)|
-      assignments, unclassified = parse.call(source, "self-test: #{source}")
+    accepted_probes.each do |(label, source)|
+      failures = inspect_sources.call([ [ CANONICAL_PATH, source ] ])
 
-      unless assignments.length == 1 &&
-             assignments.first[:operator] == operator &&
-             assignments.first[:value] == value &&
-             unclassified.empty?
-        warn "scanner self-test failed: #{source}"
-        warn "  expected: operator=#{operator} value=#{value} unclassified=0"
-        warn "  actual:   #{assignments.inspect} unclassified=#{unclassified.inspect}"
+      unless failures.empty?
+        warn "source policy self-test failed: #{label} must be accepted"
+        failures.each { |line| warn "  #{line}" }
         exit 1
       end
     end
 
-    # 構文木で分類できない記述は、通すのではなく止める。
-    # 正しい設定方法としてサポートする必要はない。検証不能として拒否する。
-    unclassified_probes = [
-      "config.i18n.public_send(:fallbacks=, true)",
-      "config.i18n.send(:fallbacks=, true)",
-      "i18n_config = config.i18n\ni18n_config.fallbacks = true"
+    rejected_probes = [
+      [ "string index", 'config.i18n["fallbacks"] = true' ],
+      [ "symbol index", "config.i18n[:fallbacks] = true" ],
+      [ "merge!", "config.i18n.merge!(fallbacks: true)" ],
+      [ "symbol setter", 'config.i18n.public_send(:"fallbacks=", true)' ],
+      [ "plain true", "config.i18n.fallbacks = true" ],
+      [ "unrelated setting", "config.other.fallbacks = false" ]
     ]
 
-    unclassified_probes.each do |source|
-      _assignments, unclassified = parse.call(source, "self-test: #{source}")
-
-      if unclassified.empty?
-        warn "scanner self-test failed: #{source} must be rejected as unclassified"
-        exit 1
-      end
-    end
-
-    ignored_probes = [
-      "# config.i18n.fallbacks = true",
-      'message = "config.i18n.fallbacks = true"',
-      "config.i18n.other = false"
-    ]
-
-    ignored_probes.each do |source|
-      assignments, unclassified = parse.call(source, "self-test: #{source}")
-
-      unless assignments.empty? && unclassified.empty?
-        warn "scanner self-test failed: #{source} must not be detected"
-        warn "  actual: #{assignments.inspect} unclassified=#{unclassified.inspect}"
-        exit 1
-      end
-    end
-
-    # 判定そのものを外した退行を拾うため、実ファイルと同じ inspect_sources を通す。
-    canonical_source = [ [ "config/application.rb", "config.i18n.fallbacks = false" ] ]
-
-    unless inspect_sources.call(canonical_source).empty?
-      warn "scanner self-test failed: the canonical assignment must pass"
-      warn "  actual: #{inspect_sources.call(canonical_source).inspect}"
-      exit 1
-    end
-
-    rejected_sources = [
-      [ "unclassified", "config.i18n.public_send(:fallbacks=, true)" ],
-      [ "massign", "config.i18n.fallbacks, other = true, nil" ],
-      [ "parenthesised receiver", "(config.i18n).fallbacks = true" ]
-    ]
-
-    rejected_sources.each do |(label, source)|
-      sources = canonical_source + [ [ "config/environments/development.rb", source ] ]
+    rejected_probes.each do |(label, source)|
+      sources = canonical_source + [ [ "config/environments/development.rb", "#{source}\n" ] ]
 
       if inspect_sources.call(sources).empty?
-        warn "scanner self-test failed: #{label} must be rejected by inspect_sources"
+        warn "source policy self-test failed: #{label} must be rejected"
         warn "  source: #{source}"
         exit 1
       end
@@ -828,7 +562,7 @@ if task_has_event "P0-T8B"; then
     # --- 実ファイルの検査 -----------------------------------------------------
 
     failures = inspect_sources.call(
-      target_files.map { |path| [ path, File.read(path, encoding: "UTF-8") ] }
+      Dir.glob("config/**/*.rb").sort.map { |path| [ path, File.read(path, encoding: "UTF-8") ] }
     )
 
     unless failures.empty?
@@ -836,6 +570,48 @@ if task_has_event "P0-T8B"; then
       exit 1
     end
 RUBY
+
+  # --- 実動作検査 -------------------------------------------------------------
+  #
+  # ソース規約は静的なトークン検査であり、Ruby のメタプログラミングを証明しない。
+  # 有効な動作保証はここが担う。
+  #
+  # I18n Railtie は初期化状態をプロセス内で保持するため、環境ごとに別プロセスで実行する。
+  # production は boot 時に SECRET_KEY_BASE を要求するので、
+  # 使い捨ての値を都度生成し、リポジトリへ秘密情報を持ち込まない。
+  # 到達不能な DATABASE_URL を与え、boot 中の不用意な DB 接続も併せて検出する。
+
+  verify_i18n_fallback_disabled() {
+    local environment_name="$1"
+    local secret_key_base
+
+    secret_key_base="$(
+      ruby -rsecurerandom -e 'print SecureRandom.hex(64)'
+    )"
+
+    env \
+      RAILS_ENV="$environment_name" \
+      SECRET_KEY_BASE="$secret_key_base" \
+      DATABASE_URL="postgresql://127.0.0.1:1/roleweave_${environment_name}" \
+      PGCONNECT_TIMEOUT=1 \
+      bundle exec rails runner - <<'RUBY'
+      # 祖先クラス名の確認だけでは、フォールバックの経路が変わったときに追随できない。
+      # 日本語だけの翻訳を登録し、英語から解決されない振る舞いそのものを確認する。
+      key = :p0_t8e_i18n_fallback_probe
+      I18n.backend.store_translations(:ja, { key => "日本語だけの文言" })
+
+      begin
+        I18n.t(key, locale: :en, raise: true)
+        abort "#{Rails.env} i18n fallback is enabled"
+      rescue I18n::MissingTranslationData
+        # 期待どおり、英語の欠落を日本語では補わない
+      end
+RUBY
+  }
+
+  verify_i18n_fallback_disabled development
+  verify_i18n_fallback_disabled test
+  verify_i18n_fallback_disabled production
 fi
 
 # --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
