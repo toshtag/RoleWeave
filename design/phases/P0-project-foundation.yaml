@@ -47,7 +47,7 @@ completed_milestones:
 tasks:
   - id: P0-R1
     type: refactor
-    status: in_progress
+    status: done
     branch: p0/r1-remove-code-pact
     description: code-pact 撤去と Foundation 再基準化
     depends_on: []
