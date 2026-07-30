@@ -704,6 +704,29 @@ tasks:
       - scripts/verify-p0
     acceptance_refs:
       - design/acceptance/P0-T8E-i18n-verifier-simplification.md
+  - id: P0-T8F
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: planned
+    description: P0-T8E のソース規約がヒアドキュメント内の文字列を canonical な i18n
+      フォールバック設定として誤認する問題を修正する。 canonical 候補を on_ident の fallbacks トークンへ限定し、 独自
+      AST 解析器を再導入せずに文字列誤認を防止する。
+    depends_on:
+      - P0-T8E
+    reads:
+      - config/**/*.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8E-i18n-verifier-simplification.md
+      - design/acceptance/P0-T8F-i18n-canonical-token.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8F-i18n-canonical-token.md
   - id: P0-T9
     type: test
     ambiguity: low
@@ -715,7 +738,7 @@ tasks:
     status: planned
     description: "セキュリティと依存関係検査の追加（ブランチ: p0/t9-security-checks）"
     depends_on:
-      - P0-T8E
+      - P0-T8F
   - id: P0-T10
     type: test
     ambiguity: low
@@ -738,4 +761,5 @@ tasks:
       - P0-T8C
       - P0-T8D
       - P0-T8E
+      - P0-T8F
       - P0-T9

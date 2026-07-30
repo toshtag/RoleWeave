@@ -354,3 +354,34 @@ P0-T8、P0-T8A、P0-T8B、P0-T8C、P0-T8D の進捗イベントを変更・削�
 - `write_audit` の不整合をダミー差分で解消しない。原因を報告して停止する
 - 実行していない検証を成功として報告しない
 - 行数削減自体を目的にしない。検証器が肥大化していないことの確認として記録する
+
+## 実行後の追記
+
+P0-T8E の完了後、canonical 判定に文字列誤認が残っていることが判明した。
+
+canonical 判定はファイルパスと、トークン位置の行を trim した文字列だけを見ていた。
+トークンがコード上の識別子なのか、文字列の内容なのかを確認していなかった。
+
+ヒアドキュメントの内容トークンでは、その内容行そのものが返る。
+そのため `:on_tstring_content` でも canonical 行と一致してしまう。
+
+```ruby
+ignored = <<~TEXT
+config.i18n.fallbacks = false
+TEXT
+```
+
+```text
+type:  on_tstring_content
+token: "config.i18n.fallbacks = false\n"
+```
+
+実際の設定代入が存在しないにもかかわらず、ソース規約を exit 0 で通過した。
+
+この文書は「文字列、symbol、label、識別子をすべて対象にする」と定めているが、
+canonical として許可する側でトークン種別を確認していなかった。
+収集は正しく、判定が緩かった。
+
+P0-T8F で canonical 候補を `:on_ident` の `fallbacks` トークンへ限定した。
+独自 AST 解析器を再導入しないという本文書の方針は維持している。
+詳細は `design/acceptance/P0-T8F-i18n-canonical-token.md` を参照する。
