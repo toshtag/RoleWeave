@@ -355,6 +355,292 @@ RUBY
   fi
 fi
 
+# --- P0-T8: 日本語・英語の i18n 基盤 ------------------------------------------
+#
+# P0-T8 が開始された時点で有効になる。
+# Docker 検証より前へ置き、契約違反を build より先に失敗させる。
+# 受け入れ条件の詳細は design/acceptance/P0-T8-i18n-bootstrap.md を参照する。
+
+if task_has_event "P0-T8"; then
+  test -f config/locales/ja.yml
+  test -f config/locales/en.yml
+  test -f test/configuration/i18n_configuration_test.rb
+
+  # 共通の日本語ロケールデータは依存で賄う。同じ gem を複数の行で宣言しない。
+  # 宣言が重複すると、後の行のバージョン指定が黙って優先される。
+  rails_i18n_declarations="$(
+    grep -Ec '^[[:space:]]*gem[[:space:]]+["'\'']rails-i18n["'\'']' Gemfile || true
+  )"
+
+  if [[ "$rails_i18n_declarations" -ne 1 ]]; then
+    printf \
+      'expected exactly one rails-i18n declaration in Gemfile, found %s\n' \
+      "$rails_i18n_declarations" \
+      >&2
+    exit 1
+  fi
+
+  # 設定ファイルの記述ではなく、boot 後の I18n の実測値を検査する。
+  # Rails は config.i18n の一部のキーを初期化時に取り除くため、
+  # 設定オブジェクトを読み返しても実際の挙動は分からない。
+  env \
+    RAILS_ENV=test \
+    DATABASE_URL=postgresql://127.0.0.1:1/roleweave_test \
+    PGCONNECT_TIMEOUT=1 \
+    bundle exec rails runner - <<'RUBY'
+    expected_locales = %i[ja en].to_set
+    actual_locales = I18n.available_locales.map(&:to_sym).to_set
+
+    abort "unexpected available locales: #{actual_locales.to_a.inspect}" \
+      unless actual_locales == expected_locales
+
+    abort "unexpected default locale: #{I18n.default_locale.inspect}" \
+      unless I18n.default_locale == :ja
+
+    begin
+      I18n.with_locale(:fr) { nil }
+      abort "unsupported locale was accepted: fr"
+    rescue I18n::InvalidLocale
+      # 期待どおり拒否された
+    end
+
+    fallbacks_enabled = I18n.backend.class.ancestors.any? do |ancestor|
+      ancestor.name == "I18n::Backend::Fallbacks"
+    end
+
+    abort "i18n fallbacks must be disabled" if fallbacks_enabled
+
+    begin
+      I18n.t("verify_p0_missing_translation_probe")
+      abort "missing translations must raise in the test environment"
+    rescue I18n::MissingTranslationData
+      # 期待どおり検出された
+    end
+
+    %i[ja en].each do |locale|
+      name = I18n.t("application.name", locale: locale)
+
+      abort "unexpected application.name for #{locale}: #{name.inspect}" \
+        unless name == "RoleWeave"
+
+      path = Rails.root.join("config/locales/#{locale}.yml")
+      dictionary = YAML.safe_load_file(path, aliases: false, permitted_classes: [])
+
+      abort "generated sample translation remains in #{path}" \
+        if dictionary.fetch(locale.to_s).key?("hello")
+    end
+RUBY
+fi
+
+# --- P0-T8A / P0-T8E: i18n フォールバックの単一正本と実動作 -------------------
+#
+# P0-T8A が開始された時点で有効になる。
+# 受け入れ条件の正本は次の 2 つとする。
+#
+#   design/acceptance/P0-T8A-production-i18n-fallback.md
+#   design/acceptance/P0-T8E-i18n-verifier-simplification.md
+#
+# 検証は 2 段構えとする。
+#
+#   ソース規約  config 配下に fallbacks を含むコードを 1 行だけ許可する保守規約
+#   実動作検査  development / test / production を独立プロセスで boot し、
+#               英語の欠落が日本語へ解決されないことを確認する
+#
+# ソース規約は Ruby の意味解析ではない。動的な文字列結合など、
+# トークン検査を回避できるコードは存在し得る。その保証は実動作検査が担う。
+# config.i18n は ActiveSupport::OrderedOptions であり Hash を継承するため、
+# 代入構文を列挙する方式では設定変更経路を網羅できない。
+
+if task_has_event "P0-T8A"; then
+  # --- ソース規約 -------------------------------------------------------------
+  #
+  # Rails の I18n 初期化はアプリケーション initializer より後に実行される。
+  # environments だけでなく initializers からも上書きできるため、
+  # config 配下の Ruby ファイルすべてを対象にする。
+
+  ruby - <<'RUBY'
+    require "ripper"
+
+    CANONICAL_PATH = "config/application.rb"
+    CANONICAL_LINE = "config.i18n.fallbacks = false"
+
+    # コメントと埋め込みドキュメントは規約の対象外とする。
+    # それ以外のトークンは、文字列・symbol・label・識別子をすべて対象にする。
+    # 意味を判定せず、fallbacks という語そのものを禁止する。
+    IGNORED_TOKEN_TYPES = %i[
+      on_comment
+      on_embdoc_beg
+      on_embdoc
+      on_embdoc_end
+    ].freeze
+
+    # 与えられたソース群から fallbacks を含むトークンを集め、失敗理由を返す。
+    # 実ファイルと自己検査を同じ経路へ通す。
+    inspect_sources = lambda do |sources|
+      references = []
+
+      sources.each do |(path, source)|
+        if Ripper.sexp(source).nil?
+          next references << { path: path, line: 0, text: "(failed to parse as Ruby)" }
+        end
+
+        Ripper.lex(source).each do |(position, type, token, _state)|
+          next if IGNORED_TOKEN_TYPES.include?(type)
+          next unless token.to_s.include?("fallbacks")
+
+          line = position.first
+
+          references << {
+            path: path,
+            line: line,
+            text: source.lines[line - 1].to_s.strip,
+            type: type,
+            token: token.to_s
+          }
+        end
+      end
+
+      # canonical はソース行の一致だけでは判定できない。
+      # ヒアドキュメントの内容トークンでは、その内容行そのものが返るため、
+      # 実際の設定代入がなくても canonical 行と一致してしまう。
+      # トークンがコード上の識別子であることまで確認する。
+      canonical_reference = references.first
+
+      canonical =
+        references.length == 1 &&
+        canonical_reference[:path] == CANONICAL_PATH &&
+        canonical_reference[:text] == CANONICAL_LINE &&
+        canonical_reference[:type] == :on_ident &&
+        canonical_reference[:token] == "fallbacks"
+
+      next [] if canonical
+
+      failures = ["expected exactly one i18n fallback reference in config/**/*.rb"]
+      failures << "  #{CANONICAL_PATH}: #{CANONICAL_LINE}"
+      failures << "actual:"
+
+      if references.empty?
+        failures << "  (none)"
+      else
+        references.each do |reference|
+          failures << "  #{reference[:path]}:#{reference[:line]}:"
+          failures << "    text=#{reference[:text]}"
+          failures << "    type=#{reference[:type]} token=#{reference[:token].strip}"
+        end
+      end
+
+      failures
+    end
+
+    # --- 検証器自身の検査 -----------------------------------------------------
+
+    canonical_source = [ [ CANONICAL_PATH, "#{CANONICAL_LINE}\n" ] ]
+
+    accepted_probes = [
+      [ "canonical", "#{CANONICAL_LINE}\n" ],
+      [ "indented canonical", "    #{CANONICAL_LINE}\n" ],
+      [ "comment", "# config.i18n.fallbacks = true\n#{CANONICAL_LINE}\n" ]
+    ]
+
+    accepted_probes.each do |(label, source)|
+      failures = inspect_sources.call([ [ CANONICAL_PATH, source ] ])
+
+      unless failures.empty?
+        warn "source policy self-test failed: #{label} must be accepted"
+        failures.each { |line| warn "  #{line}" }
+        exit 1
+      end
+    end
+
+    rejected_probes = [
+      [ "string index", 'config.i18n["fallbacks"] = true' ],
+      [ "symbol index", "config.i18n[:fallbacks] = true" ],
+      [ "merge!", "config.i18n.merge!(fallbacks: true)" ],
+      [ "symbol setter", 'config.i18n.public_send(:"fallbacks=", true)' ],
+      [ "plain true", "config.i18n.fallbacks = true" ],
+      [ "unrelated setting", "config.other.fallbacks = false" ]
+    ]
+
+    rejected_probes.each do |(label, source)|
+      sources = canonical_source + [ [ "config/environments/development.rb", "#{source}\n" ] ]
+
+      if inspect_sources.call(sources).empty?
+        warn "source policy self-test failed: #{label} must be rejected"
+        warn "  source: #{source}"
+        exit 1
+      end
+    end
+
+    # canonical 行と同じ文字列を、実際の設定ではない位置へ置いた場合も拒否する。
+    # 行の一致だけを見ると、実際の設定代入がなくても通過する。
+    canonical_lookalikes = [
+      [ "heredoc canonical text", "ignored = <<~TEXT\n#{CANONICAL_LINE}\nTEXT\n" ],
+      [ "string canonical text", %(message = "#{CANONICAL_LINE}"\n) ]
+    ]
+
+    canonical_lookalikes.each do |(label, source)|
+      if inspect_sources.call([ [ CANONICAL_PATH, source ] ]).empty?
+        warn "source policy self-test failed: #{label} must be rejected"
+        warn "  source: #{source.inspect}"
+        exit 1
+      end
+    end
+
+    # --- 実ファイルの検査 -----------------------------------------------------
+
+    failures = inspect_sources.call(
+      Dir.glob("config/**/*.rb").sort.map { |path| [ path, File.read(path, encoding: "UTF-8") ] }
+    )
+
+    unless failures.empty?
+      failures.each { |line| warn line }
+      exit 1
+    end
+RUBY
+
+  # --- 実動作検査 -------------------------------------------------------------
+  #
+  # ソース規約は静的なトークン検査であり、Ruby のメタプログラミングを証明しない。
+  # 有効な動作保証はここが担う。
+  #
+  # I18n Railtie は初期化状態をプロセス内で保持するため、環境ごとに別プロセスで実行する。
+  # production は boot 時に SECRET_KEY_BASE を要求するので、
+  # 使い捨ての値を都度生成し、リポジトリへ秘密情報を持ち込まない。
+  # 到達不能な DATABASE_URL を与え、boot 中の不用意な DB 接続も併せて検出する。
+
+  verify_i18n_fallback_disabled() {
+    local environment_name="$1"
+    local secret_key_base
+
+    secret_key_base="$(
+      ruby -rsecurerandom -e 'print SecureRandom.hex(64)'
+    )"
+
+    env \
+      RAILS_ENV="$environment_name" \
+      SECRET_KEY_BASE="$secret_key_base" \
+      DATABASE_URL="postgresql://127.0.0.1:1/roleweave_${environment_name}" \
+      PGCONNECT_TIMEOUT=1 \
+      bundle exec rails runner - <<'RUBY'
+      # 祖先クラス名の確認だけでは、フォールバックの経路が変わったときに追随できない。
+      # 日本語だけの翻訳を登録し、英語から解決されない振る舞いそのものを確認する。
+      key = :p0_t8e_i18n_fallback_probe
+      I18n.backend.store_translations(:ja, { key => "日本語だけの文言" })
+
+      begin
+        I18n.t(key, locale: :en, raise: true)
+        abort "#{Rails.env} i18n fallback is enabled"
+      rescue I18n::MissingTranslationData
+        # 期待どおり、英語の欠落を日本語では補わない
+      end
+RUBY
+  }
+
+  verify_i18n_fallback_disabled development
+  verify_i18n_fallback_disabled test
+  verify_i18n_fallback_disabled production
+fi
+
 # --- P0-T4: Docker Compose と PostgreSQL -------------------------------------
 #
 # P0-T4 が開始された時点で有効になる。

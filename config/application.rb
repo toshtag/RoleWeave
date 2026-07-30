@@ -23,5 +23,19 @@ module RoleWeave
     #
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
+
+    # 対応言語を日本語と英語だけへ限定し、日本語を既定とする。
+    #
+    # enforce_available_locales は Rails の既定値と同じだが明示する。
+    # 対応言語の制約を、既定値の記憶ではなくプロジェクトの設定として読める状態へ固定する。
+    config.i18n.available_locales = %i[ja en]
+    config.i18n.default_locale = :ja
+    config.i18n.enforce_available_locales = true
+
+    # 利用者向け表示は日英を同時に実装する。欠落した翻訳を別の言語で補わない。
+    #
+    # フォールバックを有効にすると、英語の未翻訳が日本語のまま表示され、
+    # 翻訳漏れが「動いている」状態に紛れて検出できなくなる。
+    config.i18n.fallbacks = false
   end
 end

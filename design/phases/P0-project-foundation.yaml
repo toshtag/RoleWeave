@@ -534,13 +534,199 @@ tasks:
     ambiguity: low
     risk: low
     context_size: small
-    write_surface: medium
-    verification_strength: medium
+    write_surface: low
+    verification_strength: strong
     expected_duration: short
-    status: planned
-    description: "日本語・英語の初期設定（ブランチ: p0/t8-i18n-bootstrap）"
+    status: done
+    description: "日本語・英語の i18n 基盤の追加（ブランチ: p0/t8-i18n-bootstrap）。 Rails 標準の I18n
+      を基盤として、日本語と英語だけを対応言語に設定し、 日本語を既定言語とする。Rails 共通の日本語ロケールデータを導入し、
+      アプリケーションが所有する翻訳辞書について日英のキー同型性と 翻訳欠落の検出を継続的に検証する。"
     depends_on:
-      - P0-T3
+      - P0-T7C
+    reads:
+      - Gemfile
+      - Gemfile.lock
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - config/locales/en.yml
+      - scripts/verify-p0
+      - design/acceptance/P0-T8-i18n-bootstrap.md
+      - design/rules/**
+      - docs/development/language-policy.md
+      - docs/architecture/principles.md
+      - docs/development/code-pact.md
+    writes:
+      - Gemfile
+      - Gemfile.lock
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/locales/en.yml
+      - config/locales/ja.yml
+      - test/configuration/i18n_configuration_test.rb
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8-i18n-bootstrap.md
+  - id: P0-T8A
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: config/environments/production.rb に残る Rails 生成時の i18n fallback 設定が
+      アプリケーション共通設定を上書きし、 英語の翻訳欠落を日本語で隠す問題を修正する。 production
+      を含む全環境でフォールバック無効を実測検証する。
+    depends_on:
+      - P0-T8
+    reads:
+      - config/application.rb
+      - config/environments/production.rb
+      - config/locales/ja.yml
+      - config/locales/en.yml
+      - scripts/verify-p0
+      - design/acceptance/P0-T8-i18n-bootstrap.md
+      - design/acceptance/P0-T8A-production-i18n-fallback.md
+      - design/rules/**
+      - docs/development/language-policy.md
+    writes:
+      - config/environments/production.rb
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8A-production-i18n-fallback.md
+  - id: P0-T8B
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: medium
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: i18n フォールバック設定の単一正本を構造的に検証し、 環境別設定による再定義を拒否する。 あわせて、Code Pact 2.8.0
+      で実際に成立する complete、finalize、verify の順序へ開発文書を統一する。
+    depends_on:
+      - P0-T8A
+    reads:
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - scripts/verify-p0
+      - docs/development/code-pact.md
+      - design/rules/code-pact-execution.md
+      - design/acceptance/P0-T8A-production-i18n-fallback.md
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+      - docs/code-pact/agent-instructions.md
+    writes:
+      - scripts/verify-p0
+      - docs/development/code-pact.md
+      - design/rules/code-pact-execution.md
+    acceptance_refs:
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+  - id: P0-T8C
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: P0-T8B の字句列検査が ||= や &&= などの有効な Ruby 代入を 検出できない問題を修正する。Ripper
+      の構文木から assign と opassign を検出し、 config/application.rb の plain assignment
+      false 1 件だけを許可する。
+    depends_on:
+      - P0-T8B
+    reads:
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
+  - id: P0-T8D
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: P0-T8C の構文木検査が多重代入と括弧付き receiver を 検出できない問題を修正する。massign の左辺を検査し、
+      receiver の括弧を正規化する。分類できない fallbacks 参照を fail-closed で拒否する。
+    depends_on:
+      - P0-T8C
+    reads:
+      - config/application.rb
+      - config/environments/development.rb
+      - config/environments/test.rb
+      - config/environments/production.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
+      - design/acceptance/P0-T8D-i18n-assignment-coverage.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8D-i18n-assignment-coverage.md
+  - id: P0-T8E
+    type: refactor
+    ambiguity: low
+    risk: medium
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: P0-T8B から P0-T8D で拡張した独自 Ruby 代入解析器を撤去する。 全 config Ruby
+      ファイルの単純なソース規約と、 development・test・production の独立 boot probe へ置き換え、
+      検証器の複雑性と過剰な保証表現を解消する。
+    depends_on:
+      - P0-T8D
+    reads:
+      - config/**/*.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+      - design/acceptance/P0-T8C-i18n-assignment-parser.md
+      - design/acceptance/P0-T8D-i18n-assignment-coverage.md
+      - design/acceptance/P0-T8E-i18n-verifier-simplification.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8E-i18n-verifier-simplification.md
+  - id: P0-T8F
+    type: bugfix
+    ambiguity: low
+    risk: low
+    context_size: small
+    write_surface: low
+    verification_strength: strong
+    expected_duration: short
+    status: done
+    description: P0-T8E のソース規約がヒアドキュメント内の文字列を canonical な i18n
+      フォールバック設定として誤認する問題を修正する。 canonical 候補を on_ident の fallbacks トークンへ限定し、 独自
+      AST 解析器を再導入せずに文字列誤認を防止する。
+    depends_on:
+      - P0-T8E
+    reads:
+      - config/**/*.rb
+      - scripts/verify-p0
+      - design/acceptance/P0-T8E-i18n-verifier-simplification.md
+      - design/acceptance/P0-T8F-i18n-canonical-token.md
+    writes:
+      - scripts/verify-p0
+    acceptance_refs:
+      - design/acceptance/P0-T8F-i18n-canonical-token.md
   - id: P0-T9
     type: test
     ambiguity: low
@@ -552,7 +738,7 @@ tasks:
     status: planned
     description: "セキュリティと依存関係検査の追加（ブランチ: p0/t9-security-checks）"
     depends_on:
-      - P0-T6
+      - P0-T8F
   - id: P0-T10
     type: test
     ambiguity: low
@@ -570,4 +756,10 @@ tasks:
       - P0-T7B
       - P0-T7C
       - P0-T8
+      - P0-T8A
+      - P0-T8B
+      - P0-T8C
+      - P0-T8D
+      - P0-T8E
+      - P0-T8F
       - P0-T9

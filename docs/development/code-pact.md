@@ -41,15 +41,13 @@ npm exec -- code-pact task start <TASK_ID> --agent generic
 必要な制御面変更をコミットして作業ツリーを clean にしてから start する。
 start 後にこれらを変更すると `TASK_CONTRACT_DRIFT` が発生し、`task complete` が失敗する。
 
-実装したあと、検証と完了記録を行う。
-
-```bash
-npm exec -- code-pact verify --phase <PHASE_ID> --task <TASK_ID>
-```
+実装したあと、完了記録を行う。
 
 ```bash
 npm exec -- code-pact task complete <TASK_ID> --agent generic
 ```
+
+`task complete` はフェーズの `verification.commands` を実行し、done イベントを記録する。
 
 finalize は、まず dry-run で結果と `write_audit` を確認してから書き込む。
 dry-run と `--write` の両方で `--audit-strict` を指定する。
@@ -64,6 +62,37 @@ npm exec -- code-pact task finalize <TASK_ID> --audit-strict --write --json
 
 dry-run の結果を確認せずに `--write` を実行しない。
 `write_audit` の `outside_declared` と `declared_unused` を空にしてから `--write` する。
+
+`task finalize --write` は、フェーズ YAML のタスク `status` を `done` へ更新する。
+
+最後にタスクの状態を検証する。
+
+```bash
+npm exec -- code-pact verify --phase <PHASE_ID> --task <TASK_ID>
+```
+
+タスクを指定した `verify` は、done イベントとフェーズ YAML の `status` の両方を確認する。
+`status` を更新するのは `task finalize --write` であるため、
+finalize より前に実行すると `task_status` で必ず失敗する。
+
+したがってタスクを指定した `verify` は、complete と finalize の後に行う。
+
+```text
+task prepare
+task start
+実装
+task complete
+task finalize --audit-strict --json         （dry-run）
+task finalize --audit-strict --write --json
+code-pact verify --phase <PHASE_ID> --task <TASK_ID>
+```
+
+`verify` は毎回フェーズ検証コマンドを実行する。
+P0 では Docker build を含む `bin/verify --full` であるため、
+順序を誤ると数分の実行が丸ごと無駄になる。
+
+最後の `verify` が失敗した場合、その結果を成功として扱わない。
+すでに finalize 済みのタスクを無断で書き換えず、是正タスクを作って積み上げる。
 
 進捗イベント（`.code-pact/state/events/**`）は write audit の対象外のため、`writes` へ宣言しない。
 `design/roadmap.yaml`、`design/phases/*.yaml`、`.code-pact/**` は Code Pact の保護パスであり、

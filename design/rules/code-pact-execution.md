@@ -25,7 +25,12 @@ applies_to: [architecture, feature, bugfix, refactor, mechanical_refactor, test,
 ## ライフサイクル
 
 - P0-T3 以降は、実装前に `task prepare` と `task start` を実行する
-- 実装後は `verify` → `task complete` → `task finalize`（dry-run で `write_audit` を確認してから `--write`）の順で進める
+- 実装後は `task complete` → `task finalize`（dry-run で `write_audit` を確認してから `--write`）
+  → `verify` の順で進める
+- タスクを指定した `verify` は finalize より前に実行しない。
+  `verify` は done イベントとフェーズ YAML の `status` の両方を確認するが、
+  `status` を `done` へ更新するのは `task finalize --write` である。
+  順序を誤ると `task_status` で必ず失敗し、フェーズ検証コマンドの実行時間が無駄になる
 - 実行していない検証を成功として記録・報告しない
 - 検証コマンドを一時的に無効化して完了させない
 
