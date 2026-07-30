@@ -70,6 +70,32 @@ ruby -ryaml -e '
   end
 '
 
+# フェーズ YAML はフェーズレベルの情報だけを持つ。
+# タスク単位の進捗・完了実績の正本は GitHub Issues と PR であり、
+# フェーズ定義へ複製する構造を再導入しない。
+ruby -ryaml -e '
+  paths = Dir["design/phases/*.yaml"].sort
+  phases = paths.to_h do |path|
+    phase = YAML.load_file(path)
+    [phase.fetch("id"), phase]
+  end
+
+  phases.each do |id, phase|
+    abort "#{id} must not define tasks" if phase.key?("tasks")
+    abort "#{id} must not define completed_milestones" if phase.key?("completed_milestones")
+
+    dependencies = phase.fetch("depends_on")
+    abort "#{id} depends_on must be an array" unless dependencies.is_a?(Array)
+    abort "#{id} must not depend on itself" if dependencies.include?(id)
+
+    dependencies.each do |dependency|
+      abort "#{id} depends on a missing phase: #{dependency}" unless phases.key?(dependency)
+    end
+  end
+
+  abort "P0 depends_on must be empty" unless phases.fetch("P0").fetch("depends_on") == []
+'
+
 # --- 既存 .gitignore 設定の保持 -----------------------------------------------
 
 project_gitignore_lines=(

@@ -1,7 +1,5 @@
 name: 実装タスク
 description: 1 つの確認可能な振る舞いを実装するタスクを定義する
-labels:
-  - task
 body:
   - type: textarea
     id: objective

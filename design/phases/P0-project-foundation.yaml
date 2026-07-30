@@ -4,6 +4,7 @@ weight: 8
 confidence: high
 risk: low
 status: in_progress
+depends_on: []
 objective: |-
   開発者と AI Agent が、同じ環境、同じ規約、同じ検証方法で極小タスクを実装できる状態を作る。
 
@@ -27,86 +28,3 @@ definition_of_done:
 verification:
   commands:
     - bin/verify --full
-
-# 完了済み作業の要約。実行時の詳細な契約は Git 履歴と各 PR を参照する。
-completed_milestones:
-  - 開発方針、ロードマップ、言語・命名ポリシーを初期化した（P0-T1）
-  - Ruby 4.0.6 / Rails 8.1.3 のアプリケーションを固定バージョンで生成した（P0-T3）
-  - Docker Compose と PostgreSQL 18.4 によるローカル開発基盤を構築し、
-    公開ポートを 127.0.0.1 へ限定した（P0-T4 / P0-T4A）
-  - 冪等な bin/setup を追加した（P0-T5）
-  - 統一検証コマンド bin/verify を追加し、bin/ci を委譲ラッパーへ固定した
-    （P0-T6 / P0-T6A / P0-T6B）
-  - GitHub Actions で bin/ci を実行し、Workflow の構造検査と変異テストを
-    追加した（P0-T7 / P0-T7A / P0-T7B / P0-T7C）
-  - 日本語・英語の i18n 基盤を追加し、全環境でフォールバック無効を
-    実測検証する体制にした（P0-T8 〜 P0-T8F）
-  - 開発タスク制御面として導入していた code-pact と Node.js 基盤は
-    P0-R1 で撤去した（P0-T2 〜 P0-T2C の成果物は現存しない）
-
-tasks:
-  - id: P0-R1
-    type: refactor
-    status: done
-    branch: p0/r1-remove-code-pact
-    description: code-pact 撤去と Foundation 再基準化
-    depends_on: []
-    objective: |-
-      code-pact と、それだけを目的として導入していた Node.js 開発基盤を撤去し、
-      タスクイベントに依存しない検証と、ロードマップ・GitHub Issues を正本とする
-      開発工程へ戻す。あわせて既知の i18n 診断不具合を修正する。
-    non_goals:
-      - Rails 業務機能の追加
-      - i18n 仕様の変更
-      - Ruby / Rails / PostgreSQL のバージョン更新
-      - セキュリティ検査の統合（P0-T9 で扱う）
-    definition_of_done:
-      - .code-pact が存在しない
-      - code-pact が依存関係に存在しない
-      - 用途のない Node.js / npm / package.json が存在しない
-      - Docker、セットアップ、CI が Ruby / Rails / PostgreSQL だけで動く
-      - 過去イベントがなくても Foundation 検証が実行される
-      - ロードマップはフェーズ計画、Issue は実行タスクという責務が文書化されている
-      - 標準検証と完全検証が成功する
-
-  - id: P0-T9
-    type: test
-    status: planned
-    branch: p0/t9-security-checks
-    description: セキュリティと依存関係検査の追加
-    depends_on:
-      - P0-R1
-    objective: |-
-      Brakeman と bundler-audit を bin/verify へ統合し、
-      秘密情報の追跡拒否を含む基本的な安全性検査を Foundation の契約にする。
-    non_goals:
-      - Dependabot の導入
-      - 本番運用向けのセキュリティ監視
-    definition_of_done:
-      - Brakeman と bundler-audit が bin/verify で実行される
-      - 秘密情報・credentials・master key が追跡されないことを検証する
-      - 既知脆弱性 DB の取得失敗時の挙動が定義されている
-      - ignore 設定に架空の CVE が存在しない
-      - セキュリティ検査の正・負の自己テストがある
-
-  - id: P0-T10
-    type: test
-    status: planned
-    branch: p0/t10-foundation-verification
-    description: Foundation 完了検証
-    depends_on:
-      - P0-R1
-      - P0-T9
-    objective: |-
-      新規 clone 相当の環境で Foundation 全体を検証し、
-      P0 を完了状態へ更新して P1 へ進める状態にする。
-    non_goals:
-      - P1 以降の実装
-    definition_of_done:
-      - 新規 clone 相当の環境で Docker イメージを再構築できる
-      - bin/setup の初回実行と再実行が成功する
-      - 標準検証・完全検証・CI が成功する
-      - 日本語・英語設定とセキュリティ検査が成功する
-      - 不要な開発依存が残っていない
-      - README のセットアップ手順が実測どおりに動く
-      - P0 の完了状態が更新されている
