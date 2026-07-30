@@ -477,11 +477,13 @@ if task_has_event "P0-T8A"; then
 RUBY
 fi
 
-# --- P0-T8B: i18n フォールバックの単一正本 ------------------------------------
+# --- P0-T8B / P0-T8C: i18n フォールバックの単一正本 ---------------------------
 #
 # P0-T8B が開始された時点で有効になる。
-# 受け入れ条件の詳細は
-# design/acceptance/P0-T8B-i18n-and-code-pact-contract.md を参照する。
+# 受け入れ条件の正本は次の 2 つとする。
+#
+#   design/acceptance/P0-T8B-i18n-and-code-pact-contract.md
+#   design/acceptance/P0-T8C-i18n-assignment-parser.md
 #
 # P0-T8A の production 検査と役割が異なる。
 # boot 検査は「実際にフォールバックしないこと」を、この検査は
@@ -490,6 +492,10 @@ fi
 # 重複した false や別環境での再定義は、現在の挙動を変えないため
 # boot 検査では検出できない。しかし正本が 2 つになった時点で、
 # 次に片方だけ変更されたときの矛盾が生まれる。
+#
+# P0-T8B は Ripper.lex のトークン列で `config . i18n . fallbacks =` を探していたが、
+# 演算子を = へ完全一致させていたため ||= と &&= を検出できなかった。
+# 字句列は「代入という構文」を表現できない。P0-T8C で構文木の検査へ置き換えた。
 
 if task_has_event "P0-T8B"; then
   ruby - <<'RUBY'
@@ -504,84 +510,179 @@ if task_has_event "P0-T8B"; then
       "config/environments/production.rb"
     ]
 
-    # 空白、改行、コメントは代入の構造に関与しない。
-    # コメントと文字列リテラルはそれぞれ 1 つのトークンにまとまるため、
-    # ここで除外することで文書中の例示を代入として数えなくなる。
-    ignored_token_types = %i[
-      on_sp
-      on_nl
-      on_ignored_nl
-      on_comment
-      on_embdoc_beg
-      on_embdoc
-      on_embdoc_end
-    ]
+    # 呼び出しチェーンの末尾にある識別子名を返す。
+    # config が method call でも local variable でも同じ名前を取り出す。
+    trailing_name = lambda do |node|
+      next nil unless node.is_a?(Array)
 
-    assignment_prefix_types = %i[
-      on_ident
-      on_period
-      on_ident
-      on_period
-      on_ident
-      on_op
-    ]
+      token =
+        case node[0]
+        when :vcall, :var_ref then node[1]
+        when :call then node[3]
+        end
 
-    assignment_prefix_values = [ "config", ".", "i18n", ".", "fallbacks", "=" ]
+      next nil unless token.is_a?(Array) && token[0] == :@ident
 
-    # 空白と改行を落としたトークン列を歩く。
-    # 行を跨いだ代入や空白の増減で検査を回避できないようにする。
-    find_assignments = lambda do |path|
-      source = File.read(path, encoding: "UTF-8")
+      token[1]
+    end
 
-      tokens = Ripper.lex(source).reject do |(_position, type, _token, _state)|
-        ignored_token_types.include?(type)
+    # 代入左辺が config.i18n.fallbacks へ到達する field かどうかを判定し、
+    # 該当するなら行番号を返す。
+    #
+    # receiver の前に何があっても、末尾 3 つが config / i18n / fallbacks なら対象とする。
+    # Rails.application.config.i18n.fallbacks = ... も同じ設定を書き換える。
+    fallbacks_field_line = lambda do |target|
+      next nil unless target.is_a?(Array) && target[0] == :field
+
+      name_token = target[3]
+
+      next nil unless name_token.is_a?(Array) && name_token[0] == :@ident
+      next nil unless name_token[1] == "fallbacks"
+
+      receiver = target[1]
+
+      next nil unless trailing_name.call(receiver) == "i18n"
+      next nil unless receiver.is_a?(Array) && receiver[0] == :call
+      next nil unless trailing_name.call(receiver[1]) == "config"
+
+      name_token[2][0]
+    end
+
+    # boolean literal だけを値として認める。
+    # 括弧は意味を変えないため剥がして正規化する。
+    # 動的な式、メソッド呼び出し、数値、文字列はここで nil になる。
+    boolean_literal = lambda do |node|
+      next nil unless node.is_a?(Array)
+
+      case node[0]
+      when :paren
+        body = node[1]
+        next nil unless body.is_a?(Array) && body.length == 1
+
+        boolean_literal.call(body[0])
+      when :var_ref
+        token = node[1]
+        next nil unless token.is_a?(Array) && token[0] == :@kw
+
+        case token[1]
+        when "true" then true
+        when "false" then false
+        end
+      end
+    end
+
+    # 構文木を再帰的に走査し、assign と opassign を集める。
+    # 字句列ではなく構文木を見るため、演算子の種類を取り違えない。
+    collect_assignments = lambda do |node, found|
+      next found unless node.is_a?(Array)
+
+      if node[0] == :assign || node[0] == :opassign
+        line = fallbacks_field_line.call(node[1])
+
+        if line
+          operator = node[0] == :assign ? "=" : node[2][1]
+          value_node = node[0] == :assign ? node[2] : node[3]
+          literal = boolean_literal.call(value_node)
+
+          found << {
+            line: line,
+            operator: operator,
+            value: literal.nil? ? "(non-boolean)" : literal.to_s
+          }
+        end
       end
 
-      found = []
-
-      tokens.each_index do |index|
-        window = tokens[index, assignment_prefix_types.length]
-
-        next unless window && window.length == assignment_prefix_types.length
-
-        types = window.map { |(_position, type, _token, _state)| type }
-        values = window.map { |(_position, _type, token, _state)| token }
-
-        next unless types == assignment_prefix_types
-        next unless values == assignment_prefix_values
-
-        value_token = tokens[index + assignment_prefix_types.length]
-
-        found << {
-          path: path,
-          line: window.first.first.first,
-          value: value_token ? value_token[2] : "(missing)"
-        }
-      end
+      node.each { |child| collect_assignments.call(child, found) if child.is_a?(Array) }
 
       found
     end
 
-    actual = target_files.flat_map { |path| find_assignments.call(path) }
+    parse = lambda do |source, label|
+      sexp = Ripper.sexp(source)
 
-    expected_path = "config/application.rb"
-    expected_value = "false"
+      # 解析できないファイルを「代入 0 件」として扱わない。
+      if sexp.nil?
+        warn "failed to parse as Ruby: #{label}"
+        exit 1
+      end
+
+      collect_assignments.call(sexp, [])
+    end
+
+    # --- 検証器自身の検査 -----------------------------------------------------
+    #
+    # P0-T8B の検出漏れは、検証器を検証する仕組みがなかったために見逃された。
+    # 同じ退行が起きたら、通常の bin/verify で気づけるようにする。
+
+    detected_probes = [
+      [ "config.i18n.fallbacks = false", "=", "false" ],
+      [ "config.i18n.fallbacks ||= true", "||=", "true" ],
+      [ "config.i18n.fallbacks &&= false", "&&=", "false" ],
+      [ "config.i18n.fallbacks += 1", "+=", "(non-boolean)" ],
+      [ "Rails.application.config.i18n.fallbacks = true", "=", "true" ],
+      [ "config.i18n.fallbacks = (false)", "=", "false" ],
+      [ "config.i18n.fallbacks = dynamic_value", "=", "(non-boolean)" ]
+    ]
+
+    detected_probes.each do |(source, operator, value)|
+      found = parse.call(source, "self-test: #{source}")
+
+      unless found.length == 1 &&
+             found.first[:operator] == operator &&
+             found.first[:value] == value
+        warn "scanner self-test failed: #{source}"
+        warn "  expected: operator=#{operator} value=#{value}"
+        warn "  actual:   #{found.inspect}"
+        exit 1
+      end
+    end
+
+    ignored_probes = [
+      "# config.i18n.fallbacks = true",
+      'message = "config.i18n.fallbacks = true"',
+      "config.i18n.other = false",
+      "config.other.fallbacks = false"
+    ]
+
+    ignored_probes.each do |source|
+      found = parse.call(source, "self-test: #{source}")
+
+      unless found.empty?
+        warn "scanner self-test failed: #{source} must not be detected"
+        warn "  actual: #{found.inspect}"
+        exit 1
+      end
+    end
+
+    # --- 実ファイルの検査 -----------------------------------------------------
+
+    actual = target_files.flat_map do |path|
+      parse.call(File.read(path, encoding: "UTF-8"), path).map do |assignment|
+        assignment.merge(path: path)
+      end
+    end
+
+    expected = { path: "config/application.rb", operator: "=", value: "false" }
 
     valid =
       actual.length == 1 &&
-      actual.first[:path] == expected_path &&
-      actual.first[:value] == expected_value
+      actual.first[:path] == expected[:path] &&
+      actual.first[:operator] == expected[:operator] &&
+      actual.first[:value] == expected[:value]
 
     unless valid
       warn "expected exactly one i18n fallback assignment"
-      warn "  #{expected_path}: config.i18n.fallbacks = #{expected_value}"
+      warn "  #{expected[:path]}: config.i18n.fallbacks #{expected[:operator]} #{expected[:value]}"
       warn "actual:"
 
       if actual.empty?
         warn "  (none)"
       else
         actual.each do |assignment|
-          warn "  #{assignment[:path]}:#{assignment[:line]}: #{assignment[:value]}"
+          warn(
+            "  #{assignment[:path]}:#{assignment[:line]} " \
+            "operator=#{assignment[:operator]} value=#{assignment[:value]}"
+          )
         end
       end
 
