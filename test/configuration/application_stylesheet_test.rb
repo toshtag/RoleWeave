@@ -49,7 +49,12 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
   UNRENDERED_DISPLAY = /\Anone\z/i
   UNRENDERED_VISIBILITY = /\A(?:hidden|collapse)\z/i
   NO_TRANSFORM = /\Anone\z/i
-  ZERO_OPACITY = /\A(?:0(?:\.0+)?|0%)\z/i
+
+  # CSS の数値表記。同じ値でも書き方は一通りではない。
+  # ゼロの文字列表現を列挙すると、`.0` や `-0` のような表記で契約を迂回できる。
+  # Ruby の Float() は先頭の小数点を受理せず 16 進表記を受理するため、
+  # CSS 側の構文をここで決めてから数値へ変換する。
+  CSS_NUMBER = /\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\z/i
   TRANSPARENT_COLOR = /\btransparent\b/i
   DISABLED_OUTLINE = /outline(?:-style)?:\s*(?:none|hidden)\b/i
   IMPORTANT_DECLARATION = /!\s*important\b/i
@@ -230,17 +235,43 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_match(NO_TRANSFORM, focused["transform"].to_s, "フォーカスしても画面外のままである")
   end
 
+  test "透明度のゼロ表現を数値として正規化する" do
+    # 判定の根拠そのものを固定する。表記を変えるだけで契約を迂回できないようにする。
+    %w[0 0.0 .0 -0 +0 00 0% 0.0% 0e0].each do |value|
+      assert_predicate numeric_opacity(value), :zero?, "#{value} をゼロとして扱っていない"
+    end
+
+    assert_in_delta 0.5, numeric_opacity(".5")
+    assert_in_delta 0.5, numeric_opacity("50%")
+    assert_in_delta 1.0, numeric_opacity("1")
+    assert_in_delta 1.0, numeric_opacity("100%")
+
+    # 静的に値を確定できない指定は数値として扱わない。
+    assert_nil numeric_opacity("calc(0)")
+    assert_nil numeric_opacity("var(--skip-link-opacity)")
+  end
+
   test "スキップリンクを透明なまま表示しない" do
     # 現在の実装は opacity を使っていない。使う形へ変えた場合に、
     # フォーカス時の戻し忘れだけを拒否する。
-    resting = properties_for(".skip-link")
+    resting_value = properties_for(".skip-link")["opacity"]
 
-    return unless resting["opacity"]&.match?(ZERO_OPACITY)
+    return unless resting_value
 
-    focused = properties_for(".skip-link:focus-visible")
+    # 通常時が確実に見えている場合だけ、フォーカス時の指定を求めない。
+    # ゼロ、負数、静的に確定できない値は、いずれも安全側で扱う。
+    resting_opacity = numeric_opacity(resting_value)
 
-    assert focused["opacity"], "フォーカス時に透明度を戻していない"
-    assert_no_match(ZERO_OPACITY, focused["opacity"], "フォーカス後もスキップリンクが透明である")
+    return if resting_opacity&.positive?
+
+    focused_value = properties_for(".skip-link:focus-visible")["opacity"]
+
+    assert focused_value, "フォーカス時に透明度を戻していない"
+
+    focused_opacity = numeric_opacity(focused_value)
+
+    assert focused_opacity, "フォーカス時の透明度を数値として検証できない: #{focused_value}"
+    assert_operator focused_opacity, :>, 0, "フォーカス後もスキップリンクが透明である"
   end
 
   test "スキップリンクをフォーカスできない形で隠さない" do
@@ -345,6 +376,19 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
   end
 
   private
+    # opacity の値を 0.0〜1.0 の数値へ正規化する。
+    # 百分率は同じ意味の別表記であり、数値と同じ土俵で比べられるようにする。
+    # 静的に確定できない値（calc や var）は nil を返し、呼び出し側で安全側へ倒す。
+    def numeric_opacity(value)
+      source = value.to_s.strip
+      percentage = source.end_with?("%")
+      number = percentage ? source.delete_suffix("%") : source
+
+      return nil unless number.match?(CSS_NUMBER)
+
+      percentage ? number.to_f / 100.0 : number.to_f
+    end
+
     def assert_positive_length(value, label)
       length = value[LENGTH]
 
