@@ -362,7 +362,7 @@ compose run --rm --no-deps app \
   ruby -e 'abort "unexpected Ruby #{RUBY_VERSION}" unless RUBY_VERSION == "4.0.6"'
 
 container_rails_version="$(compose run --rm --no-deps app bundle exec rails --version | tr -d '\r\n')"
-test "$container_rails_version" = "Rails 8.1.3"
+test "$container_rails_version" = "Rails 8.1.3.1"
 
 compose run --rm --no-deps app bundle check
 
