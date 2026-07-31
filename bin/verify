@@ -45,6 +45,20 @@ run_step() {
 run_step "Ruby 依存関係" \
   bundle check
 
+# Rails コードの静的セキュリティ検査。
+# 実行バージョンは Gemfile.lock で固定する。新しい Brakeman の公開そのものは
+# 失敗条件にしない（bin/brakeman は --ensure-latest を付与しない）。
+run_step "セキュリティ静的解析" \
+  bin/brakeman --no-pager
+
+# 依存関係の既知脆弱性検査。
+#
+# advisory database を更新してから Gemfile.lock を監査する。
+# 更新には外部通信と git が必要であり、取得・更新に失敗した場合はこの検証も失敗する。
+# 古い database へ黙って退避して成功扱いにすると、検査した事実を保証できなくなる。
+run_step "依存関係の脆弱性" \
+  bin/bundler-audit check --update
+
 run_step "Ruby スタイル" \
   bin/rubocop
 
