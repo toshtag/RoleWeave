@@ -48,6 +48,8 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
   NON_DRAWING_OUTLINE_STYLE = /\b(?:none|hidden)\b/i
   UNRENDERED_DISPLAY = /\Anone\z/i
   UNRENDERED_VISIBILITY = /\A(?:hidden|collapse)\z/i
+  NO_TRANSFORM = /\Anone\z/i
+  ZERO_OPACITY = /\A(?:0(?:\.0+)?|0%)\z/i
   TRANSPARENT_COLOR = /\btransparent\b/i
   DISABLED_OUTLINE = /outline(?:-style)?:\s*(?:none|hidden)\b/i
   IMPORTANT_DECLARATION = /!\s*important\b/i
@@ -217,10 +219,28 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     end
   end
 
-  test "スキップリンクが通常時とフォーカス時で見え方を変える" do
-    # 常に見えていると本文の先頭が埋まり、常に見えないとキーボードから使えない。
-    assert_not_empty declarations_for(".skip-link"), "スキップリンクの通常時の指定がない"
-    assert_not_empty declarations_for(".skip-link:focus-visible"), "スキップリンクのフォーカス時の指定がない"
+  test "スキップリンクをフォーカスしたときに画面外への退避を解除する" do
+    # 規則が存在するだけでは、フォーカス時に見えることを保証しない。
+    # 同じ退避をフォーカス規則へ書き写しても、宣言は空にならず通過してしまう。
+    resting = properties_for(".skip-link")
+    focused = properties_for(".skip-link:focus-visible")
+
+    assert resting["transform"], "通常時に画面外へ退避する指定がない"
+    assert_no_match(NO_TRANSFORM, resting["transform"], "通常時に退避していない")
+    assert_match(NO_TRANSFORM, focused["transform"].to_s, "フォーカスしても画面外のままである")
+  end
+
+  test "スキップリンクを透明なまま表示しない" do
+    # 現在の実装は opacity を使っていない。使う形へ変えた場合に、
+    # フォーカス時の戻し忘れだけを拒否する。
+    resting = properties_for(".skip-link")
+
+    return unless resting["opacity"]&.match?(ZERO_OPACITY)
+
+    focused = properties_for(".skip-link:focus-visible")
+
+    assert focused["opacity"], "フォーカス時に透明度を戻していない"
+    assert_no_match(ZERO_OPACITY, focused["opacity"], "フォーカス後もスキップリンクが透明である")
   end
 
   test "スキップリンクをフォーカスできない形で隠さない" do
