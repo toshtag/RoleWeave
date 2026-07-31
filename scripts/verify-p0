@@ -40,6 +40,17 @@ require_exact_line_once() {
   fi
 }
 
+# 必須ファイルの欠落を、対象 path 付きで失敗させる。
+# 裸の test -f は診断を出さないため、CI ではどの正本が欠けたのか分からない。
+require_file() {
+  local path="$1"
+
+  if [[ ! -f "$path" ]]; then
+    printf 'required file is missing: %s\n' "$path" >&2
+    return 1
+  fi
+}
+
 # --- 撤去済みの開発依存を持ち込まない ------------------------------------------
 #
 # code-pact と Node.js は P0-R1 で撤去した。
@@ -57,18 +68,18 @@ test ! -e docs/development/code-pact.md
 # 文書の正本は docs/ へ集約する。
 # code-pact 時代の配置を引き継いだ design/ は P0-R2 で撤去した。
 
-test -f docs/project-overview.md
-test -f docs/project-principles.md
-test -f docs/architecture/principles.md
-test -f docs/development/coding-style.md
-test -f docs/development/language-policy.md
-test -f docs/development/workflow.md
-test -f docs/quality/cross-cutting-requirements.md
-test -f docs/roadmap/index.yaml
+require_file docs/project-overview.md
+require_file docs/project-principles.md
+require_file docs/architecture/principles.md
+require_file docs/development/coding-style.md
+require_file docs/development/language-policy.md
+require_file docs/development/workflow.md
+require_file docs/quality/cross-cutting-requirements.md
+require_file docs/roadmap/index.yaml
 
 # 実行タスクの入口である Issue テンプレートも P0 の必須成果物とする。
-test -f .github/ISSUE_TEMPLATE/bug.yml
-test -f .github/ISSUE_TEMPLATE/implementation.yml
+require_file .github/ISSUE_TEMPLATE/bug.yml
+require_file .github/ISSUE_TEMPLATE/implementation.yml
 
 ruby -ryaml -e '
   %w[
@@ -80,11 +91,34 @@ ruby -ryaml -e '
   end
 '
 
-# 撤去済みの design/ を現在の正本として再導入しない。
-# 過去の設計文書と受け入れ計画は Git 履歴で参照し、
-# 現在有効な契約は docs/ と実装・テスト・検証器が保持する。
+# 文書の正本を docs/ へ集約した状態を維持する。
+# 過去の設計文書と受け入れ計画は Git 履歴と PR で参照する。
 #
-# ディレクトリの復活と、追跡ファイル上の参照の両方を拒否する。
+# 検査は 2 つに分ける。
+#
+#   ディレクトリ  design 配下へ追跡ファイルを置き直すことを拒否する
+#   参照         削除済みの具体的な文書 path を正本として書き戻すことを拒否する
+#
+# 参照検査は「design/ という文字列」を禁止しない。
+# 一般的な英単語、外部 URL、無関係な語句まで拒否すると、
+# 検査の目的（旧 path の再参照防止）から外れた失敗を生む。
+if git ls-files -- design | grep -q .; then
+  printf 'design/ must not contain tracked files\n' >&2
+  git ls-files -- design >&2
+  exit 1
+fi
+
+# 撤去済みの正本 path。ディレクトリは末尾のスラッシュまで含めて照合する。
+removed_design_references=(
+  "design/brief.md"
+  "design/constitution.md"
+  "design/roadmap.yaml"
+  "design/phases/"
+  "design/rules/"
+  "design/decisions/"
+  "design/acceptance/"
+)
+
 # 探索対象を固定した一覧にすると、bin や他の検証器、ルート設定ファイルへ
 # 参照を書き戻したときに検出できない。追跡ファイル全体を対象にする。
 #
@@ -94,25 +128,21 @@ ruby -ryaml -e '
 #
 # 検査文字列そのものを含むこのスクリプトは対象から除く。
 # grep へ /dev/null を併せて渡し、単一ファイルでも診断へパスを含める。
-if git ls-files -- design | grep -q .; then
-  printf 'design/ must not contain tracked files\n' >&2
-  git ls-files -- design >&2
-  exit 1
-fi
-
-design_reference_found=0
+removed_design_reference_found=0
 
 while IFS= read -r -d '' path; do
   [[ "$path" == "scripts/verify-p0" ]] && continue
   [[ -f "$path" ]] || continue
 
-  if grep -InI -F 'design/' "$path" /dev/null; then
-    design_reference_found=1
-  fi
+  for removed_reference in "${removed_design_references[@]}"; do
+    if grep -InI -F "$removed_reference" "$path" /dev/null; then
+      removed_design_reference_found=1
+    fi
+  done
 done < <(git ls-files -z)
 
-if [[ "$design_reference_found" -ne 0 ]]; then
-  printf 'the removed design/ documents must not be referenced\n' >&2
+if [[ "$removed_design_reference_found" -ne 0 ]]; then
+  printf 'removed design document paths must not be referenced\n' >&2
   exit 1
 fi
 
