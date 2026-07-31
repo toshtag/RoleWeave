@@ -105,9 +105,15 @@ docker compose run --rm app bin/setup
 - Clears old logs and temporary files
 
 It does not start the development server; starting it is the responsibility of
-`docker compose up`. It converges on the same state however many times it is run,
-so it can be run again. It changes neither the contents of an existing development
-database nor any tracked file.
+`docker compose up`.
+
+`bin/setup` does not drop or reset an existing development database. If pending
+migrations exist, it applies them, so the database schema or data may change as
+defined by those migrations.
+
+When rerun against the same code and migration state, it preserves the existing
+database state, leaves tracked files unchanged, and converges on the same
+development-ready state.
 
 ### Start the application
 
@@ -171,6 +177,13 @@ required:
 - Bundler
 - Docker Engine or Docker Desktop, and Docker Compose v2
 - The Ruby dependencies on the host
+- An environment with Bash and common Unix command-line tools
+  (such as macOS, Linux, WSL, or Git Bash)
+
+The full verification is a Bash script and uses tools such as `awk`, `grep`, `find`,
+`mktemp`, and `tr`. Running it from native PowerShell or Command Prompt alone is out
+of scope. This requirement applies only to the full verification, not to regular
+Docker-based development.
 
 ```bash
 bundle install

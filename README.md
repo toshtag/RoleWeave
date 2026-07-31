@@ -103,8 +103,13 @@ docker compose run --rm app bin/setup
 - 古いログと一時ファイルを整理する
 
 開発サーバーは起動しません。起動は `docker compose up` の責務です。
-何度実行しても同じ状態へ収束するため、再実行できます。
-既存の development データベースの内容も、追跡対象のファイルも変更しません。
+
+`bin/setup` は既存の development データベースを drop または reset しません。
+未適用の migration がある場合は適用するため、その migration の定義に従って
+データベースのスキーマやデータが変更される場合があります。
+
+同じコードと migration の状態で再実行した場合は、既存のデータベース状態を維持し、
+追跡対象のファイルを変更せず、同じ開発可能な状態へ収束します。
 
 ### 起動する
 
@@ -164,6 +169,12 @@ docker compose down --volumes
 - Bundler
 - Docker Engine または Docker Desktop と Docker Compose v2
 - ホスト側の Ruby 依存関係
+- Bash と一般的な Unix コマンドを利用できる環境
+  （macOS、Linux、または Windows 上の WSL・Git Bash など）
+
+完全検証は Bash スクリプトであり、`awk`、`grep`、`find`、`mktemp`、`tr` などを使用します。
+ネイティブの PowerShell やコマンドプロンプトだけでの実行は対象としていません。
+この要件は完全検証だけのものであり、通常の Docker 開発には当てはまりません。
 
 ```bash
 bundle install
