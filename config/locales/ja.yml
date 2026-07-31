@@ -1,3 +1,6 @@
 ja:
   application:
     name: RoleWeave
+  home:
+    show:
+      summary: 自己ホスト可能な採用プラットフォームの基盤を開発しています。
