@@ -4,8 +4,8 @@
  * 方針は docs/decisions/0002-native-css-foundation.md を正本とする。
  * ブラウザーが直接解釈できる標準 CSS だけを書き、Propshaft でそのまま配信する。
  *
- * ここへ書くのは、どの画面にも共通する土台だけとする。
- * ヘッダー、フッター、button などの部品スタイルは、それを必要とするタスクで追加する。
+ * ここへ書くのは、どの画面にも共通する土台と、全画面が共有する枠だけとする。
+ * button、form、card などの部品スタイルは、それを必要とするタスクで追加する。
  */
 
 /*
@@ -26,6 +26,8 @@
   --color-text: #182230;
   --color-link: #175cd3;
   --color-focus-ring: #175cd3;
+  /* 区切り線は文字ではないが、背景に対して 3:1 以上を満たす値を選ぶ。 */
+  --color-border: #7e8a9e;
 
   /*
    * 余白は clamp で画面幅に追従させる。固定値にすると狭い画面で
@@ -58,13 +60,53 @@ html {
 }
 
 body {
+  /*
+   * ヘッダー・本文・フッターを縦に積み、本文で余った高さを吸収する。
+   * 内容が短いページでフッターが本文の直後へ浮くと、画面下部の余白が
+   * 「まだ続きがある」ように見える。
+   */
+  display: flex;
   min-height: 100vh;
+  flex-direction: column;
   margin: 0;
   /* 途中で改行できない長い文字列があっても、横スクロールを発生させない。 */
   overflow-wrap: anywhere;
 }
 
+/*
+ * 全画面が共有する枠。
+ * ヘッダー、本文、フッターは同じ最大幅と左右余白を使い、画面幅を変えても左端をそろえる。
+ */
+.site-header {
+  border-block-end: 0.0625rem solid var(--color-border);
+}
+
+.site-footer {
+  border-block-start: 0.0625rem solid var(--color-border);
+}
+
+.site-header__inner,
+.site-footer__inner {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+  padding-block: var(--content-gap);
+  padding-inline: var(--page-gutter);
+}
+
+.site-header__brand {
+  /* 本文中のリンクと役割が異なるため、色ではなく文字の強さで示す。 */
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.site-header__brand:hover {
+  text-decoration: underline;
+}
+
 main {
+  flex: 1;
   width: 100%;
   max-width: var(--content-max-width);
   margin-inline: auto;

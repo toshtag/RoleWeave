@@ -1,6 +1,8 @@
 ja:
   application:
     name: RoleWeave
+    footer:
+      description: 自己ホスト可能な採用プラットフォームを開発するオープンソースプロジェクトです。
   home:
     show:
       summary: 自己ホスト可能な採用プラットフォームの基盤を開発しています。
