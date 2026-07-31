@@ -21,6 +21,7 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     --color-text
     --color-link
     --color-focus-ring
+    --color-border
     --content-max-width
     --page-gutter
     --page-block-padding
@@ -36,11 +37,17 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   DECLARATION = /(?:\A|;)\s*([-\w]+)\s*:\s*([^;]+)/
 
+  # border 系 shorthand と longhand をまとめて取り出す。
+  # どの辺へ線を引くかは見た目の調整に委ね、色の正本だけを固定するために使う。
+  BORDER_DECLARATION = /(?:\A|;)\s*border[-\w]*\s*:\s*([^;]+)/
+
   LENGTH = /-?\d*\.?\d+[a-z%]*/
 
   # CSS のキーワードは大文字小文字を区別しない。
   # 検査もそれに合わせないと、表記を変えるだけで契約を迂回できる。
   NON_DRAWING_OUTLINE_STYLE = /\b(?:none|hidden)\b/i
+  UNRENDERED_DISPLAY = /\Anone\z/i
+  UNRENDERED_VISIBILITY = /\A(?:hidden|collapse)\z/i
   TRANSPARENT_COLOR = /\btransparent\b/i
   DISABLED_OUTLINE = /outline(?:-style)?:\s*(?:none|hidden)\b/i
   IMPORTANT_DECLARATION = /!\s*important\b/i
@@ -165,6 +172,71 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_equal "var(--content-max-width)", main["max-width"]
     assert_nil main["min-width"], "main に固定の最小幅がある"
     assert_nil main["min-inline-size"], "main に固定の最小幅がある"
+  end
+
+  test "ページ全体を縦方向へ積む" do
+    # 内容が短いページでフッターが本文の直後へ浮くと、
+    # 画面下部の余白が「まだ続きがある」ように見える。
+    body = properties_for("body")
+
+    assert_equal "flex", body["display"]
+    assert_equal "column", body["flex-direction"]
+    assert_match(/100vh|100dvh/, body["min-height"].to_s, "body が画面の高さを満たさない")
+  end
+
+  test "本文領域が余った高さを引き受ける" do
+    # 伸びるのを main へ限定する。ヘッダーとフッターが伸びると内容が中央から離れる。
+    grow = properties_for("main").values_at("flex", "flex-grow").compact.first
+
+    assert grow, "main が余った高さを引き受けない"
+    assert_operator grow[LENGTH].to_f, :>, 0, "main の伸長係数が 0 である: #{grow}"
+  end
+
+  test "ヘッダーとフッターの内側が本文と同じ幅と左右余白を使う" do
+    # 本文と基準が分かれると、画面幅を変えたときに三者の左端が揃わなくなる。
+    %w[.site-header__inner .site-footer__inner].each do |selector|
+      inner = properties_for(selector)
+
+      assert_equal "100%", inner["width"], "#{selector} の幅が親に追従しない"
+      assert_equal "var(--content-max-width)", inner["max-width"], "#{selector} の最大幅が本文と異なる"
+      assert_equal "auto", inner["margin-inline"], "#{selector} が中央へ寄らない"
+      assert_includes inner["padding-inline"].to_s, "var(--page-gutter)"
+      assert_nil inner["min-width"], "#{selector} に固定の最小幅がある"
+    end
+  end
+
+  test "ヘッダーとフッターの境界線の色をデザイン変数から設定する" do
+    # 線を引く辺と太さは見た目の調整に委ね、色の正本だけを固定する。
+    %w[.site-header .site-footer].each do |selector|
+      borders = declarations_for(selector).scan(BORDER_DECLARATION).flatten
+
+      assert_not_empty borders, "#{selector} に境界線の指定がない"
+      borders.each do |value|
+        assert_includes value, "var(--color-border)", "#{selector} の境界線が変数を使っていない: #{value}"
+      end
+    end
+  end
+
+  test "スキップリンクが通常時とフォーカス時で見え方を変える" do
+    # 常に見えていると本文の先頭が埋まり、常に見えないとキーボードから使えない。
+    assert_not_empty declarations_for(".skip-link"), "スキップリンクの通常時の指定がない"
+    assert_not_empty declarations_for(".skip-link:focus-visible"), "スキップリンクのフォーカス時の指定がない"
+  end
+
+  test "スキップリンクをフォーカスできない形で隠さない" do
+    # display: none と visibility: hidden はフォーカス自体を受け取れなくする。
+    # 画面外へ退避させる方法を指定はしないが、この 2 つによる非表示だけは拒否する。
+    resting = properties_for(".skip-link")
+
+    assert_no_match(UNRENDERED_DISPLAY, resting["display"].to_s, "スキップリンクが描画対象から外れている")
+    assert_no_match(UNRENDERED_VISIBILITY, resting["visibility"].to_s, "スキップリンクが描画対象から外れている")
+  end
+
+  test "スキップリンクのフォーカス表示を打ち消さない" do
+    focused = declarations_for(".skip-link:focus-visible")
+
+    assert_no_match(DISABLED_OUTLINE, focused)
+    assert_no_match(UNRENDERED_DISPLAY, properties_of(focused)["display"].to_s)
   end
 
   test "見出しの寸法と余白をデザイン変数から設定する" do
