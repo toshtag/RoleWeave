@@ -74,6 +74,28 @@ body {
 }
 
 /*
+ * 本文の先頭へ移動するリンク。
+ *
+ * 常に見えていると本文の前に毎回同じ 1 行が挟まるため、フォーカスを受け取るまで
+ * 画面の外へ置く。display: none や visibility: hidden で隠すと、キーボードから
+ * フォーカス自体を受け取れなくなり、リンクとして成立しない。
+ */
+.skip-link {
+  position: fixed;
+  z-index: 1;
+  inset-block-start: var(--content-gap);
+  inset-inline-start: var(--page-gutter);
+  padding: 0.5rem 1rem;
+  border: 0.0625rem solid var(--color-border);
+  background: var(--color-background);
+  transform: translateY(calc(-100% - var(--content-gap) * 2));
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+/*
  * 全画面が共有する枠。
  * ヘッダー、本文、フッターは同じ最大幅と左右余白を使い、画面幅を変えても左端をそろえる。
  */

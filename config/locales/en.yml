@@ -1,6 +1,7 @@
 en:
   application:
     name: RoleWeave
+    skip_to_content: Skip to main content
     footer:
       description: An open-source project building a self-hostable recruiting platform.
   home:
