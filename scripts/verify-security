@@ -9,10 +9,18 @@
 # 引数を受け取れるようにしているのは負の検証のためである。
 # 一時ディレクトリへ複製した作業ツリーを検査し、正規のファイルを破壊しない。
 #
-# ここで検査するのは「検査が呼ばれる形になっていること」だけである。
-# 実際に脆弱性がないことは、bin/verify が Brakeman と bundler-audit を
-# 実行して確認する。この検証器は、その呼び出しが削除・無効化・任意化されていない
-# ことを保証する。検査の呼び出しを外した変更は、ここで失敗しなければならない。
+# 判定は実行行の完全一致で行う。部分文字列の一致では、実行されない書き方を
+# 正規の呼び出しと誤認する。次はいずれも Brakeman を実行しない。
+#
+#   false && bin/brakeman --no-pager   前段が偽なので後続は実行されない
+#   true # bin/brakeman --no-pager     行末コメントであり実行されない
+#
+# 呼び出しの形だけでは、binstub が本物の gem を起動することまでは保証できない。
+# binstub の実行行も完全一致で契約し、空実装や早期終了を拒否する。
+#
+# それでも静的検査だけでは、実際にコマンドが実行され、失敗が伝播することを
+# 証明できない。実行時の振る舞いは scripts/verify-security-self-test が
+# スタブ環境で bin/verify を実行して確認する。
 
 require "yaml"
 
@@ -21,6 +29,43 @@ REQUIRED_EXECUTABLES = %w[
   bin/brakeman
   bin/bundler-audit
 ].freeze
+
+# 統一検証が実行しなければならないセキュリティ検査。
+#
+# token は「その検査に言及している実行行」を拾うために使う。
+# 正規の 1 行以外にその検査名が現れた時点で、書き方を疑って拒否する。
+REQUIRED_SECURITY_COMMANDS = {
+  "Brakeman" => {
+    command: "bin/brakeman --no-pager",
+    token: /brakeman/i
+  },
+  "bundler-audit" => {
+    # advisory database を更新してから監査する。
+    # 更新なしの check は、取得済みの古い database に対する監査になる。
+    command: "bin/bundler-audit check --update",
+    token: /bundler-audit/i
+  }
+}.freeze
+
+EXPECTED_BINSTUB_SHEBANG = "#!/usr/bin/env ruby"
+
+# binstub の実行行。これ以外の行を許可しない。
+#
+# 実行権限とファイル名だけを見ると、中身を exit 0 へ置き換えた binstub を
+# 正規のものとして受理してしまう。検査は呼ばれた形になるが、何も検査されない。
+EXPECTED_BINSTUBS = {
+  "bin/brakeman" => [
+    'require "rubygems"',
+    'require "bundler/setup"',
+    'load Gem.bin_path("brakeman", "brakeman")'
+  ],
+  "bin/bundler-audit" => [
+    'require_relative "../config/boot"',
+    'require "bundler/audit/cli"',
+    'ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")',
+    "Bundler::Audit::CLI.start"
+  ]
+}.freeze
 
 AUDIT_CONFIG_PATH = "config/bundler-audit.yml"
 
@@ -67,6 +112,7 @@ end
 #
 # 行末コメントは除去しない。単純に # 以降を削ると、引用符の内側にある #
 # まで削ってしまい、実行内容を取り違える。
+# 行末コメントを含む行は、完全一致の契約側で正規の呼び出しではないと判定される。
 def executable_lines(source)
   source.lines.map(&:chomp).reject do |line|
     line.strip.empty? || line.lstrip.start_with?("#")
@@ -95,49 +141,67 @@ def lines_with_block_depth(lines)
   end
 end
 
-# 検査コマンドの呼び出しを、行単位で 1 件だけ許可する。
+# 検査コマンドの呼び出しを、実行行の完全一致でちょうど 1 件だけ許可する。
 #
-# 欠落と重複の両方を失敗として扱う。重複を許すと、片方を握り潰した呼び出しを
-# 追加しても検出できない。
-def verify_security_step(failures, entries, label, pattern, binstub, required_arguments)
-  matched = entries.select { |line, _depth| line.match?(pattern) }
+# 欠落・重複・非正規の書き方を、それぞれ別の診断として報告する。
+def verify_security_command(failures, entries, label, expected, token)
+  references = entries.select { |line, _depth| line.match?(token) }
 
-  unless matched.length == 1
-    failures << "bin/verify must invoke #{label} exactly once, found #{matched.length}"
-    matched.each { |line, _depth| failures << "  #{line.strip}" }
+  if references.empty?
+    failures << "bin/verify must invoke #{label} exactly once, found 0"
     return
   end
 
-  line, depth = matched.first
-  stripped = line.strip
-
-  check(
-    failures,
-    line.include?(binstub),
-    "#{label} must be invoked through #{binstub}: #{stripped}"
-  )
-
-  required_arguments.each do |argument|
-    check(
-      failures,
-      line.include?(argument),
-      "#{label} must be invoked with #{argument.inspect}: #{stripped}"
-    )
+  if references.length > 1
+    failures << "bin/verify must invoke #{label} exactly once, found #{references.length}"
+    references.each { |line, _depth| failures << "  #{line.strip}" }
+    return
   end
 
-  # || による代替実行は、検査の失敗を成功へ変換する。
-  # advisory database を更新できない状態を成功扱いしないため、握り潰しを拒否する。
-  check(
-    failures,
-    !line.include?("||"),
-    "#{label} must not suppress its failure: #{stripped}"
-  )
+  line, depth = references.first
+
+  unless line.strip == expected
+    failures << "#{label} must be invoked as exactly #{expected.inspect}"
+    failures << "  got: #{line.strip}"
+    return
+  end
 
   check(
     failures,
     depth.zero?,
-    "#{label} must run unconditionally, found it nested at depth #{depth}: #{stripped}"
+    "#{label} must run unconditionally, found it nested at depth #{depth}: #{line.strip}"
   )
+end
+
+# binstub の実行行を完全一致で検査する。
+def verify_binstub(failures, root, relative_path, expected_lines)
+  path = File.join(root, relative_path)
+  return unless File.file?(path)
+
+  lines = File.read(path, encoding: "UTF-8").lines.map(&:chomp)
+
+  check(
+    failures,
+    lines.first == EXPECTED_BINSTUB_SHEBANG,
+    "#{relative_path} must use the expected shebang, got #{lines.first.inspect}"
+  )
+
+  actual = lines.drop(1).reject do |line|
+    line.strip.empty? || line.lstrip.start_with?("#")
+  end
+
+  return if actual == expected_lines
+
+  failures << "#{relative_path} must contain exactly the expected executable lines"
+  failures << "  expected:"
+  expected_lines.each { |line| failures << "    #{line}" }
+  failures << "  actual:"
+
+  if actual.empty?
+    failures << "    (none)"
+  else
+    actual.each { |line| failures << "    #{line}" }
+  end
 end
 
 unless ARGV.length <= 1
@@ -161,20 +225,23 @@ REQUIRED_EXECUTABLES.each do |relative_path|
   check(failures, File.executable?(path), "#{relative_path} must be executable")
 end
 
-# --- Brakeman の binstub ------------------------------------------------------
+# --- binstub の中身 -----------------------------------------------------------
 
 brakeman_path = File.join(root, "bin/brakeman")
 
 if File.file?(brakeman_path)
-  brakeman_body = executable_lines(File.read(brakeman_path, encoding: "UTF-8"))
-
-  offending = brakeman_body.select { |line| line.include?(REJECTED_BRAKEMAN_ARGUMENT) }
+  offending = executable_lines(File.read(brakeman_path, encoding: "UTF-8"))
+    .select { |line| line.include?(REJECTED_BRAKEMAN_ARGUMENT) }
 
   check(
     failures,
     offending.empty?,
     "bin/brakeman must not pass #{REJECTED_BRAKEMAN_ARGUMENT}: #{offending.map(&:strip).join(" / ")}"
   )
+end
+
+EXPECTED_BINSTUBS.each do |relative_path, expected_lines|
+  verify_binstub(failures, root, relative_path, expected_lines)
 end
 
 # --- 統一検証の構造 -----------------------------------------------------------
@@ -185,25 +252,15 @@ if File.file?(verify_path)
   verify_body = executable_lines(File.read(verify_path, encoding: "UTF-8"))
   entries = lines_with_block_depth(verify_body)
 
-  verify_security_step(
-    failures,
-    entries,
-    "Brakeman",
-    /brakeman/i,
-    "bin/brakeman",
-    []
-  )
-
-  # advisory database を更新してから監査する。
-  # 更新なしの check は、取得済みの古い database に対する監査になる。
-  verify_security_step(
-    failures,
-    entries,
-    "bundler-audit",
-    /bundler-audit/i,
-    "bin/bundler-audit",
-    [ "check --update" ]
-  )
+  REQUIRED_SECURITY_COMMANDS.each do |label, contract|
+    verify_security_command(
+      failures,
+      entries,
+      label,
+      contract.fetch(:command),
+      contract.fetch(:token)
+    )
+  end
 
   # set +e 以降は、コマンドの失敗が検証の失敗にならない。
   offending = verify_body.select { |line| line.match?(/(\A|[^[:alnum:]_])set[[:space:]]+\+e/) }
