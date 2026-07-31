@@ -14,9 +14,13 @@ ENV LANG=C.UTF-8 \
     BUNDLE_RETRY=3
 
 # apt cache を残さないため、update と install を同じレイヤーで完結させる。
+#
+# git は bundler-audit が Ruby Advisory Database を取得・更新するために使用する。
+# 追加するのは git だけとし、Node.js や npm などの開発基盤は導入しない。
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       build-essential \
+      git \
       libpq-dev \
       libvips \
       libyaml-dev \

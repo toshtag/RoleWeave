@@ -78,11 +78,13 @@ fi
 # lockfile を変更できない状態で依存を解決していること。
 grep -Fq "BUNDLE_FROZEN=true bundle install" Dockerfile
 
-# Node.js は P0-R1 で撤去した。開発イメージへ再導入しない。
-if grep -Eiq 'node|npm' Dockerfile; then
-  printf 'Dockerfile must not reference Node.js or npm\n' >&2
-  exit 1
-fi
+# Node.js の不在は、Dockerfile の文字列ではなくビルド済みイメージで確認する。
+#
+# 以前はここで Dockerfile 全体へ node|npm の文字列検査を行っていたが、
+# 「導入しない」と書いた説明コメントだけでも失敗する誤検出を起こしていた。
+# 契約は「開発イメージに Node.js と npm が存在しないこと」であり、
+# 「Dockerfile に文字列が現れないこと」ではない。
+# 実測は下段の動的検証が担う。
 
 # 本番向けの処理を開発用イメージへ持ち込まない。
 ! grep -Fq "assets:precompile" Dockerfile
@@ -362,11 +364,31 @@ compose run --rm --no-deps app \
   ruby -e 'abort "unexpected Ruby #{RUBY_VERSION}" unless RUBY_VERSION == "4.0.6"'
 
 container_rails_version="$(compose run --rm --no-deps app bundle exec rails --version | tr -d '\r\n')"
-test "$container_rails_version" = "Rails 8.1.3"
+test "$container_rails_version" = "Rails 8.1.3.1"
 
 compose run --rm --no-deps app bundle check
 
+# bundler-audit は advisory database の取得・更新に git を使用する。
+# Dockerfile の静的検査だけでは、イメージの中で実際に実行できることを保証できない。
+compose run --rm --no-deps app git --version
+
+# Active Storage の variant 処理は libvips を使用する。
+#
+# CVE-2026-66066 の対策は、修正版の Active Storage と libvips 8.13 以上の
+# 両方を要求する。gem 側の退行は bundler-audit が検出するが、
+# システムライブラリのバージョンは監視対象外であり、
+# ベースイメージの変更で黙って下回り得る。
+#
+# 文字列比較では 8.9 と 8.13 の大小を取り違えるため、dpkg のバージョン比較を使う。
+compose run --rm --no-deps app sh -ec '
+  version="$(dpkg-query -W libvips42 | cut -f2)"
+  test -n "$version"
+  dpkg --compare-versions "$version" ge 8.13
+  printf "libvips %s\n" "$version"
+'
+
 # Node.js は P0-R1 で撤去した。イメージへ残っていないことを実測する。
+# git を追加した後も、開発基盤を持ち込まない契約は変わらない。
 if compose run --rm --no-deps app sh -c 'command -v node || command -v npm'; then
   printf 'the app image must not contain Node.js or npm\n' >&2
   exit 1

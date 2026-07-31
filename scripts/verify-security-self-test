@@ -1,0 +1,664 @@
+#!/usr/bin/env ruby
+# scripts/verify-security の回帰検査と、bin/verify の実行時検査。
+#
+# scripts/verify-p0 から呼び出される。
+#
+# 検証は 2 段構えとする。
+#
+#   構造の変異検査  正規の作業ツリーへ変異を加え、scripts/verify-security が
+#                   すべて拒否することを確認する
+#   実行時プローブ  外部コマンドをスタブへ置き換えた隔離環境で bin/verify を実行し、
+#                   各検査が実際に呼ばれ、失敗が伝播することを確認する
+#
+# 構造検査だけでは「そう書かれていること」しか保証できない。
+# 逆に実行時プローブだけでは、正規の書き方から外れた実装を拒否できない。
+#
+# 実行時プローブは、検査対象からプローブ実行を識別できない形で行う。
+# プローブ専用の環境変数を渡すと、その変数の有無で分岐する実装を書かれたときに、
+# 構造検査と実行時プローブの両方を通過しながら、通常実行では検査が飛ばされる。
+# スタブは呼び出しログの path と終了コードをリテラルとして持ち、
+# 実行元の環境変数は引き継がない。
+#
+# 変異は一時ディレクトリへ複製した作業ツリーに対してのみ行う。
+# リポジトリの Dockerfile、bin/、config/ は読み取るだけで、書き換えない。
+#
+# 変異ごとに複製をやり直す。前のケースの変更を次のケースへ持ち越すと、
+# どの変異が拒否されたのか分からなくなる。
+
+require "fileutils"
+require "shellwords"
+require "tmpdir"
+
+VERIFIER_PATH = "scripts/verify-security"
+
+# 正規の作業ツリーから複製する対象。
+# scripts/verify-security が検査する範囲と一致させる。
+SOURCE_FILES = %w[
+  Dockerfile
+  .gitignore
+  bin/verify
+  bin/brakeman
+  bin/bundler-audit
+  config/bundler-audit.yml
+].freeze
+
+BRAKEMAN_COMMAND = "bin/brakeman --no-pager"
+AUDIT_COMMAND = "bin/bundler-audit check --update"
+
+# bin/verify の実行行が正規形から外れたときの診断。
+CONTRACT_VIOLATION = "must contain exactly the expected executable lines"
+
+# 利用者の global 設定に依存しない一時リポジトリを作る。
+# core.excludesFile などの手元設定で結果が変わると、負の検証が環境依存になる。
+GIT_ENV = {
+  "GIT_CONFIG_GLOBAL" => File::NULL,
+  "GIT_CONFIG_SYSTEM" => File::NULL
+}.freeze
+
+def git(root, *arguments)
+  system(
+    GIT_ENV,
+    "git", "-C", root, *arguments,
+    exception: true,
+    out: File::NULL,
+    err: File::NULL
+  )
+end
+
+# 変異前の作業ツリーを組み立てる。
+# 実行権限は検査対象であるため、複製時に保持する。
+def prepare(base, name)
+  root = File.join(base, name)
+
+  SOURCE_FILES.each do |relative_path|
+    destination = File.join(root, relative_path)
+    FileUtils.mkdir_p(File.dirname(destination))
+    FileUtils.cp(relative_path, destination, preserve: true)
+  end
+
+  git(root, "init", "-q")
+  git(root, "add", "-A")
+
+  root
+end
+
+# 置換が適用されなかった場合は、対象ファイル側の変更に追随できていない。
+# 変異していない作業ツリーを「拒否されなかった」と報告すると、
+# 検証器が壊れていることを見逃す。適用できない置換は失敗として扱う。
+def substitute(root, relative_path, from, to)
+  path = File.join(root, relative_path)
+  text = File.read(path, encoding: "UTF-8")
+  mutated = text.sub(from, to)
+
+  raise "mutation did not change #{relative_path}" if mutated == text
+
+  File.write(path, mutated, encoding: "UTF-8")
+end
+
+def rewrite(root, relative_path, text)
+  path = File.join(root, relative_path)
+  mode = File.stat(path).mode
+  File.write(path, text, encoding: "UTF-8")
+  File.chmod(mode, path)
+end
+
+# .gitignore を迂回して追跡させる。
+# 検査対象は Git 追跡の有無であり、作業ツリー上の存在ではない。
+def track(root, relative_path)
+  path = File.join(root, relative_path)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, "self-test probe\n")
+  git(root, "add", "-f", relative_path)
+end
+
+MUTATIONS = [
+  # --- 統一検証からの検査の欠落 -----------------------------------------------
+  {
+    label: "Brakeman呼び出しの削除",
+    apply: ->(root) { substitute(root, "bin/verify", "#{BRAKEMAN_COMMAND}\n", "") },
+    expect: [ CONTRACT_VIOLATION, %(expected: "#{BRAKEMAN_COMMAND}") ]
+  },
+  {
+    label: "bundler-audit呼び出しの削除",
+    apply: ->(root) { substitute(root, "bin/verify", "#{AUDIT_COMMAND}\n", "") },
+    expect: [ CONTRACT_VIOLATION, %(expected: "#{AUDIT_COMMAND}") ]
+  },
+
+  # --- 重複 -------------------------------------------------------------------
+  {
+    label: "Brakeman呼び出しの重複",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", "#{BRAKEMAN_COMMAND}\n", "#{BRAKEMAN_COMMAND}\n#{BRAKEMAN_COMMAND}\n")
+    end,
+    expect: [ CONTRACT_VIOLATION, "got 29" ]
+  },
+  {
+    label: "bundler-audit呼び出しの重複",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", "#{AUDIT_COMMAND}\n", "#{AUDIT_COMMAND}\n#{AUDIT_COMMAND}\n")
+    end,
+    expect: [ CONTRACT_VIOLATION, "got 29" ]
+  },
+
+  # --- advisory database の更新契約 -------------------------------------------
+  {
+    label: "advisory database更新の省略",
+    apply: ->(root) { substitute(root, "bin/verify", AUDIT_COMMAND, "bin/bundler-audit check") },
+    expect: [ CONTRACT_VIOLATION, %(actual:   "bin/bundler-audit check") ]
+  },
+
+  # --- 実行されない書き方 -----------------------------------------------------
+  #
+  # 行のどこかに binstub 名があることだけを見ると、次はいずれも通過してしまう。
+  {
+    label: "false && によるBrakemanのスキップ",
+    apply: ->(root) { substitute(root, "bin/verify", BRAKEMAN_COMMAND, "false && #{BRAKEMAN_COMMAND}") },
+    expect: [ CONTRACT_VIOLATION, "false &&" ]
+  },
+  {
+    label: "false && によるbundler-auditのスキップ",
+    apply: ->(root) { substitute(root, "bin/verify", AUDIT_COMMAND, "false && #{AUDIT_COMMAND}") },
+    expect: [ CONTRACT_VIOLATION, "false &&" ]
+  },
+  {
+    label: "行末コメントへのBrakeman退避",
+    apply: ->(root) { substitute(root, "bin/verify", BRAKEMAN_COMMAND, "true # #{BRAKEMAN_COMMAND}") },
+    expect: [ CONTRACT_VIOLATION, "true #" ]
+  },
+  {
+    label: "行末コメントへのbundler-audit退避",
+    apply: ->(root) { substitute(root, "bin/verify", AUDIT_COMMAND, "true # #{AUDIT_COMMAND}") },
+    expect: [ CONTRACT_VIOLATION, "true #" ]
+  },
+
+  # --- 複数行にまたがる短絡評価 -----------------------------------------------
+  #
+  # 必要な行そのものは保たれるため、行単位の判定では見抜けない。
+  # set -e は && リストや || リストの失敗では終了しないため、
+  # 条件が偽のときだけ検査を飛ばし、全体は成功で終わる。
+  {
+    label: "複数行にまたがるfalse &&",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", "#{BRAKEMAN_COMMAND}\n", "false && \\\n#{BRAKEMAN_COMMAND}\n")
+    end,
+    expect: [ CONTRACT_VIOLATION, "false &&" ]
+  },
+  {
+    label: "複数行にまたがるtrue ||",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", "#{AUDIT_COMMAND}\n", "true ||\n#{AUDIT_COMMAND}\n")
+    end,
+    expect: [ CONTRACT_VIOLATION, "true ||" ]
+  },
+
+  # --- プローブ環境への依存 ---------------------------------------------------
+  #
+  # 自己テストのプローブ環境でだけ真になる条件を選ぶと、
+  # 構造検査と実行時プローブの両方を通過しながら、通常実行では検査が飛ばされる。
+  {
+    label: "プローブ環境変数に依存したBrakemanの条件実行",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "#{BRAKEMAN_COMMAND}\n",
+        %([[ -n "${PROBE_LOG:-}" ]] &&\n#{BRAKEMAN_COMMAND}\n)
+      )
+    end,
+    expect: [ CONTRACT_VIOLATION, "PROBE_LOG" ]
+  },
+  {
+    label: "プローブ環境変数に依存したbundler-auditの条件実行",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "#{AUDIT_COMMAND}\n",
+        %([[ -n "${PROBE_LOG:-}" ]] &&\n#{AUDIT_COMMAND}\n)
+      )
+    end,
+    expect: [ CONTRACT_VIOLATION, "PROBE_LOG" ]
+  },
+  {
+    label: "プローブ環境でのみ継続する早期終了",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", "bundle check\n", %([[ -z "${PROBE_LOG:-}" ]] && exit 0\nbundle check\n))
+    end,
+    expect: [ CONTRACT_VIOLATION, "PROBE_LOG" ]
+  },
+
+  # --- 失敗の握り潰し ---------------------------------------------------------
+  {
+    label: "bundler-auditの失敗握り潰し",
+    apply: ->(root) { substitute(root, "bin/verify", AUDIT_COMMAND, "#{AUDIT_COMMAND} || true") },
+    expect: [ CONTRACT_VIOLATION, "|| true" ]
+  },
+  {
+    label: "advisory database更新失敗時の代替実行",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", AUDIT_COMMAND, "#{AUDIT_COMMAND} || bin/bundler-audit check")
+    end,
+    expect: [ CONTRACT_VIOLATION, "|| bin/bundler-audit check" ]
+  },
+  {
+    label: "Brakemanの失敗握り潰し",
+    apply: ->(root) { substitute(root, "bin/verify", BRAKEMAN_COMMAND, "#{BRAKEMAN_COMMAND} || true") },
+    expect: [ CONTRACT_VIOLATION, "|| true" ]
+  },
+  {
+    label: "失敗伝播の無効化",
+    apply: ->(root) { substitute(root, "bin/verify", "set -euo pipefail", "set -euo pipefail\nset +e") },
+    expect: [ CONTRACT_VIOLATION, "set +e" ]
+  },
+
+  # --- 任意化 -----------------------------------------------------------------
+  {
+    label: "Brakeman呼び出しの条件分岐化",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "#{BRAKEMAN_COMMAND}\n",
+        %(if [[ "${RUN_SECURITY:-1}" == "1" ]]; then\n#{BRAKEMAN_COMMAND}\nfi\n)
+      )
+    end,
+    expect: [ CONTRACT_VIOLATION, "RUN_SECURITY" ]
+  },
+  {
+    label: "bundler-audit呼び出しの条件分岐化",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "#{AUDIT_COMMAND}\n",
+        %(if [[ "${RUN_SECURITY:-1}" == "1" ]]; then\n#{AUDIT_COMMAND}\nfi\n)
+      )
+    end,
+    expect: [ CONTRACT_VIOLATION, "RUN_SECURITY" ]
+  },
+
+  # --- 実行経路を変え得る任意の追加行 -----------------------------------------
+  #
+  # 検査名を含む行だけでなく、正規形にない実行行そのものを拒否する。
+  {
+    label: "無関係な実行行の追加",
+    apply: ->(root) { substitute(root, "bin/verify", "bundle check\n", "bundle check\ntrue\n") },
+    expect: [ CONTRACT_VIOLATION, "got 29" ]
+  },
+  {
+    label: "shebangの改変",
+    apply: ->(root) { substitute(root, "bin/verify", "#!/usr/bin/env bash", "#!/bin/sh") },
+    expect: "bin/verify must use the expected shebang"
+  },
+
+  # --- binstub の迂回 ---------------------------------------------------------
+  {
+    label: "Brakemanのbinstub迂回",
+    apply: ->(root) { substitute(root, "bin/verify", BRAKEMAN_COMMAND, "bundle exec brakeman --no-pager") },
+    expect: [ CONTRACT_VIOLATION, "bundle exec brakeman" ]
+  },
+  {
+    label: "bundler-auditのbinstub迂回",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", AUDIT_COMMAND, "bundle exec bundler-audit check --update")
+    end,
+    expect: [ CONTRACT_VIOLATION, "bundle exec bundler-audit" ]
+  },
+
+  # --- binstub の中身 ---------------------------------------------------------
+  #
+  # 実行権限とファイル名だけを見ると、中身を無処理へ置き換えた binstub を
+  # 正規のものとして受理してしまう。呼び出しの形は保たれるが、何も検査されない。
+  {
+    label: "--ensure-latestの復活",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/brakeman",
+        %(require "bundler/setup"\n),
+        %(require "bundler/setup"\n\nARGV.unshift("--ensure-latest")\n)
+      )
+    end,
+    expect: "must not pass --ensure-latest"
+  },
+  {
+    label: "Brakeman binstubの空実装",
+    apply: ->(root) { rewrite(root, "bin/brakeman", "#!/usr/bin/env ruby\nexit 0\n") },
+    expect: "bin/brakeman #{CONTRACT_VIOLATION}"
+  },
+  {
+    label: "bundler-audit binstubの空実装",
+    apply: ->(root) { rewrite(root, "bin/bundler-audit", "#!/usr/bin/env ruby\nexit 0\n") },
+    expect: "bin/bundler-audit #{CONTRACT_VIOLATION}"
+  },
+  {
+    label: "Brakeman binstubへの早期終了",
+    apply: lambda do |root|
+      substitute(root, "bin/brakeman", %(load Gem.bin_path), %(exit 0\nload Gem.bin_path))
+    end,
+    expect: "bin/brakeman #{CONTRACT_VIOLATION}"
+  },
+  {
+    label: "bundler-audit binstubへの早期終了",
+    apply: lambda do |root|
+      substitute(root, "bin/bundler-audit", "Bundler::Audit::CLI.start", "exit 0\nBundler::Audit::CLI.start")
+    end,
+    expect: "bin/bundler-audit #{CONTRACT_VIOLATION}"
+  },
+  {
+    label: "Brakeman binstubの外部コマンド実行",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/brakeman",
+        %(load Gem.bin_path("brakeman", "brakeman")),
+        %(system("brakeman"))
+      )
+    end,
+    expect: "bin/brakeman #{CONTRACT_VIOLATION}"
+  },
+  {
+    label: "bundler-audit設定の読み込み省略",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/bundler-audit",
+        %(ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")\n),
+        ""
+      )
+    end,
+    expect: "bin/bundler-audit #{CONTRACT_VIOLATION}"
+  },
+  {
+    label: "binstubのshebang改変",
+    apply: ->(root) { substitute(root, "bin/brakeman", "#!/usr/bin/env ruby", "#!/bin/sh") },
+    expect: "bin/brakeman must use the expected shebang"
+  },
+
+  # --- 実行権限 ---------------------------------------------------------------
+  {
+    label: "bin/brakemanの実行権限剥奪",
+    apply: ->(root) { File.chmod(0o644, File.join(root, "bin/brakeman")) },
+    expect: "bin/brakeman must be executable"
+  },
+  {
+    label: "bin/bundler-auditの実行権限剥奪",
+    apply: ->(root) { File.chmod(0o644, File.join(root, "bin/bundler-audit")) },
+    expect: "bin/bundler-audit must be executable"
+  },
+
+  # --- bundler-audit の除外設定 -----------------------------------------------
+  {
+    label: "placeholderのignore追加",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore:\n  - CVE-THAT-DOES-NOT-APPLY") },
+    expect: "must not keep the placeholder"
+  },
+  {
+    label: "実在するadvisoryのignore追加",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore:\n  - CVE-2026-66066") },
+    expect: "ignore must be empty"
+  },
+  {
+    label: "ignoreを文字列へ変更",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", %(ignore: "")) },
+    expect: "ignore must be an array"
+  },
+  {
+    label: "ignoreキーの削除",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "{}") },
+    expect: "must define exactly one key ignore"
+  },
+  {
+    label: "未知のトップレベル設定の追加",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore: []\nunknown: true") },
+    expect: "must define exactly one key ignore"
+  },
+  {
+    label: "設定をYAMLとして壊す",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore: [\n") },
+    expect: "must be valid YAML"
+  },
+
+  # --- 開発イメージの前提 -----------------------------------------------------
+  {
+    label: "Dockerfileからgitを削除",
+    apply: ->(root) { substitute(root, "Dockerfile", %(      git \\\n), "") },
+    expect: "Dockerfile must install git"
+  },
+
+  # --- 秘密情報として扱う path ------------------------------------------------
+  #
+  # それぞれの診断が対象の path を名指しし、他方のケースと取り違えないことまで確認する。
+  {
+    label: "config/master.keyの追跡",
+    apply: ->(root) { track(root, "config/master.key") },
+    expect: "config/master.key",
+    reject: ".env.local"
+  },
+  {
+    label: ".env.localの追跡",
+    apply: ->(root) { track(root, ".env.local") },
+    expect: ".env.local",
+    reject: "config/master.key"
+  },
+  {
+    label: "credentials.yml.encの追跡",
+    apply: ->(root) { track(root, "config/credentials.yml.enc") },
+    expect: "config/credentials.yml.enc"
+  },
+  {
+    label: "config配下の鍵ファイルの追跡",
+    apply: ->(root) { track(root, "config/credentials/production.key") },
+    expect: "config/credentials/production.key"
+  },
+  {
+    label: "複数の秘密情報pathの同時追跡",
+    apply: lambda do |root|
+      track(root, "config/master.key")
+      track(root, ".env.local")
+      track(root, "config/credentials.yml.enc")
+    end,
+    expect: "3 found"
+  }
+].freeze
+
+# --- 実行時プローブ -------------------------------------------------------------
+#
+# bin/verify を、外部コマンドをすべてスタブへ置き換えた隔離環境で実行する。
+# Docker もデータベースも使わないため、完全検証のたびに実行できる。
+
+# bin/verify が APP_ROOT からの相対 path で起動する binstub。
+PROBE_BINSTUBS = %w[brakeman bundler-audit rubocop rails].freeze
+
+# PATH から解決されるコマンド。
+PROBE_PATH_COMMANDS = %w[bundle].freeze
+
+EXPECTED_PROBE_CALLS = [
+  "bundle check",
+  "brakeman --no-pager",
+  "bundler-audit check --update",
+  "rubocop",
+  "rails db:prepare",
+  "rails zeitwerk:check",
+  "rails test"
+].freeze
+
+# スタブの実行に必要な最小限の PATH。
+PROBE_SYSTEM_PATH = "/usr/bin:/bin"
+
+# スタブは呼び出しログの path と終了コードをリテラルとして持つ。
+#
+# これらを環境変数で渡すと、検査対象からプローブ実行を識別できてしまう。
+# その変数の有無で分岐する実装を書かれると、プローブ中だけ検査が実行され、
+# 通常実行では飛ばされる状態を検出できない。
+def write_stub(path, name, log_path, exit_status)
+  File.write(path, <<~SH)
+    #!/bin/sh
+    printf '%s %s\\n' #{Shellwords.escape(name)} "$*" >> #{Shellwords.escape(log_path)}
+    exit #{Integer(exit_status)}
+  SH
+
+  File.chmod(0o755, path)
+end
+
+# シナリオごとに独立した作業ツリーとスタブを作る。
+# 終了コードはスタブへ焼き込むため、前のシナリオの設定を持ち越さない。
+def prepare_probe(base, name, log_path, stub_exits)
+  root = File.join(base, "probe-#{name}")
+  stub_bin = File.join(base, "probe-#{name}-path")
+
+  FileUtils.mkdir_p(File.join(root, "bin"))
+  FileUtils.mkdir_p(stub_bin)
+  FileUtils.cp("bin/verify", File.join(root, "bin/verify"), preserve: true)
+
+  PROBE_BINSTUBS.each do |command|
+    write_stub(File.join(root, "bin", command), command, log_path, stub_exits.fetch(command, 0))
+  end
+
+  PROBE_PATH_COMMANDS.each do |command|
+    write_stub(File.join(stub_bin, command), command, log_path, stub_exits.fetch(command, 0))
+  end
+
+  [ root, stub_bin ]
+end
+
+# 実行元の環境変数を引き継がない。
+# CI 固有の変数も、この自己テストが使う変数も、検査対象へは渡さない。
+def run_probe(root, stub_bin, log_path)
+  File.write(log_path, "")
+
+  environment = {
+    "PATH" => "#{stub_bin}:#{PROBE_SYSTEM_PATH}",
+    "HOME" => Dir.tmpdir,
+    "LANG" => ENV.fetch("LANG", "C.UTF-8")
+  }
+
+  # 出力には見出しの日本語が含まれる。
+  # locale によっては US-ASCII として読み込まれ、UTF-8 の文字列と比較できなくなる。
+  output = IO.popen(
+    [ environment, File.join(root, "bin/verify") ],
+    err: [ :child, :out ],
+    unsetenv_others: true,
+    &:read
+  ).force_encoding("UTF-8")
+
+  calls = File.read(log_path).lines.map(&:strip).reject(&:empty?)
+
+  [ $?.success?, output, calls ]
+end
+
+PROBE_SCENARIOS = [
+  {
+    name: "success",
+    label: "全検査が成功",
+    stub_exits: {},
+    expected_calls: EXPECTED_PROBE_CALLS,
+    expected_success: true
+  },
+  {
+    name: "brakeman-failure",
+    label: "Brakeman が失敗",
+    stub_exits: { "brakeman" => 31 },
+    expected_calls: [ "bundle check", "brakeman --no-pager" ],
+    expected_success: false
+  },
+  {
+    name: "audit-failure",
+    label: "bundler-audit が失敗",
+    stub_exits: { "bundler-audit" => 32 },
+    expected_calls: [ "bundle check", "brakeman --no-pager", "bundler-audit check --update" ],
+    expected_success: false
+  }
+].freeze
+
+# 検証器の終了コードだけを見る。出力は失敗時の説明と診断の確認に使う。
+def verify(root)
+  output = IO.popen([ VERIFIER_PATH, root ], err: [ :child, :out ], &:read)
+  [ $?.success?, output.force_encoding("UTF-8") ]
+end
+
+unless ARGV.empty?
+  warn "使用方法: scripts/verify-security-self-test"
+  exit 1
+end
+
+missing = SOURCE_FILES.reject { |relative_path| File.file?(relative_path) }
+
+unless missing.empty?
+  missing.each { |relative_path| warn "required file is missing: #{relative_path}" }
+  exit 1
+end
+
+failures = []
+
+Dir.mktmpdir("verify-security-self-test") do |base|
+  # --- 構造の変異検査 ---------------------------------------------------------
+
+  # 陽性対照。正規の作業ツリーが通過しない検証器は、負の検証も信用できない。
+  passed, output = verify(prepare(base, "canonical"))
+
+  failures << "the canonical working tree must pass the structural check:\n#{output}" unless passed
+
+  MUTATIONS.each_with_index do |mutation, index|
+    label = mutation.fetch(:label)
+    root = prepare(base, "mutation-#{index}")
+
+    begin
+      mutation.fetch(:apply).call(root)
+    rescue RuntimeError => error
+      failures << "mutation #{label.inspect} could not be applied: #{error.message}. update the self test"
+      next
+    end
+
+    passed, output = verify(root)
+
+    if passed
+      failures << "mutation #{label.inspect} must be rejected by #{VERIFIER_PATH}"
+      next
+    end
+
+    Array(mutation[:expect]).each do |expected|
+      next if output.include?(expected)
+
+      failures << "mutation #{label.inspect} must report #{expected.inspect}, got:\n#{output}"
+    end
+
+    rejected = mutation[:reject]
+
+    if rejected && output.include?(rejected)
+      failures << "mutation #{label.inspect} must not report #{rejected.inspect}, got:\n#{output}"
+    end
+  end
+
+  # --- 実行時プローブ ---------------------------------------------------------
+
+  PROBE_SCENARIOS.each do |scenario|
+    name = scenario.fetch(:name)
+    label = scenario.fetch(:label)
+    log_path = File.join(base, "probe-#{name}.log")
+
+    root, stub_bin = prepare_probe(base, name, log_path, scenario.fetch(:stub_exits))
+    passed, output, calls = run_probe(root, stub_bin, log_path)
+
+    if scenario.fetch(:expected_success)
+      failures << "bin/verify must succeed when #{label}:\n#{output}" unless passed
+      failures << "bin/verify must report completion when #{label}" unless output.include?("検証完了")
+    else
+      failures << "bin/verify must fail when #{label}:\n#{output}" if passed
+      failures << "bin/verify must not report completion when #{label}" if output.include?("検証完了")
+    end
+
+    expected_calls = scenario.fetch(:expected_calls)
+
+    next if calls == expected_calls
+
+    failures << "bin/verify must run the expected checks when #{label}"
+    failures << "  expected: #{expected_calls.inspect}"
+    failures << "  actual:   #{calls.inspect}"
+  end
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("self test failure: #{failure}") }
+  exit 1
+end

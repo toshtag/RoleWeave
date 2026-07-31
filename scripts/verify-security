@@ -1,0 +1,350 @@
+#!/usr/bin/env ruby
+# セキュリティ検査の構造検査。
+#
+# scripts/verify-p0 から呼び出される。
+#
+#   scripts/verify-security              リポジトリの作業ツリーを検査する
+#   scripts/verify-security path/to/root 指定した作業ツリーを検査する
+#
+# 引数を受け取れるようにしているのは負の検証のためである。
+# 一時ディレクトリへ複製した作業ツリーを検査し、正規のファイルを破壊しない。
+#
+# 判定は実行行の完全一致で行う。部分文字列の一致では、実行されない書き方を
+# 正規の呼び出しと誤認する。次はいずれも Brakeman を実行しない。
+#
+#   false && bin/brakeman --no-pager   前段が偽なので後続は実行されない
+#   true # bin/brakeman --no-pager     行末コメントであり実行されない
+#
+# 呼び出しの形だけでは、binstub が本物の gem を起動することまでは保証できない。
+# binstub の実行行も完全一致で契約し、空実装や早期終了を拒否する。
+#
+# それでも静的検査だけでは、実際にコマンドが実行され、失敗が伝播することを
+# 証明できない。実行時の振る舞いは scripts/verify-security-self-test が
+# スタブ環境で bin/verify を実行して確認する。
+
+require "yaml"
+
+REQUIRED_EXECUTABLES = %w[
+  bin/verify
+  bin/brakeman
+  bin/bundler-audit
+].freeze
+
+# 統一検証の正規形。
+#
+# 個々の検査行だけを見る方式は使わない。行単位の判定では、前後の shell 制御構造を
+# 解釈できず、次のような複数行にまたがる短絡評価を見抜けない。
+#
+#   [[ -n "${PROBE_LOG:-}" ]] &&
+#   bin/brakeman --no-pager
+#
+# この書き方は必要な行そのものを保ったまま、条件が偽のときだけ検査を飛ばす。
+# set -e は && リストの失敗では終了しないため、後続の検査は通常どおり実行され、
+# 全体は成功で終わる。自己テストのプローブ環境でだけ真になる条件を選べば、
+# 構造検査と実行時プローブの両方を通過させられる。
+#
+# そのため、コメントと空行を除いた実行行の並び全体を契約とする。
+# 行の追加・削除・移動・重複と、実行経路を変え得る任意の 1 行を拒否する。
+#
+# bin/verify を変更するときは、この定義を同じ PR で更新する。
+EXPECTED_VERIFY_SHEBANG = "#!/usr/bin/env bash"
+
+EXPECTED_VERIFY_EXECUTABLE_LINES = [
+  "set -euo pipefail",
+  "APP_ROOT=\"$(",
+  "  cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\"",
+  "  pwd",
+  ")\"",
+  "cd \"$APP_ROOT\"",
+  "if [[ \"$#\" -eq 1 && \"$1\" == \"--full\" ]]; then",
+  "  exec scripts/verify-p0",
+  "fi",
+  "if [[ \"$#\" -ne 0 ]]; then",
+  "  printf '使用方法: bin/verify [--full]\\n' >&2",
+  "  exit 1",
+  "fi",
+  "printf '\\n== Ruby 依存関係 ==\\n'",
+  "bundle check",
+  "printf '\\n== セキュリティ静的解析 ==\\n'",
+  "bin/brakeman --no-pager",
+  # advisory database を更新してから監査する。
+  # 更新なしの check は、取得済みの古い database に対する監査になる。
+  "printf '\\n== 依存関係の脆弱性 ==\\n'",
+  "bin/bundler-audit check --update",
+  "printf '\\n== Ruby スタイル ==\\n'",
+  "bin/rubocop",
+  "printf '\\n== test データベース準備 ==\\n'",
+  "env RAILS_ENV=test bin/rails db:prepare",
+  "printf '\\n== Zeitwerk ==\\n'",
+  "env RAILS_ENV=test bin/rails zeitwerk:check",
+  "printf '\\n== Rails test ==\\n'",
+  "env RAILS_ENV=test bin/rails test",
+  "printf '\\n== 検証完了 ==\\n'"
+].freeze
+
+EXPECTED_BINSTUB_SHEBANG = "#!/usr/bin/env ruby"
+
+# binstub の実行行。これ以外の行を許可しない。
+#
+# 実行権限とファイル名だけを見ると、中身を exit 0 へ置き換えた binstub を
+# 正規のものとして受理してしまう。検査は呼ばれた形になるが、何も検査されない。
+EXPECTED_BINSTUBS = {
+  "bin/brakeman" => [
+    'require "rubygems"',
+    'require "bundler/setup"',
+    'load Gem.bin_path("brakeman", "brakeman")'
+  ],
+  "bin/bundler-audit" => [
+    'require_relative "../config/boot"',
+    'require "bundler/audit/cli"',
+    'ARGV.concat %w[ --config config/bundler-audit.yml ] if ARGV.empty? || ARGV.include?("check")',
+    "Bundler::Audit::CLI.start"
+  ]
+}.freeze
+
+AUDIT_CONFIG_PATH = "config/bundler-audit.yml"
+
+# 実在しない advisory を除外し続けると、除外一覧そのものが審査されなくなる。
+# Rails の生成物に含まれる placeholder を名指しで拒否する。
+AUDIT_CONFIG_PLACEHOLDER = "CVE-THAT-DOES-NOT-APPLY"
+
+# Brakeman のバージョン確認を検証の成功条件にしない。
+# 新しい Brakeman が公開されただけで、同じコミットの検証結果が変わってしまう。
+REJECTED_BRAKEMAN_ARGUMENT = "--ensure-latest"
+
+# Git 追跡を拒否する path。
+#
+# これは path ベースの制御である。リポジトリ内の秘密情報を網羅的に検出するものではない。
+# ソースコードへ直接書かれた API キーや、Git 履歴に残った過去の秘密情報は対象外とする。
+# 内容ベース・履歴ベースの検査は別の仕組みが必要であり、ここでは扱わない。
+#
+# 現在の P0 方針では Rails credentials を使用しないため、暗号化済みの credentials も
+# 追跡対象から除外する。復号鍵を失った暗号文をリポジトリへ残す理由がない。
+SECRET_PATH_PATTERNS = [
+  ".env",
+  ".env.*",
+  "config/master.key",
+  "config/credentials.yml.enc",
+  "config/credentials/*.yml.enc",
+  "config/*.key",
+  "config/**/*.key"
+].freeze
+
+# 先頭のドットを * で一致させるため FNM_DOTMATCH を併用する。
+# FNM_PATHNAME がないと、* がディレクトリ区切りをまたいで一致してしまう。
+SECRET_PATH_MATCH_FLAGS = File::FNM_PATHNAME | File::FNM_DOTMATCH
+
+def check(failures, condition, message)
+  failures << message unless condition
+end
+
+# コメント行と空行を除いた実行行を返す。
+#
+# 行末コメントは除去しない。単純に # 以降を削ると、引用符の内側にある #
+# まで削ってしまい、実行内容を取り違える。
+# 行末コメントを含む行は、完全一致の契約側で正規の呼び出しではないと判定される。
+def executable_lines(source)
+  source.lines.map(&:chomp).reject do |line|
+    line.strip.empty? || line.lstrip.start_with?("#")
+  end
+end
+
+# shebang と、コメント・空行を除いた実行行の並び全体を完全一致で検査する。
+#
+# 差分は最初に食い違った位置で報告する。全行を並べるだけでは、
+# 何行目のどの違いが原因なのかを読み取るのに時間がかかる。
+def verify_executable_lines(failures, root, relative_path, expected_shebang, expected_lines)
+  path = File.join(root, relative_path)
+  return unless File.file?(path)
+
+  lines = File.read(path, encoding: "UTF-8").lines.map(&:chomp)
+
+  check(
+    failures,
+    lines.first == expected_shebang,
+    "#{relative_path} must use the expected shebang, got #{lines.first.inspect}"
+  )
+
+  actual = lines.drop(1).reject do |line|
+    line.strip.empty? || line.lstrip.start_with?("#")
+  end
+
+  return if actual == expected_lines
+
+  failures << "#{relative_path} must contain exactly the expected executable lines " \
+    "(expected #{expected_lines.length}, got #{actual.length})"
+
+  # 長さが違うだけで内容が前方一致する場合、食い違いは短い方の末尾より後にある。
+  index =
+    actual.each_index.find { |position| actual[position] != expected_lines[position] } ||
+    [ actual.length, expected_lines.length ].min
+
+  failures << "  first difference at executable line #{index + 1}"
+  failures << "    expected: #{expected_lines[index].inspect}"
+  failures << "    actual:   #{actual[index].inspect}"
+end
+
+unless ARGV.length <= 1
+  warn "使用方法: scripts/verify-security [path/to/root]"
+  exit 1
+end
+
+root = ARGV.fetch(0, ".")
+failures = []
+
+# --- 実行ファイル -------------------------------------------------------------
+
+REQUIRED_EXECUTABLES.each do |relative_path|
+  path = File.join(root, relative_path)
+
+  unless File.file?(path)
+    failures << "required file is missing: #{relative_path}"
+    next
+  end
+
+  check(failures, File.executable?(path), "#{relative_path} must be executable")
+end
+
+# --- binstub の中身 -----------------------------------------------------------
+
+brakeman_path = File.join(root, "bin/brakeman")
+
+if File.file?(brakeman_path)
+  offending = executable_lines(File.read(brakeman_path, encoding: "UTF-8"))
+    .select { |line| line.include?(REJECTED_BRAKEMAN_ARGUMENT) }
+
+  check(
+    failures,
+    offending.empty?,
+    "bin/brakeman must not pass #{REJECTED_BRAKEMAN_ARGUMENT}: #{offending.map(&:strip).join(" / ")}"
+  )
+end
+
+EXPECTED_BINSTUBS.each do |relative_path, expected_lines|
+  verify_executable_lines(failures, root, relative_path, EXPECTED_BINSTUB_SHEBANG, expected_lines)
+end
+
+# --- 統一検証の構造 -----------------------------------------------------------
+#
+# 実行行の並び全体を契約とすることで、次をすべて一つの判定で拒否する。
+#
+#   検査行の削除・重複・移動
+#   複数行にまたがる短絡評価による条件付き実行
+#   set +e による失敗伝播の無効化
+#   早期 exit による検査の飛ばし
+#   実行経路を変え得る任意の追加行
+
+verify_executable_lines(
+  failures,
+  root,
+  "bin/verify",
+  EXPECTED_VERIFY_SHEBANG,
+  EXPECTED_VERIFY_EXECUTABLE_LINES
+)
+
+# --- bundler-audit の除外設定 -------------------------------------------------
+
+audit_config_path = File.join(root, AUDIT_CONFIG_PATH)
+
+if File.file?(audit_config_path)
+  raw = File.read(audit_config_path, encoding: "UTF-8")
+
+  check(
+    failures,
+    !raw.include?(AUDIT_CONFIG_PLACEHOLDER),
+    "#{AUDIT_CONFIG_PATH} must not keep the placeholder #{AUDIT_CONFIG_PLACEHOLDER}"
+  )
+
+  document =
+    begin
+      YAML.safe_load(raw, aliases: false, permitted_classes: [])
+    rescue Psych::Exception => error
+      failures << "#{AUDIT_CONFIG_PATH} must be valid YAML: #{error.message}"
+      nil
+    end
+
+  if document
+    if document.is_a?(Hash)
+      # 未知のトップレベル設定を黙って許容しない。
+      # 綴りを誤った ignore は、除外が効いていないことに気づけないまま残る。
+      check(
+        failures,
+        document.keys.sort == [ "ignore" ],
+        "#{AUDIT_CONFIG_PATH} must define exactly one key ignore, got #{document.keys.sort.inspect}"
+      )
+
+      ignored = document["ignore"]
+
+      if ignored.is_a?(Array)
+        # 現在の P0 契約では、実在する advisory の除外も許可しない。
+        # 除外が必要になった時点で、根拠と再確認期限を伴う契約変更を行う。
+        check(
+          failures,
+          ignored.empty?,
+          "#{AUDIT_CONFIG_PATH} ignore must be empty, got #{ignored.inspect}"
+        )
+      else
+        failures << "#{AUDIT_CONFIG_PATH} ignore must be an array, got #{ignored.class}"
+      end
+    else
+      failures << "#{AUDIT_CONFIG_PATH} must be a mapping, got #{document.class}"
+    end
+  end
+else
+  failures << "required file is missing: #{AUDIT_CONFIG_PATH}"
+end
+
+# --- 開発イメージの前提 -------------------------------------------------------
+#
+# bundler-audit は advisory database の取得・更新に git を使用する。
+# git のない開発イメージでは、標準検証が Docker 内で成立しない。
+# ここは静的な検査とし、実際に実行できることは scripts/verify-p0-docker が実測する。
+
+dockerfile_path = File.join(root, "Dockerfile")
+
+if File.file?(dockerfile_path)
+  dockerfile_body = executable_lines(File.read(dockerfile_path, encoding: "UTF-8"))
+
+  installs_git = dockerfile_body.any? { |line| line.match?(/\A\s*git\s*\\?\z/) }
+
+  check(
+    failures,
+    installs_git,
+    "Dockerfile must install git for the bundler-audit advisory database"
+  )
+else
+  failures << "required file is missing: Dockerfile"
+end
+
+# --- 秘密情報として扱う path ---------------------------------------------------
+#
+# 判定するのは Git 追跡の有無であり、作業ツリー上の存在ではない。
+# 手元にあるだけの Git 管理外ファイルは、新規 clone にも CI にも存在しない。
+# リポジトリの契約は、追跡されているものだけで決まる。
+#
+# path は NUL 区切りで受け取る。改行やスペースを含む path でも境界を取り違えない。
+
+tracked_paths =
+  IO.popen([ "git", "-C", root, "ls-files", "-z" ], err: File::NULL, &:read)
+
+if $?.success?
+  offending = tracked_paths.split("\0").select do |path|
+    SECRET_PATH_PATTERNS.any? do |pattern|
+      File.fnmatch?(pattern, path, SECRET_PATH_MATCH_FLAGS)
+    end
+  end
+
+  # 1 件目で打ち切らず、拒否した path をすべて診断へ出す。
+  # 1 件ずつしか分からないと、修正と再実行を件数分繰り返すことになる。
+  unless offending.empty?
+    failures << "secret paths must not be tracked by Git (#{offending.length} found)"
+    offending.sort.each { |path| failures << "  #{path}" }
+  end
+else
+  failures << "failed to list tracked files with git: #{root}"
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("security contract violation: #{failure}") }
+  exit 1
+end

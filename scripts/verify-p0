@@ -350,7 +350,7 @@ test -d test
 test -f .ruby-version
 test "$(tr -d '\r\n' < .ruby-version)" = "4.0.6"
 test "$(ruby -e 'print RUBY_VERSION')" = "4.0.6"
-test "$(bundle exec rails --version)" = "Rails 8.1.3"
+test "$(bundle exec rails --version)" = "Rails 8.1.3.1"
 
 test -f .gitignore
 test -f .gitattributes
@@ -463,11 +463,21 @@ if printf '%s\n' "$verify_body" | grep -Fq 'bin/setup'; then
   exit 1
 fi
 
-# セキュリティ・依存関係検査の必須化は P0-T9 で扱う。
-if printf '%s\n' "$verify_body" | grep -Eq 'bundler-audit|importmap audit|brakeman'; then
-  printf 'security audits belong to P0-T9\n' >&2
-  exit 1
-fi
+# セキュリティ検査の構造は専用の検証器が持つ。
+#
+# 検査の実体は bin/verify が Brakeman と bundler-audit を実行して行う。
+# ここで確認するのは、その呼び出しが削除・無効化・任意化されていないことである。
+#
+# 検査内容をこのスクリプトへ直接書くと、負の検証が同じ判定を複製することになる。
+# 一時作業ツリーを引数で受け取れる検証器へ分け、正本を 1 つに保つ。
+test -x scripts/verify-security
+test -x scripts/verify-security-self-test
+
+scripts/verify-security
+
+# 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+# 負の検証を実行時の手作業に依存させると、検証器の退行に気づけない。
+scripts/verify-security-self-test
 
 # bin/ci は委譲するだけの互換ラッパーとする。
 #

@@ -1,5 +1,15 @@
-# Audit all gems listed in the Gemfile for known security problems by running bin/bundler-audit.
-# CVEs that are not relevant to the application can be enumerated on the ignore list below.
-
-ignore:
-  - CVE-THAT-DOES-NOT-APPLY
+# bundler-audit の除外設定。
+#
+# 現在は 1 件も除外しない。
+# 検出された脆弱性は原則として依存関係の更新で解消し、ignore では黙らせない。
+#
+# 一時的な除外がどうしても必要になった場合は、別 Issue で次を明記したうえで追加する。
+#
+#   - advisory ID
+#   - このアプリケーションが影響を受けない根拠
+#   - 恒久対応の Issue
+#   - 再確認期限
+#   - 承認者
+#
+# 説明のない除外と、実在しない placeholder は置かない。
+ignore: []
