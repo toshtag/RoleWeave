@@ -36,20 +36,29 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   DECLARATION = /(?:\A|;)\s*([-\w]+)\s*:\s*([^;]+)/
 
+  LENGTH = /-?\d*\.?\d+[a-z%]*/
+
   # 現在の色は 16 進で表現している。CSS の色表現をすべて網羅するものではない。
   COLOR_LITERAL = /#[0-9a-f]{3,8}\b/i
 
-  # 外部への通信を伴う参照だけを対象にする。
-  # 同一オリジンの url() は将来の正当な利用があり得るため禁止しない。
-  EXTERNAL_REFERENCES = [ "@import", "@font-face", "http://", "https://", "url(//" ].freeze
+  # 外部の stylesheet とフォントを読み込む at-rule。
+  EXTERNAL_AT_RULE = /@(?:import|font-face)\b/i
+
+  # url() の引数を引用符の有無に依らず取り出す。
+  # CSS の URL 表記やエスケープをすべて解釈するものではない。
+  URL_FUNCTION = /url\(\s*(?:(["'])(.*?)\1|([^)]*?))\s*\)/im
+
+  # scheme 付きと scheme 相対の、外部ネットワークを指す URL。
+  # 同一オリジンの相対・絶対パスと data URL は対象にしない。
+  NETWORK_URL = %r{\A(?:(?:https?|ftp):)?//}i
 
   test "デザイン変数を :root へ一箇所で宣言する" do
     # 宣言箇所が分かれると、同じ変数の値がどちらで決まるかが読む順序に依存する。
-    assert_equal 1, root_rules.size
+    assert_equal 1, base_root_rules.size
   end
 
   test "後続タスクが前提にするデザイン変数をすべて :root へ宣言する" do
-    assert_empty REQUIRED_TOKENS - root_tokens.keys
+    assert_empty REQUIRED_TOKENS - base_root_tokens.keys
   end
 
   test "デザイン変数を :root の外で宣言しない" do
@@ -59,22 +68,33 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_empty outside.uniq, ":root 外で宣言されたデザイン変数がある: #{outside.uniq.inspect}"
   end
 
+  test "条件付きの :root では基本値を持つデザイン変数だけを上書きする" do
+    # @media などで値を切り替えること自体は認める。
+    # ただし、条件を満たしたときだけ存在する変数は、基本値のない不完全な契約になる。
+    names = token_declarations_in(conditional_root_rules).map { |name, _value| name }
+    unknown = names.uniq - base_root_tokens.keys
+
+    assert_empty unknown, "基本値を持たない条件付きデザイン変数がある: #{unknown.inspect}"
+  end
+
   test "デザイン変数の値が空でない" do
-    root_tokens.each do |name, value|
+    base_root_tokens.each do |name, value|
       assert_not value.strip.empty?, "#{name} の値が空である"
     end
   end
 
-  test "同じデザイン変数を二重に宣言しない" do
-    names = token_declarations_in(stylesheet_rules).map { |name, _value| name }
-    duplicated = names.tally.select { |_name, count| count > 1 }.keys
+  test "同じ規則の中で同じデザイン変数を二重に宣言しない" do
+    duplicated = stylesheet_rules.flat_map do |rule|
+      names = token_declarations_in([ rule ]).map { |name, _value| name }
+      names.tally.select { |_name, count| count > 1 }.keys
+    end
 
-    assert_empty duplicated, "重複して宣言されたデザイン変数がある: #{duplicated.inspect}"
+    assert_empty duplicated.uniq, "重複して宣言されたデザイン変数がある: #{duplicated.uniq.inspect}"
   end
 
   test "宣言したデザイン変数をすべて実際のスタイルから利用する" do
     # 利用されない変数は、値が妥当かどうかを画面から確認できない。
-    unused = root_tokens.keys.reject { |name| style_declarations.include?("var(#{name})") }
+    unused = base_root_tokens.keys.reject { |name| style_declarations.include?("var(#{name})") }
 
     assert_empty unused, "利用されていないデザイン変数がある: #{unused.inspect}"
   end
@@ -142,24 +162,45 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_includes heading, "var(--content-gap)"
   end
 
-  test "キーボードフォーカスを可視化する" do
-    focus = declarations_including(":focus-visible")
-
-    assert_not_empty focus, ":focus-visible の規則がない"
-    assert_includes focus, "var(--color-focus-ring)"
+  test "キーボードフォーカスの表示を一箇所で定義する" do
+    # 部品ごとにフォーカス表示を足すのは、見え方を確認できる段階での判断とする。
+    # ここで件数を固定しておくと、増えたときに必ずこの契約を見直すことになる。
+    assert_equal 1, focus_rules.size
   end
 
-  test "フォーカスのアウトラインが描画される幅と線種を持つ" do
-    # 規則が存在するだけでは見えることを保証しない。0 幅や none への退行を拒否する。
-    outline = properties_for_including(":focus-visible")["outline"]
+  test "フォーカスのアウトラインが描画される幅・線種・色を持つ" do
+    # 規則が存在するだけでは見えることを保証しない。
+    # 0 幅、描画されない線種、透明色への退行を拒否する。
+    outline = focus_properties["outline"]
 
     assert outline, ":focus-visible に outline の指定がない"
-
-    width = outline[/-?\d*\.?\d+[a-z%]*/]
-
-    assert width, "outline に幅の指定がない: #{outline}"
-    assert_operator width.to_f, :>, 0, "outline の幅が 0 で、フォーカスが見えない: #{outline}"
+    assert_positive_length outline, "outline"
     assert_no_match(/\b(?:none|hidden)\b/, outline, "outline の線種が描画されない: #{outline}")
+    assert_not_includes outline, "transparent", "outline の色が透明である: #{outline}"
+    assert_includes(
+      outline,
+      "var(--color-focus-ring)",
+      "outline 自体の色にデザイン変数を使っていない: #{outline}"
+    )
+  end
+
+  test "フォーカスのアウトラインを longhand で打ち消さない" do
+    # shorthand の後ろに longhand を置くと、shorthand の値を無効化できる。
+    width = focus_properties["outline-width"]
+    style = focus_properties["outline-style"]
+    color = focus_properties["outline-color"]
+
+    assert_positive_length(width, "outline-width") if width
+    assert_no_match(/\b(?:none|hidden)\b/, style, "outline-style が描画されない: #{style}") if style
+
+    if color
+      assert_not_includes color, "transparent", "outline-color が透明である: #{color}"
+      assert_includes(
+        color,
+        "var(--color-focus-ring)",
+        "outline-color にデザイン変数を使っていない: #{color}"
+      )
+    end
   end
 
   test "フォーカス表示を打ち消さない" do
@@ -179,10 +220,16 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     end
   end
 
-  test "外部の資源を参照しない" do
-    EXTERNAL_REFERENCES.each do |reference|
-      assert_not_includes style_source, reference, "外部参照 #{reference} が含まれている"
-    end
+  test "外部の資源を読み込む at-rule を使わない" do
+    assert_no_match(EXTERNAL_AT_RULE, style_source)
+  end
+
+  test "外部ネットワーク上の資源を参照しない" do
+    # 同一オリジンの url() は将来の正当な利用があり得るため禁止しない。
+    # 引用符の有無、前後の空白、大文字小文字に依らず、外部への参照だけを拒否する。
+    external = stylesheet_urls.select { |url| url.match?(NETWORK_URL) }
+
+    assert_empty external, "外部ネットワークへの参照がある: #{external.inspect}"
   end
 
   test "宣言の優先度を !important で上書きしない" do
@@ -190,6 +237,13 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
   end
 
   private
+    def assert_positive_length(value, label)
+      length = value[LENGTH]
+
+      assert length, "#{label} に幅の指定がない: #{value}"
+      assert_operator length.to_f, :>, 0, "#{label} が 0 で、フォーカスが見えない: #{value}"
+    end
+
     # コメントを取り除いた CSS。
     # コメント内の記述を実装として誤認しないようにする。
     def style_source
@@ -238,7 +292,71 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
       return parse_rules(body, conditional: true) if selector.start_with?("@")
 
-      [ { selectors: selector.split(",").map(&:strip), body: body, conditional: conditional } ]
+      [ { selectors: split_selector_list(selector), body: body, conditional: conditional } ]
+    end
+
+    # selector 一覧をカンマで分割する。
+    #
+    # :where(a, button) のような関数型擬似クラスや属性値の中のカンマでは分割しない。
+    # 単純な split(",") では :where(a, button):focus-visible が
+    # 存在しない単独 selector へ分解され、無関係な規則を取り違える。
+    def split_selector_list(source)
+      selectors = []
+      current = +""
+      parentheses = 0
+      brackets = 0
+      quote = nil
+      escaped = false
+
+      source.each_char do |character|
+        if escaped
+          escaped = false
+        elsif quote
+          quote = nil if character == quote
+          escaped = true if character == "\\"
+        else
+          case character
+          when "\\" then escaped = true
+          when '"', "'" then quote = character
+          when "(" then parentheses += 1
+          when ")" then parentheses -= 1
+          when "[" then brackets += 1
+          when "]" then brackets -= 1
+          when ","
+            if parentheses.zero? && brackets.zero?
+              selectors << current
+              current = +""
+              next
+            end
+          end
+        end
+
+        current << character
+      end
+
+      selectors << current
+
+      validate_selector_list(source, selectors, parentheses, brackets, quote)
+    end
+
+    def validate_selector_list(source, selectors, parentheses, brackets, quote)
+      unless parentheses.zero? && brackets.zero? && quote.nil?
+        raise "selector の括弧または引用符が対応していない: #{source.inspect}"
+      end
+
+      stripped = selectors.map(&:strip)
+
+      raise "空の selector がある: #{source.inspect}" if stripped.any?(&:empty?)
+
+      stripped
+    end
+
+    def base_root_rules
+      @base_root_rules ||= root_rules.reject { |rule| rule.fetch(:conditional) }
+    end
+
+    def conditional_root_rules
+      @conditional_root_rules ||= root_rules.select { |rule| rule.fetch(:conditional) }
     end
 
     def root_rules
@@ -254,8 +372,8 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
       @unconditional_rules ||= stylesheet_rules.reject { |rule| rule.fetch(:conditional) }
     end
 
-    def root_tokens
-      @root_tokens ||= token_declarations_in(root_rules).to_h
+    def base_root_tokens
+      @base_root_tokens ||= token_declarations_in(base_root_rules).to_h
     end
 
     # 規則の宣言部からデザイン変数の宣言を取り出す。
@@ -269,18 +387,28 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
       @style_declarations ||= join_bodies(other_rules)
     end
 
+    # url() の引数を取り出す。
+    def stylesheet_urls
+      style_source.scan(URL_FUNCTION).map do |_quote, quoted, unquoted|
+        (quoted || unquoted).to_s.strip
+      end
+    end
+
+    # キーボードフォーカスの表示を定める規則。
+    # selector の部分一致ではなく、selector 単位で :focus-visible を判定する。
+    def focus_rules
+      @focus_rules ||= unconditional_rules.select do |rule|
+        rule.fetch(:selectors).any? { |selector| selector.end_with?(":focus-visible") }
+      end
+    end
+
+    def focus_properties
+      @focus_properties ||= properties_of(join_bodies(focus_rules))
+    end
+
     # 指定した selector をそのまま含む、無条件の規則の宣言部。
     def declarations_for(selector)
       join_bodies(unconditional_rules.select { |rule| rule.fetch(:selectors).include?(selector) })
-    end
-
-    # 指定した文字列を含む selector を持つ、無条件の規則の宣言部。
-    def declarations_including(fragment)
-      join_bodies(
-        unconditional_rules.select do |rule|
-          rule.fetch(:selectors).any? { |selector| selector.include?(fragment) }
-        end
-      )
     end
 
     def join_bodies(rules)
@@ -289,10 +417,6 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
     def properties_for(selector)
       properties_of(declarations_for(selector))
-    end
-
-    def properties_for_including(fragment)
-      properties_of(declarations_including(fragment))
     end
 
     # 宣言部を property => value として取り出す最小の helper。
