@@ -1,10 +1,119 @@
 /*
- * This is a manifest file that'll be compiled into application.css.
+ * アプリケーション全体のデザイン変数と最小グローバルスタイル。
  *
- * With Propshaft, assets are served efficiently without preprocessing steps. You can still include
- * application-wide styles in this file, but keep in mind that CSS precedence will follow the standard
- * cascading order, meaning styles declared later in the document or manifest will override earlier ones,
- * depending on specificity.
+ * 方針は docs/decisions/0002-native-css-foundation.md を正本とする。
+ * ブラウザーが直接解釈できる標準 CSS だけを書き、Propshaft でそのまま配信する。
  *
- * Consider organizing styles into separate files for maintainability.
+ * ここへ書くのは、どの画面にも共通する土台だけとする。
+ * ヘッダー、フッター、button などの部品スタイルは、それを必要とするタスクで追加する。
  */
+
+/*
+ * デザイン変数。
+ *
+ * 名前は値の見た目ではなく用途で付ける。配色を見直しても名前が嘘にならないようにするため。
+ * ここで宣言した変数は、すべて下の規則から参照する。利用されない変数は追加しない。
+ */
+:root {
+  /* 外部 Web フォントを読み込まず、閲覧環境の system font を使う。 */
+  --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /*
+   * 本文と背景のコントラストは 4.5:1 以上、フォーカス表示は周辺背景に対して
+   * 3:1 以上を満たす値を選ぶ。値を変更するときは比率を測り直す。
+   */
+  --color-background: #f6f8fb;
+  --color-text: #182230;
+  --color-link: #175cd3;
+  --color-focus-ring: #175cd3;
+
+  /*
+   * 余白は clamp で画面幅に追従させる。固定値にすると狭い画面で
+   * 内容の占める幅が不足し、広い画面では余白が相対的に痩せる。
+   */
+  --content-max-width: 72rem;
+  --page-gutter: clamp(1rem, 4vw, 2rem);
+  --page-block-padding: clamp(2rem, 8vw, 5rem);
+  --content-gap: 1rem;
+
+  --font-size-heading-1: clamp(2rem, 8vw, 3.5rem);
+  --line-height-body: 1.6;
+  --line-height-heading: 1.15;
+}
+
+/* 幅の計算に padding と border を含める。要素ごとに計算規則が変わらないようにする。 */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-family-sans);
+  line-height: var(--line-height-body);
+  /* 端末の向きを変えたときに文字寸法が自動で拡大されないようにする。 */
+  text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  /* 途中で改行できない長い文字列があっても、横スクロールを発生させない。 */
+  overflow-wrap: anywhere;
+}
+
+main {
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin-inline: auto;
+  padding: var(--page-block-padding) var(--page-gutter);
+}
+
+h1 {
+  margin-block: 0 var(--content-gap);
+  font-size: var(--font-size-heading-1);
+  line-height: var(--line-height-heading);
+}
+
+p {
+  /* 1 行が長すぎると、行末から次の行の先頭を追いにくくなる。 */
+  max-width: 65ch;
+  margin-block: 0;
+}
+
+a {
+  color: var(--color-link);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  text-decoration-thickness: 0.125em;
+}
+
+/*
+ * キーボード操作でたどり着いた位置を可視化する。
+ * 既定のフォーカス表示を消すと、ポインターを使わない閲覧者が現在位置を追えなくなる。
+ */
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 0.1875rem solid var(--color-focus-ring);
+  outline-offset: 0.1875rem;
+}
+
+/* form control は既定で親のフォントを継承しない。 */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+img,
+picture,
+svg,
+video {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
