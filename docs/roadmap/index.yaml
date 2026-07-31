@@ -1,0 +1,49 @@
+phases:
+  - id: P0
+    path: docs/roadmap/phases/P0-project-foundation.yaml
+    weight: 8
+  - id: P1
+    path: docs/roadmap/phases/P1-application-shell.yaml
+    weight: 5
+  - id: P2
+    path: docs/roadmap/phases/P2-accounts-and-sessions.yaml
+    weight: 7
+  - id: P3
+    path: docs/roadmap/phases/P3-organizations-and-authorization.yaml
+    weight: 8
+  - id: P4
+    path: docs/roadmap/phases/P4-job-posting-management.yaml
+    weight: 10
+  - id: P5
+    path: docs/roadmap/phases/P5-public-job-discovery-and-seo.yaml
+    weight: 9
+  - id: P6
+    path: docs/roadmap/phases/P6-candidate-profiles.yaml
+    weight: 8
+  - id: P7
+    path: docs/roadmap/phases/P7-applications.yaml
+    weight: 8
+  - id: P8
+    path: docs/roadmap/phases/P8-hiring-workflow.yaml
+    weight: 9
+  - id: P9
+    path: docs/roadmap/phases/P9-conversations-and-notifications.yaml
+    weight: 8
+  - id: P10
+    path: docs/roadmap/phases/P10-privacy-security-and-operations.yaml
+    weight: 9
+  - id: P11
+    path: docs/roadmap/phases/P11-performance-and-observability.yaml
+    weight: 7
+  - id: P12
+    path: docs/roadmap/phases/P12-oss-release-and-local-demo.yaml
+    weight: 6
+  - id: P13
+    path: docs/roadmap/phases/P13-sourcing-and-engagement.yaml
+    weight: 8
+  - id: P14
+    path: docs/roadmap/phases/P14-integrations.yaml
+    weight: 8
+  - id: P15
+    path: docs/roadmap/phases/P15-post-v1-options.yaml
+    weight: 3

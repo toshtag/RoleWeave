@@ -8,9 +8,9 @@ applies_to: [architecture, feature, bugfix, refactor, mechanical_refactor, test,
 このファイルは、実装中に頻繁に参照する要点だけを置く。
 正本は次の 3 ファイルとし、ここに規則を二重定義しない。
 
-- [`language-and-naming.md`](language-and-naming.md)
-- [`architecture.md`](architecture.md)
-- [`task-scope.md`](task-scope.md)
+- [`docs/development/language-policy.md`](language-policy.md)
+- [`docs/architecture/principles.md`](../architecture/principles.md)
+- [`docs/development/workflow.md`](workflow.md)
 
 ## 言語
 

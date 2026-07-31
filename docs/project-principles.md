@@ -1,11 +1,11 @@
-# RoleWeave — Constitution
+# プロジェクト原則
 
 このファイルは、プロジェクトのすべての計画・実装上の判断を導く原則を記述する。
 判断に迷った場合は、この文書の原則を優先する。
 
 この文書は日本語版を正本とする。
-構造に関する詳細な判断基準は [`docs/architecture/principles.md`](../docs/architecture/principles.md)、
-言語と命名の詳細は [`docs/development/language-policy.md`](../docs/development/language-policy.md) を正本とする。
+構造に関する詳細な判断基準は [`docs/architecture/principles.md`](architecture/principles.md)、
+言語と命名の詳細は [`docs/development/language-policy.md`](development/language-policy.md) を正本とする。
 
 ## 基本原則
 
@@ -23,7 +23,7 @@
 5. 横断品質要件を後続フェーズへ先送りしない。
    認可、組織間分離、個人情報の扱い、多言語対応、アクセシビリティ、検証は、
    その機能を追加するフェーズで同時に満たす。
-   一覧は [`design/rules/cross-cutting-quality.md`](rules/cross-cutting-quality.md) を正本とする。
+   一覧は [`docs/quality/cross-cutting-requirements.md`](quality/cross-cutting-requirements.md) を正本とする。
 6. 日本語と英語を同じ機能フェーズで実装する。
    英語版だけに存在する機能説明や、日本語版だけに存在する約束を作らない。
 7. 1 タスクにつき 1 つの確認可能な成果とする。
@@ -37,10 +37,11 @@
 
 ## 記録
 
-- 中長期計画は `design/roadmap.yaml` と `design/phases/` を正本とする。
+- 中長期計画は `docs/roadmap/index.yaml` と `docs/roadmap/phases/` を正本とする。
   フェーズ YAML にはフェーズレベルの情報だけを置き、タスク単位の進捗を複製しない。
 - 実行タスクと不具合は GitHub Issues、実装内容と検証結果は Pull Requests を正本とする。
-  詳細は [`docs/development/workflow.md`](../docs/development/workflow.md) を参照する。
-- 計画上の判断は `design/decisions/` に ADR として記録する。
+  詳細は [`docs/development/workflow.md`](development/workflow.md) を参照する。
+- 計画上の判断は `docs/decisions/` に ADR として記録する。
+  このディレクトリは最初の ADR が必要になった時点で作成する。
 - 完了条件は決定論的に検証できるものにする。
 - 実行していない検証を成功として報告しない。

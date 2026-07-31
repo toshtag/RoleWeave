@@ -93,8 +93,6 @@ fi
 
 dockerignore_lines=(
   ".git"
-  ".context"
-  ".local"
   ".bundle"
   ".env*"
   "config/*.key"
@@ -113,8 +111,17 @@ for line in "${dockerignore_lines[@]}"; do
   require_exact_line_once "$line" .dockerignore
 done
 
-# 検証スクリプトと設計文書は build context に残す。
-for kept in design docs scripts; do
+# .context と .local は P0-R2 で撤去したローカルディレクトリ契約である。
+# build context の除外対象としても再導入しない。
+for removed in .context .local; do
+  if grep -Fxq "$removed" .dockerignore; then
+    printf '.dockerignore must not ignore %s\n' "$removed" >&2
+    exit 1
+  fi
+done
+
+# 検証スクリプトとプロジェクト文書は build context に残す。
+for kept in docs scripts; do
   if awk -v kept="$kept" '
     $0 == kept || $0 == kept "/" || $0 == kept "/*" || $0 == "/" kept { found = 1 }
     END { exit found ? 0 : 1 }

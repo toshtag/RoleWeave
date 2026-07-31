@@ -59,12 +59,14 @@ Railsアプリケーションの基盤は存在しますが、求人、応募、
 
 ## ドキュメント
 
-- [プロジェクト概要](design/brief.md) — 何を、誰のために作るか
-- [憲法](design/constitution.md) — 計画・実装上の判断を導く基本原則
-- [ロードマップ](design/roadmap.yaml) — P0 から P15 までのフェーズ索引
+- [プロジェクト概要](docs/project-overview.md) — 何を、誰のために作るか
+- [プロジェクト原則](docs/project-principles.md) — 計画・実装上の判断を導く基本原則
+- [ロードマップ](docs/roadmap/index.yaml) — P0 から P15 までのフェーズ索引
 - [アーキテクチャ原則](docs/architecture/principles.md) — 構造に関する判断基準
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
+- [コーディングスタイル](docs/development/coding-style.md) — 実装中に参照する言語・コメント・構造の要点
 - [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
+- [横断品質要件](docs/quality/cross-cutting-requirements.md) — 各機能フェーズで同時に満たす品質要件
 
 ## 開発の進め方
 
