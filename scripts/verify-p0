@@ -471,8 +471,13 @@ fi
 # 検査内容をこのスクリプトへ直接書くと、負の検証が同じ判定を複製することになる。
 # 一時作業ツリーを引数で受け取れる検証器へ分け、正本を 1 つに保つ。
 test -x scripts/verify-security
+test -x scripts/verify-security-self-test
 
 scripts/verify-security
+
+# 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+# 負の検証を実行時の手作業に依存させると、検証器の退行に気づけない。
+scripts/verify-security-self-test
 
 # bin/ci は委譲するだけの互換ラッパーとする。
 #

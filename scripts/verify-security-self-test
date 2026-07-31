@@ -1,0 +1,372 @@
+#!/usr/bin/env ruby
+# scripts/verify-security の回帰検査。
+#
+# scripts/verify-p0 から呼び出される。
+#
+# 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
+# 負の検証を実行時の手作業に依存させると、検証器が退行しても気づけない。
+# ここでは正規の作業ツリーへ変異を加え、すべてが拒否されることを毎回確認する。
+#
+# 変異は一時ディレクトリへ複製した作業ツリーに対してのみ行う。
+# リポジトリの Dockerfile、bin/、config/ は読み取るだけで、書き換えない。
+#
+# 変異ごとに複製をやり直す。前のケースの変更を次のケースへ持ち越すと、
+# どの変異が拒否されたのか分からなくなる。
+
+require "fileutils"
+require "tmpdir"
+
+VERIFIER_PATH = "scripts/verify-security"
+
+# 正規の作業ツリーから複製する対象。
+# scripts/verify-security が検査する範囲と一致させる。
+SOURCE_FILES = %w[
+  Dockerfile
+  .gitignore
+  bin/verify
+  bin/brakeman
+  bin/bundler-audit
+  config/bundler-audit.yml
+].freeze
+
+# 利用者の global 設定に依存しない一時リポジトリを作る。
+# core.excludesFile などの手元設定で結果が変わると、負の検証が環境依存になる。
+GIT_ENV = {
+  "GIT_CONFIG_GLOBAL" => File::NULL,
+  "GIT_CONFIG_SYSTEM" => File::NULL
+}.freeze
+
+def git(root, *arguments)
+  system(
+    GIT_ENV,
+    "git", "-C", root, *arguments,
+    exception: true,
+    out: File::NULL,
+    err: File::NULL
+  )
+end
+
+# 変異前の作業ツリーを組み立てる。
+# 実行権限は検査対象であるため、複製時に保持する。
+def prepare(base, name)
+  root = File.join(base, name)
+
+  SOURCE_FILES.each do |relative_path|
+    destination = File.join(root, relative_path)
+    FileUtils.mkdir_p(File.dirname(destination))
+    FileUtils.cp(relative_path, destination, preserve: true)
+  end
+
+  git(root, "init", "-q")
+  git(root, "add", "-A")
+
+  root
+end
+
+# 置換が適用されなかった場合は、対象ファイル側の変更に追随できていない。
+# 変異していない作業ツリーを「拒否されなかった」と報告すると、
+# 検証器が壊れていることを見逃す。適用できない置換は失敗として扱う。
+def substitute(root, relative_path, from, to)
+  path = File.join(root, relative_path)
+  text = File.read(path, encoding: "UTF-8")
+  mutated = text.sub(from, to)
+
+  raise "mutation did not change #{relative_path}" if mutated == text
+
+  File.write(path, mutated, encoding: "UTF-8")
+end
+
+# .gitignore を迂回して追跡させる。
+# 検査対象は Git 追跡の有無であり、作業ツリー上の存在ではない。
+def track(root, relative_path)
+  path = File.join(root, relative_path)
+  FileUtils.mkdir_p(File.dirname(path))
+  File.write(path, "self-test probe\n")
+  git(root, "add", "-f", relative_path)
+end
+
+BRAKEMAN_STEP = %(run_step "セキュリティ静的解析" \\\n  bin/brakeman --no-pager\n)
+AUDIT_STEP = %(run_step "依存関係の脆弱性" \\\n  bin/bundler-audit check --update\n)
+
+MUTATIONS = [
+  # --- 統一検証からの検査の欠落 -----------------------------------------------
+  {
+    label: "Brakeman呼び出しの削除",
+    apply: ->(root) { substitute(root, "bin/verify", BRAKEMAN_STEP, "") },
+    expect: "must invoke Brakeman exactly once, found 0"
+  },
+  {
+    label: "bundler-audit呼び出しの削除",
+    apply: ->(root) { substitute(root, "bin/verify", AUDIT_STEP, "") },
+    expect: "must invoke bundler-audit exactly once, found 0"
+  },
+
+  # --- 重複 -------------------------------------------------------------------
+  #
+  # 存在確認だけでは、片方を握り潰した呼び出しを追加しても検出できない。
+  {
+    label: "Brakeman呼び出しの重複",
+    apply: ->(root) { substitute(root, "bin/verify", BRAKEMAN_STEP, BRAKEMAN_STEP + BRAKEMAN_STEP) },
+    expect: "found 2"
+  },
+  {
+    label: "bundler-audit呼び出しの重複",
+    apply: ->(root) { substitute(root, "bin/verify", AUDIT_STEP, AUDIT_STEP + AUDIT_STEP) },
+    expect: "found 2"
+  },
+
+  # --- advisory database の更新契約 -------------------------------------------
+  {
+    label: "advisory database更新の省略",
+    apply: lambda do |root|
+      substitute(root, "bin/verify", "bin/bundler-audit check --update", "bin/bundler-audit check")
+    end,
+    expect: "check --update"
+  },
+
+  # --- 失敗の握り潰し ---------------------------------------------------------
+  {
+    label: "bundler-auditの失敗握り潰し",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "bin/bundler-audit check --update",
+        "bin/bundler-audit check --update || true"
+      )
+    end,
+    expect: "must not suppress its failure"
+  },
+  {
+    label: "advisory database更新失敗時の代替実行",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "bin/bundler-audit check --update",
+        "bin/bundler-audit check --update || bin/bundler-audit check"
+      )
+    end,
+    expect: "must not suppress its failure"
+  },
+  {
+    label: "Brakemanの失敗握り潰し",
+    apply: ->(root) { substitute(root, "bin/verify", "bin/brakeman --no-pager", "bin/brakeman --no-pager || true") },
+    expect: "must not suppress its failure"
+  },
+  {
+    label: "失敗伝播の無効化",
+    apply: ->(root) { substitute(root, "bin/verify", "set -euo pipefail", "set -euo pipefail\nset +e") },
+    expect: "must not disable failure propagation"
+  },
+
+  # --- 任意化 -----------------------------------------------------------------
+  {
+    label: "Brakeman呼び出しの条件分岐化",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        BRAKEMAN_STEP,
+        %(if [[ "${RUN_SECURITY:-1}" == "1" ]]; then\n) + BRAKEMAN_STEP + %(fi\n)
+      )
+    end,
+    expect: "must run unconditionally"
+  },
+  {
+    label: "bundler-audit呼び出しの条件分岐化",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        AUDIT_STEP,
+        %(if [[ "${RUN_SECURITY:-1}" == "1" ]]; then\n) + AUDIT_STEP + %(fi\n)
+      )
+    end,
+    expect: "must run unconditionally"
+  },
+
+  # --- binstub の迂回 ---------------------------------------------------------
+  #
+  # binstub を経由しないと、lockfile で固定した版が実行される保証がなくなる。
+  {
+    label: "Brakemanのbinstub迂回",
+    apply: ->(root) { substitute(root, "bin/verify", "bin/brakeman --no-pager", "bundle exec brakeman --no-pager") },
+    expect: "must be invoked through bin/brakeman"
+  },
+  {
+    label: "bundler-auditのbinstub迂回",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/verify",
+        "bin/bundler-audit check --update",
+        "bundle exec bundler-audit check --update"
+      )
+    end,
+    expect: "must be invoked through bin/bundler-audit"
+  },
+
+  # --- Brakeman の binstub ----------------------------------------------------
+  {
+    label: "--ensure-latestの復活",
+    apply: lambda do |root|
+      substitute(
+        root,
+        "bin/brakeman",
+        %(require "bundler/setup"\n),
+        %(require "bundler/setup"\n\nARGV.unshift("--ensure-latest")\n)
+      )
+    end,
+    expect: "must not pass --ensure-latest"
+  },
+
+  # --- 実行権限 ---------------------------------------------------------------
+  {
+    label: "bin/brakemanの実行権限剥奪",
+    apply: ->(root) { File.chmod(0o644, File.join(root, "bin/brakeman")) },
+    expect: "bin/brakeman must be executable"
+  },
+  {
+    label: "bin/bundler-auditの実行権限剥奪",
+    apply: ->(root) { File.chmod(0o644, File.join(root, "bin/bundler-audit")) },
+    expect: "bin/bundler-audit must be executable"
+  },
+
+  # --- bundler-audit の除外設定 -----------------------------------------------
+  {
+    label: "placeholderのignore追加",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore:\n  - CVE-THAT-DOES-NOT-APPLY") },
+    expect: "must not keep the placeholder"
+  },
+  {
+    label: "実在するadvisoryのignore追加",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore:\n  - CVE-2026-66066") },
+    expect: "ignore must be empty"
+  },
+  {
+    label: "ignoreを文字列へ変更",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", %(ignore: "")) },
+    expect: "ignore must be an array"
+  },
+  {
+    label: "ignoreキーの削除",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "{}") },
+    expect: "must define exactly one key ignore"
+  },
+  {
+    label: "未知のトップレベル設定の追加",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore: []\nunknown: true") },
+    expect: "must define exactly one key ignore"
+  },
+  {
+    label: "設定をYAMLとして壊す",
+    apply: ->(root) { substitute(root, "config/bundler-audit.yml", "ignore: []", "ignore: [\n") },
+    expect: "must be valid YAML"
+  },
+
+  # --- 開発イメージの前提 -----------------------------------------------------
+  {
+    label: "Dockerfileからgitを削除",
+    apply: ->(root) { substitute(root, "Dockerfile", %(      git \\\n), "") },
+    expect: "Dockerfile must install git"
+  },
+
+  # --- 秘密情報として扱う path ------------------------------------------------
+  #
+  # それぞれの診断が対象の path を名指しし、他方のケースと取り違えないことまで確認する。
+  {
+    label: "config/master.keyの追跡",
+    apply: ->(root) { track(root, "config/master.key") },
+    expect: "config/master.key",
+    reject: ".env.local"
+  },
+  {
+    label: ".env.localの追跡",
+    apply: ->(root) { track(root, ".env.local") },
+    expect: ".env.local",
+    reject: "config/master.key"
+  },
+  {
+    label: "credentials.yml.encの追跡",
+    apply: ->(root) { track(root, "config/credentials.yml.enc") },
+    expect: "config/credentials.yml.enc"
+  },
+  {
+    label: "config配下の鍵ファイルの追跡",
+    apply: ->(root) { track(root, "config/credentials/production.key") },
+    expect: "config/credentials/production.key"
+  },
+  {
+    label: "複数の秘密情報pathの同時追跡",
+    apply: lambda do |root|
+      track(root, "config/master.key")
+      track(root, ".env.local")
+      track(root, "config/credentials.yml.enc")
+    end,
+    expect: "3 found"
+  }
+].freeze
+
+# 検証器の終了コードだけを見る。出力は失敗時の説明と診断の確認に使う。
+def verify(root)
+  output = IO.popen([ VERIFIER_PATH, root ], err: [ :child, :out ], &:read)
+  [ $?.success?, output ]
+end
+
+unless ARGV.empty?
+  warn "使用方法: scripts/verify-security-self-test"
+  exit 1
+end
+
+missing = SOURCE_FILES.reject { |relative_path| File.file?(relative_path) }
+
+unless missing.empty?
+  missing.each { |relative_path| warn "required file is missing: #{relative_path}" }
+  exit 1
+end
+
+failures = []
+
+Dir.mktmpdir("verify-security-self-test") do |base|
+  # 陽性対照。正規の作業ツリーが通過しない検証器は、負の検証も信用できない。
+  passed, output = verify(prepare(base, "canonical"))
+
+  failures << "the canonical working tree must pass the structural check:\n#{output}" unless passed
+
+  MUTATIONS.each_with_index do |mutation, index|
+    label = mutation.fetch(:label)
+    root = prepare(base, "mutation-#{index}")
+
+    begin
+      mutation.fetch(:apply).call(root)
+    rescue RuntimeError => error
+      failures << "mutation #{label.inspect} could not be applied: #{error.message}. update the self test"
+      next
+    end
+
+    passed, output = verify(root)
+
+    if passed
+      failures << "mutation #{label.inspect} must be rejected by #{VERIFIER_PATH}"
+      next
+    end
+
+    expected = mutation[:expect]
+
+    if expected && !output.include?(expected)
+      failures << "mutation #{label.inspect} must report #{expected.inspect}, got:\n#{output}"
+    end
+
+    rejected = mutation[:reject]
+
+    if rejected && output.include?(rejected)
+      failures << "mutation #{label.inspect} must not report #{rejected.inspect}, got:\n#{output}"
+    end
+  end
+end
+
+unless failures.empty?
+  failures.each { |failure| warn("self test failure: #{failure}") }
+  exit 1
+end
