@@ -37,6 +37,28 @@ REJECTED_BRAKEMAN_ARGUMENT = "--ensure-latest"
 BLOCK_OPENERS = %w[if for while until case].freeze
 BLOCK_CLOSERS = %w[fi done esac].freeze
 
+# Git 追跡を拒否する path。
+#
+# これは path ベースの制御である。リポジトリ内の秘密情報を網羅的に検出するものではない。
+# ソースコードへ直接書かれた API キーや、Git 履歴に残った過去の秘密情報は対象外とする。
+# 内容ベース・履歴ベースの検査は別の仕組みが必要であり、ここでは扱わない。
+#
+# 現在の P0 方針では Rails credentials を使用しないため、暗号化済みの credentials も
+# 追跡対象から除外する。復号鍵を失った暗号文をリポジトリへ残す理由がない。
+SECRET_PATH_PATTERNS = [
+  ".env",
+  ".env.*",
+  "config/master.key",
+  "config/credentials.yml.enc",
+  "config/credentials/*.yml.enc",
+  "config/*.key",
+  "config/**/*.key"
+].freeze
+
+# 先頭のドットを * で一致させるため FNM_DOTMATCH を併用する。
+# FNM_PATHNAME がないと、* がディレクトリ区切りをまたいで一致してしまう。
+SECRET_PATH_MATCH_FLAGS = File::FNM_PATHNAME | File::FNM_DOTMATCH
+
 def check(failures, condition, message)
   failures << message unless condition
 end
@@ -265,6 +287,34 @@ if File.file?(dockerfile_path)
   )
 else
   failures << "required file is missing: Dockerfile"
+end
+
+# --- 秘密情報として扱う path ---------------------------------------------------
+#
+# 判定するのは Git 追跡の有無であり、作業ツリー上の存在ではない。
+# 手元にあるだけの Git 管理外ファイルは、新規 clone にも CI にも存在しない。
+# リポジトリの契約は、追跡されているものだけで決まる。
+#
+# path は NUL 区切りで受け取る。改行やスペースを含む path でも境界を取り違えない。
+
+tracked_paths =
+  IO.popen([ "git", "-C", root, "ls-files", "-z" ], err: File::NULL, &:read)
+
+if $?.success?
+  offending = tracked_paths.split("\0").select do |path|
+    SECRET_PATH_PATTERNS.any? do |pattern|
+      File.fnmatch?(pattern, path, SECRET_PATH_MATCH_FLAGS)
+    end
+  end
+
+  # 1 件目で打ち切らず、拒否した path をすべて診断へ出す。
+  # 1 件ずつしか分からないと、修正と再実行を件数分繰り返すことになる。
+  unless offending.empty?
+    failures << "secret paths must not be tracked by Git (#{offending.length} found)"
+    offending.sort.each { |path| failures << "  #{path}" }
+  end
+else
+  failures << "failed to list tracked files with git: #{root}"
 end
 
 unless failures.empty?
