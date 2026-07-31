@@ -30,22 +30,57 @@ REQUIRED_EXECUTABLES = %w[
   bin/bundler-audit
 ].freeze
 
-# 統一検証が実行しなければならないセキュリティ検査。
+# 統一検証の正規形。
 #
-# token は「その検査に言及している実行行」を拾うために使う。
-# 正規の 1 行以外にその検査名が現れた時点で、書き方を疑って拒否する。
-REQUIRED_SECURITY_COMMANDS = {
-  "Brakeman" => {
-    command: "bin/brakeman --no-pager",
-    token: /brakeman/i
-  },
-  "bundler-audit" => {
-    # advisory database を更新してから監査する。
-    # 更新なしの check は、取得済みの古い database に対する監査になる。
-    command: "bin/bundler-audit check --update",
-    token: /bundler-audit/i
-  }
-}.freeze
+# 個々の検査行だけを見る方式は使わない。行単位の判定では、前後の shell 制御構造を
+# 解釈できず、次のような複数行にまたがる短絡評価を見抜けない。
+#
+#   [[ -n "${PROBE_LOG:-}" ]] &&
+#   bin/brakeman --no-pager
+#
+# この書き方は必要な行そのものを保ったまま、条件が偽のときだけ検査を飛ばす。
+# set -e は && リストの失敗では終了しないため、後続の検査は通常どおり実行され、
+# 全体は成功で終わる。自己テストのプローブ環境でだけ真になる条件を選べば、
+# 構造検査と実行時プローブの両方を通過させられる。
+#
+# そのため、コメントと空行を除いた実行行の並び全体を契約とする。
+# 行の追加・削除・移動・重複と、実行経路を変え得る任意の 1 行を拒否する。
+#
+# bin/verify を変更するときは、この定義を同じ PR で更新する。
+EXPECTED_VERIFY_SHEBANG = "#!/usr/bin/env bash"
+
+EXPECTED_VERIFY_EXECUTABLE_LINES = [
+  "set -euo pipefail",
+  "APP_ROOT=\"$(",
+  "  cd \"$(dirname \"${BASH_SOURCE[0]}\")/..\"",
+  "  pwd",
+  ")\"",
+  "cd \"$APP_ROOT\"",
+  "if [[ \"$#\" -eq 1 && \"$1\" == \"--full\" ]]; then",
+  "  exec scripts/verify-p0",
+  "fi",
+  "if [[ \"$#\" -ne 0 ]]; then",
+  "  printf '使用方法: bin/verify [--full]\\n' >&2",
+  "  exit 1",
+  "fi",
+  "printf '\\n== Ruby 依存関係 ==\\n'",
+  "bundle check",
+  "printf '\\n== セキュリティ静的解析 ==\\n'",
+  "bin/brakeman --no-pager",
+  # advisory database を更新してから監査する。
+  # 更新なしの check は、取得済みの古い database に対する監査になる。
+  "printf '\\n== 依存関係の脆弱性 ==\\n'",
+  "bin/bundler-audit check --update",
+  "printf '\\n== Ruby スタイル ==\\n'",
+  "bin/rubocop",
+  "printf '\\n== test データベース準備 ==\\n'",
+  "env RAILS_ENV=test bin/rails db:prepare",
+  "printf '\\n== Zeitwerk ==\\n'",
+  "env RAILS_ENV=test bin/rails zeitwerk:check",
+  "printf '\\n== Rails test ==\\n'",
+  "env RAILS_ENV=test bin/rails test",
+  "printf '\\n== 検証完了 ==\\n'"
+].freeze
 
 EXPECTED_BINSTUB_SHEBANG = "#!/usr/bin/env ruby"
 
@@ -76,11 +111,6 @@ AUDIT_CONFIG_PLACEHOLDER = "CVE-THAT-DOES-NOT-APPLY"
 # Brakeman のバージョン確認を検証の成功条件にしない。
 # 新しい Brakeman が公開されただけで、同じコミットの検証結果が変わってしまう。
 REJECTED_BRAKEMAN_ARGUMENT = "--ensure-latest"
-
-# shell の block を開閉するキーワード。
-# セキュリティ検査が条件分岐の内側へ移されていないことを、入れ子の深さで判定する。
-BLOCK_OPENERS = %w[if for while until case].freeze
-BLOCK_CLOSERS = %w[fi done esac].freeze
 
 # Git 追跡を拒否する path。
 #
@@ -119,62 +149,11 @@ def executable_lines(source)
   end
 end
 
-# 各実行行と、その行が置かれた block の深さの組を返す。
+# shebang と、コメント・空行を除いた実行行の並び全体を完全一致で検査する。
 #
-# 深さ 0 は、無条件に実行される位置であることを意味する。
-# 存在確認だけでは、if で囲って任意化した検査を検出できない。
-def lines_with_block_depth(lines)
-  depth = 0
-
-  lines.map do |line|
-    first_token = line.split(/\s+/).reject(&:empty?).first.to_s
-
-    closing = BLOCK_CLOSERS.include?(first_token) || first_token == "}"
-    depth -= 1 if closing
-
-    current_depth = depth
-
-    depth += 1 if BLOCK_OPENERS.include?(first_token)
-    depth += 1 if line.include?("()") && line.rstrip.end_with?("{")
-
-    [ line, current_depth ]
-  end
-end
-
-# 検査コマンドの呼び出しを、実行行の完全一致でちょうど 1 件だけ許可する。
-#
-# 欠落・重複・非正規の書き方を、それぞれ別の診断として報告する。
-def verify_security_command(failures, entries, label, expected, token)
-  references = entries.select { |line, _depth| line.match?(token) }
-
-  if references.empty?
-    failures << "bin/verify must invoke #{label} exactly once, found 0"
-    return
-  end
-
-  if references.length > 1
-    failures << "bin/verify must invoke #{label} exactly once, found #{references.length}"
-    references.each { |line, _depth| failures << "  #{line.strip}" }
-    return
-  end
-
-  line, depth = references.first
-
-  unless line.strip == expected
-    failures << "#{label} must be invoked as exactly #{expected.inspect}"
-    failures << "  got: #{line.strip}"
-    return
-  end
-
-  check(
-    failures,
-    depth.zero?,
-    "#{label} must run unconditionally, found it nested at depth #{depth}: #{line.strip}"
-  )
-end
-
-# binstub の実行行を完全一致で検査する。
-def verify_binstub(failures, root, relative_path, expected_lines)
+# 差分は最初に食い違った位置で報告する。全行を並べるだけでは、
+# 何行目のどの違いが原因なのかを読み取るのに時間がかかる。
+def verify_executable_lines(failures, root, relative_path, expected_shebang, expected_lines)
   path = File.join(root, relative_path)
   return unless File.file?(path)
 
@@ -182,7 +161,7 @@ def verify_binstub(failures, root, relative_path, expected_lines)
 
   check(
     failures,
-    lines.first == EXPECTED_BINSTUB_SHEBANG,
+    lines.first == expected_shebang,
     "#{relative_path} must use the expected shebang, got #{lines.first.inspect}"
   )
 
@@ -192,16 +171,17 @@ def verify_binstub(failures, root, relative_path, expected_lines)
 
   return if actual == expected_lines
 
-  failures << "#{relative_path} must contain exactly the expected executable lines"
-  failures << "  expected:"
-  expected_lines.each { |line| failures << "    #{line}" }
-  failures << "  actual:"
+  failures << "#{relative_path} must contain exactly the expected executable lines " \
+    "(expected #{expected_lines.length}, got #{actual.length})"
 
-  if actual.empty?
-    failures << "    (none)"
-  else
-    actual.each { |line| failures << "    #{line}" }
-  end
+  # 長さが違うだけで内容が前方一致する場合、食い違いは短い方の末尾より後にある。
+  index =
+    actual.each_index.find { |position| actual[position] != expected_lines[position] } ||
+    [ actual.length, expected_lines.length ].min
+
+  failures << "  first difference at executable line #{index + 1}"
+  failures << "    expected: #{expected_lines[index].inspect}"
+  failures << "    actual:   #{actual[index].inspect}"
 end
 
 unless ARGV.length <= 1
@@ -241,36 +221,26 @@ if File.file?(brakeman_path)
 end
 
 EXPECTED_BINSTUBS.each do |relative_path, expected_lines|
-  verify_binstub(failures, root, relative_path, expected_lines)
+  verify_executable_lines(failures, root, relative_path, EXPECTED_BINSTUB_SHEBANG, expected_lines)
 end
 
 # --- 統一検証の構造 -----------------------------------------------------------
+#
+# 実行行の並び全体を契約とすることで、次をすべて一つの判定で拒否する。
+#
+#   検査行の削除・重複・移動
+#   複数行にまたがる短絡評価による条件付き実行
+#   set +e による失敗伝播の無効化
+#   早期 exit による検査の飛ばし
+#   実行経路を変え得る任意の追加行
 
-verify_path = File.join(root, "bin/verify")
-
-if File.file?(verify_path)
-  verify_body = executable_lines(File.read(verify_path, encoding: "UTF-8"))
-  entries = lines_with_block_depth(verify_body)
-
-  REQUIRED_SECURITY_COMMANDS.each do |label, contract|
-    verify_security_command(
-      failures,
-      entries,
-      label,
-      contract.fetch(:command),
-      contract.fetch(:token)
-    )
-  end
-
-  # set +e 以降は、コマンドの失敗が検証の失敗にならない。
-  offending = verify_body.select { |line| line.match?(/(\A|[^[:alnum:]_])set[[:space:]]+\+e/) }
-
-  check(
-    failures,
-    offending.empty?,
-    "bin/verify must not disable failure propagation: #{offending.map(&:strip).join(" / ")}"
-  )
-end
+verify_executable_lines(
+  failures,
+  root,
+  "bin/verify",
+  EXPECTED_VERIFY_SHEBANG,
+  EXPECTED_VERIFY_EXECUTABLE_LINES
+)
 
 # --- bundler-audit の除外設定 -------------------------------------------------
 
