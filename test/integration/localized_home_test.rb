@@ -2,7 +2,8 @@ require "test_helper"
 
 # ロケール付き入口 URL の契約を検証する。
 #
-# 検証対象は URL と表示言語の対応であり、入口ページの内容そのものではない。
+# 検証対象は URL と表示言語の対応、および日英で共通する土台の読み込みであり、
+# 入口ページの内容そのものではない。
 class LocalizedHomeTest < ActionDispatch::IntegrationTest
   test "/ は既定ロケールの入口へ 302 で遷移する" do
     get "/"
@@ -42,6 +43,16 @@ class LocalizedHomeTest < ActionDispatch::IntegrationTest
     assert_select "main h1", "RoleWeave"
     assert_includes response.body, summary(:en)
     assert_not_includes response.body, summary(:ja)
+  end
+
+  test "日英の入口ページが同じアプリケーションスタイルを読み込む" do
+    # 言語ごとにスタイルが分かれると、片方だけ崩れた状態を見落とす。
+    get "/ja"
+    japanese_stylesheet = application_stylesheet_href
+
+    get "/en"
+
+    assert_equal japanese_stylesheet, application_stylesheet_href
   end
 
   test "直前のリクエストのロケールが次のリクエストへ漏れない" do
@@ -86,6 +97,21 @@ class LocalizedHomeTest < ActionDispatch::IntegrationTest
   end
 
   private
+    # 現在の応答が読み込んでいるアプリケーションの stylesheet を返す。
+    #
+    # digest 付きのファイル名を期待値へ固定しない。
+    # また、CSS を正当に分割する余地を残すため、link の件数も断定しない。
+    def application_stylesheet_href
+      hrefs = css_select('link[rel="stylesheet"][data-turbo-track="reload"]').map do |link|
+        link["href"]
+      end
+      href = hrefs.find { |value| File.basename(value).start_with?("application-") }
+
+      assert href, "アプリケーションの stylesheet を読み込んでいない: #{hrefs.inspect}"
+
+      href
+    end
+
     # 表示文言そのものではなく、URL と表示言語の対応を検証するため、
     # 期待値は辞書から引く。文言を変更するたびにこのテストを書き換えない。
     def summary(locale)
