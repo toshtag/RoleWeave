@@ -121,8 +121,17 @@ development-ready state.
 docker compose up
 ```
 
-Business screens and the root route are not implemented at this stage, so there is
-no top page. Use the health check to confirm that the application is running.
+Minimal Japanese and English entry pages are provided as the application shell.
+
+```text
+http://127.0.0.1:3000/ja
+http://127.0.0.1:3000/en
+```
+
+`/` redirects to the Japanese page. Business features such as job postings, job
+applications, and authentication are not implemented yet.
+
+The health check is still available for confirming that the application is running.
 
 ```text
 http://127.0.0.1:3000/up

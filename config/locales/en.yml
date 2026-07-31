@@ -1,3 +1,6 @@
 en:
   application:
     name: RoleWeave
+  home:
+    show:
+      summary: We are building the foundation of a self-hostable recruiting platform.

@@ -3,7 +3,7 @@ name: Application Shell
 weight: 5
 confidence: high
 risk: low
-status: planned
+status: in_progress
 depends_on:
   - P0
 objective: |-
