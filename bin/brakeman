@@ -1,7 +1,14 @@
 #!/usr/bin/env ruby
+# Brakeman の binstub。
+#
+# 責務は Bundler 環境の読み込みと、lockfile で固定した Brakeman の起動だけとする。
+# 警告の除外設定や独自の成功判定はここへ置かない。
+#
+# Rails 標準の binstub が付与する --ensure-latest は使用しない。
+# コードに脆弱性がなくても、新しい Brakeman が公開されただけで非ゼロ終了するため、
+# 同じコミットに対する検証結果が時間の経過で変わってしまう。
+# 実行バージョンは Gemfile.lock で固定し、更新は依存関係更新タスクとして扱う。
 require "rubygems"
 require "bundler/setup"
-
-ARGV.unshift("--ensure-latest")
 
 load Gem.bin_path("brakeman", "brakeman")
