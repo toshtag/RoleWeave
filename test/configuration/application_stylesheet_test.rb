@@ -52,9 +52,15 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   # CSS の数値表記。同じ値でも書き方は一通りではない。
   # ゼロの文字列表現を列挙すると、`.0` や `-0` のような表記で契約を迂回できる。
-  # Ruby の Float() は先頭の小数点を受理せず 16 進表記を受理するため、
-  # CSS 側の構文をここで決めてから数値へ変換する。
-  CSS_NUMBER = /\A[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?\z/i
+  #
+  # Ruby の数値変換だけでは、CSS として妥当かどうかを判定できない。
+  # String#to_f は先頭の変換できる部分だけを読み、残りを黙って捨てる（"1.invalid" が 1.0）。
+  # Kernel.Float は CSS が数値として認めない表記まで受理する（"0x10" が 16.0）。
+  # そのため、CSS の数値構文をここで判定してから数値へ変換する。
+  #
+  # 小数点は直後に数字がある場合だけ数値の一部になる。`1.` や `1.e2` は CSS の
+  # <number> にならず、opacity の宣言としては無効である。
+  CSS_NUMBER = /\A[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?\z/i
   TRANSPARENT_COLOR = /\btransparent\b/i
   DISABLED_OUTLINE = /outline(?:-style)?:\s*(?:none|hidden)\b/i
   IMPORTANT_DECLARATION = /!\s*important\b/i
@@ -244,11 +250,17 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_in_delta 0.5, numeric_opacity(".5")
     assert_in_delta 0.5, numeric_opacity("50%")
     assert_in_delta 1.0, numeric_opacity("1")
+    assert_in_delta 1.0, numeric_opacity("1.0")
     assert_in_delta 1.0, numeric_opacity("100%")
+    assert_in_delta 100.0, numeric_opacity("1e2")
+    assert_in_delta 0.15, numeric_opacity("1.5e-1")
+    assert_in_delta 0.005, numeric_opacity(".5%")
 
-    # 静的に値を確定できない指定は数値として扱わない。
-    assert_nil numeric_opacity("calc(0)")
-    assert_nil numeric_opacity("var(--skip-link-opacity)")
+    # CSS の数値にならない表記と、静的に値を確定できない指定は数値として扱わない。
+    # 小数点の直後に数字がない `1.` は <number> にならず、宣言そのものが無効になる。
+    %w[. +. 1. 1.% 1.e2 0x10 1invalid calc(0) var(--skip-link-opacity)].each do |value|
+      assert_nil numeric_opacity(value), "#{value} を CSS の数値として受理している"
+    end
   end
 
   test "スキップリンクを透明なまま表示しない" do
@@ -376,9 +388,11 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
   end
 
   private
-    # opacity の値を 0.0〜1.0 の数値へ正規化する。
-    # 百分率は同じ意味の別表記であり、数値と同じ土俵で比べられるようにする。
-    # 静的に確定できない値（calc や var）は nil を返し、呼び出し側で安全側へ倒す。
+    # opacity の数値と百分率を、比べられる 1 つの尺度へそろえる。
+    # 百分率は同じ意味の別表記であり、100 で割って数値と同じ土俵へ載せる。
+    # 範囲外の値はここで clamp しない。可視性の判定に使うのは正負だけである。
+    # CSS の数値構文を満たさない値（calc、var、`1.` など）は nil を返し、
+    # 呼び出し側で安全側へ倒す。
     def numeric_opacity(value)
       source = value.to_s.strip
       percentage = source.end_with?("%")
