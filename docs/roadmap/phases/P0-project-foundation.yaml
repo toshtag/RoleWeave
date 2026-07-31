@@ -3,7 +3,7 @@ name: Project Foundation
 weight: 8
 confidence: high
 risk: low
-status: in_progress
+status: done
 depends_on: []
 objective: |-
   開発者と AI Agent が、同じ環境、同じ規約、同じ検証方法で極小タスクを実装できる状態を作る。

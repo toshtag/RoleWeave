@@ -57,8 +57,141 @@ Redis, OpenSearch, and Kubernetes are not required at this stage.
 
 ## Setup
 
-Setup instructions will be added once the development environment is in place
-(when P0 of the roadmap is complete).
+Regular local development can be started with Docker Compose alone.
+
+### Requirements
+
+- Git
+- Docker Engine or Docker Desktop
+- Docker Compose v2
+
+The following do not need to be installed on the host for regular development:
+
+- Ruby
+- PostgreSQL
+- Node.js
+- npm
+
+### Get the repository
+
+```bash
+git clone https://github.com/toshtag/RoleWeave.git
+cd RoleWeave
+```
+
+### Build the image
+
+```bash
+docker compose build app
+```
+
+To rebuild the base image and dependencies without the cache, run the following.
+This is used for re-verifying the foundation and is not needed for regular development.
+
+```bash
+docker compose build --no-cache app
+```
+
+### Initial setup
+
+```bash
+docker compose run --rm app bin/setup
+```
+
+`bin/setup` does the following:
+
+- Checks the Ruby dependencies and prepares them only when they are missing
+- Prepares the development database
+- Clears old logs and temporary files
+
+It does not start the development server; starting it is the responsibility of
+`docker compose up`.
+
+`bin/setup` does not drop or reset an existing development database. If pending
+migrations exist, it applies them, so the database schema or data may change as
+defined by those migrations.
+
+When rerun against the same code and migration state, it preserves the existing
+database state, leaves tracked files unchanged, and converges on the same
+development-ready state.
+
+### Start the application
+
+```bash
+docker compose up
+```
+
+Business screens and the root route are not implemented at this stage, so there is
+no top page. Use the health check to confirm that the application is running.
+
+```text
+http://127.0.0.1:3000/up
+```
+
+To change the host port, specify `APP_PORT`.
+
+```bash
+APP_PORT=3001 docker compose up
+```
+
+### Standard verification
+
+```bash
+docker compose run --rm app bin/verify
+```
+
+This runs the dependency check, the security checks, Ruby style, Zeitwerk, and the
+Rails test suite. It does not install dependencies, change the development database,
+or start the server.
+
+bundler-audit updates the advisory database before auditing, so network access is
+required.
+
+### Stop the application
+
+Press `Ctrl+C` when it is running in the foreground.
+To stop and remove the containers, run the following.
+
+```bash
+docker compose down
+```
+
+To remove the development data as well, add `--volumes`. **This is a destructive
+operation.** The named volumes holding the PostgreSQL data and the bundle cache are
+removed, and the contents of the development database are lost.
+
+```bash
+docker compose down --volumes
+```
+
+### Full verification
+
+`bin/verify --full` is the full P0 verification, including the Docker foundation and
+the idempotency of `bin/setup`. It is intended for maintainers and is not needed for
+regular development.
+
+Unlike the standard verification it runs directly on the host, so the following are
+required:
+
+- The Ruby version recorded in `.ruby-version` (4.0.6)
+- Bundler
+- Docker Engine or Docker Desktop, and Docker Compose v2
+- The Ruby dependencies on the host
+- An environment with Bash and common Unix command-line tools
+  (such as macOS, Linux, WSL, or Git Bash)
+
+The full verification is a Bash script and uses tools such as `awk`, `grep`, `find`,
+`mktemp`, and `tr`. Running it from native PowerShell or Command Prompt alone is out
+of scope. This requirement applies only to the full verification, not to regular
+Docker-based development.
+
+```bash
+bundle install
+bin/verify --full
+```
+
+The full verification checks that `Gemfile` and `Gemfile.lock` are unchanged in the
+working tree. Commit them first if dependencies have been updated.
 
 ## Documentation
 
