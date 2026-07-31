@@ -78,11 +78,13 @@ fi
 # lockfile を変更できない状態で依存を解決していること。
 grep -Fq "BUNDLE_FROZEN=true bundle install" Dockerfile
 
-# Node.js は P0-R1 で撤去した。開発イメージへ再導入しない。
-if grep -Eiq 'node|npm' Dockerfile; then
-  printf 'Dockerfile must not reference Node.js or npm\n' >&2
-  exit 1
-fi
+# Node.js の不在は、Dockerfile の文字列ではなくビルド済みイメージで確認する。
+#
+# 以前はここで Dockerfile 全体へ node|npm の文字列検査を行っていたが、
+# 「導入しない」と書いた説明コメントだけでも失敗する誤検出を起こしていた。
+# 契約は「開発イメージに Node.js と npm が存在しないこと」であり、
+# 「Dockerfile に文字列が現れないこと」ではない。
+# 実測は下段の動的検証が担う。
 
 # 本番向けの処理を開発用イメージへ持ち込まない。
 ! grep -Fq "assets:precompile" Dockerfile
