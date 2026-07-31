@@ -38,6 +38,19 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   LENGTH = /-?\d*\.?\d+[a-z%]*/
 
+  # CSS のキーワードは大文字小文字を区別しない。
+  # 検査もそれに合わせないと、表記を変えるだけで契約を迂回できる。
+  NON_DRAWING_OUTLINE_STYLE = /\b(?:none|hidden)\b/i
+  TRANSPARENT_COLOR = /\btransparent\b/i
+  DISABLED_OUTLINE = /outline(?:-style)?:\s*(?:none|hidden)\b/i
+  IMPORTANT_DECLARATION = /!\s*important\b/i
+
+  # 全画面へ効くフォーカス表示の基準となる selector の形。
+  GLOBAL_FOCUS_SELECTOR = /\A:where\((?<targets>.*)\):focus-visible\z/m
+
+  # 基準が最低限そろえる対象。将来これを含む形で対象を増やすことは妨げない。
+  REQUIRED_GLOBAL_FOCUS_TARGETS = %w[a button input select textarea].freeze
+
   # 現在の色は 16 進で表現している。CSS の色表現をすべて網羅するものではない。
   COLOR_LITERAL = /#[0-9a-f]{3,8}\b/i
 
@@ -162,21 +175,21 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_includes heading, "var(--content-gap)"
   end
 
-  test "キーボードフォーカスの表示を一箇所で定義する" do
-    # 部品ごとにフォーカス表示を足すのは、見え方を確認できる段階での判断とする。
-    # ここで件数を固定しておくと、増えたときに必ずこの契約を見直すことになる。
-    assert_equal 1, focus_rules.size
+  test "全画面で使うフォーカス表示の基準を一箇所で定義する" do
+    # 固定するのは全画面へ効く基準の数であり、:focus-visible 規則の総数ではない。
+    # 部品ごとにフォーカス時の見え方を足すことは、この契約の対象にしない。
+    assert_equal 1, global_focus_rules.size
   end
 
   test "フォーカスのアウトラインが描画される幅・線種・色を持つ" do
     # 規則が存在するだけでは見えることを保証しない。
     # 0 幅、描画されない線種、透明色への退行を拒否する。
-    outline = focus_properties["outline"]
+    outline = global_focus_properties["outline"]
 
-    assert outline, ":focus-visible に outline の指定がない"
+    assert outline, "フォーカスの基準に outline の指定がない"
     assert_positive_length outline, "outline"
-    assert_no_match(/\b(?:none|hidden)\b/, outline, "outline の線種が描画されない: #{outline}")
-    assert_not_includes outline, "transparent", "outline の色が透明である: #{outline}"
+    assert_no_match(NON_DRAWING_OUTLINE_STYLE, outline, "outline の線種が描画されない: #{outline}")
+    assert_no_match(TRANSPARENT_COLOR, outline, "outline の色が透明である: #{outline}")
     assert_includes(
       outline,
       "var(--color-focus-ring)",
@@ -186,15 +199,18 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   test "フォーカスのアウトラインを longhand で打ち消さない" do
     # shorthand の後ろに longhand を置くと、shorthand の値を無効化できる。
-    width = focus_properties["outline-width"]
-    style = focus_properties["outline-style"]
-    color = focus_properties["outline-color"]
+    width = global_focus_properties["outline-width"]
+    style = global_focus_properties["outline-style"]
+    color = global_focus_properties["outline-color"]
 
     assert_positive_length(width, "outline-width") if width
-    assert_no_match(/\b(?:none|hidden)\b/, style, "outline-style が描画されない: #{style}") if style
+
+    if style
+      assert_no_match(NON_DRAWING_OUTLINE_STYLE, style, "outline-style が描画されない: #{style}")
+    end
 
     if color
-      assert_not_includes color, "transparent", "outline-color が透明である: #{color}"
+      assert_no_match(TRANSPARENT_COLOR, color, "outline-color が透明である: #{color}")
       assert_includes(
         color,
         "var(--color-focus-ring)",
@@ -205,7 +221,7 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   test "フォーカス表示を打ち消さない" do
     # outline を消すと、ポインターを使わない閲覧者が現在位置を追えなくなる。
-    assert_no_match(/outline:\s*none/, style_source)
+    assert_no_match(DISABLED_OUTLINE, style_source)
   end
 
   test "form control が本文のフォントを継承する" do
@@ -232,8 +248,8 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_empty external, "外部ネットワークへの参照がある: #{external.inspect}"
   end
 
-  test "宣言の優先度を !important で上書きしない" do
-    assert_not_includes style_source, "!important"
+  test "宣言の優先度を important で上書きしない" do
+    assert_no_match(IMPORTANT_DECLARATION, style_source)
   end
 
   private
@@ -394,16 +410,30 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
       end
     end
 
-    # キーボードフォーカスの表示を定める規則。
-    # selector の部分一致ではなく、selector 単位で :focus-visible を判定する。
-    def focus_rules
-      @focus_rules ||= unconditional_rules.select do |rule|
-        rule.fetch(:selectors).any? { |selector| selector.end_with?(":focus-visible") }
+    # 全画面へ効くフォーカス表示の基準となる規則。
+    #
+    # :focus-visible を持つ規則をすべて集めると、部品ごとのフォーカス時の見え方まで
+    # 基準の一部として扱ってしまう。必須の対象をすべて含む :where() の規則だけを基準とする。
+    def global_focus_rules
+      @global_focus_rules ||= unconditional_rules.select do |rule|
+        rule.fetch(:selectors).any? { |selector| global_focus_basis?(selector) }
       end
     end
 
-    def focus_properties
-      @focus_properties ||= properties_of(join_bodies(focus_rules))
+    def global_focus_basis?(selector)
+      match = GLOBAL_FOCUS_SELECTOR.match(selector)
+
+      return false unless match
+
+      (REQUIRED_GLOBAL_FOCUS_TARGETS - split_selector_list(match[:targets])).empty?
+    end
+
+    def global_focus_properties
+      @global_focus_properties ||= begin
+        assert_equal 1, global_focus_rules.size, "フォーカス表示の基準が一意でない"
+
+        properties_of(global_focus_rules.fetch(0).fetch(:body))
+      end
     end
 
     # 指定した selector をそのまま含む、無条件の規則の宣言部。
