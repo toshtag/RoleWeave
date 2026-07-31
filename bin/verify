@@ -12,6 +12,11 @@
 # 標準モードは検証だけを行う。
 # 依存関係のインストール、lockfile の更新、development データベースの変更、
 # サーバーの起動は行わない。準備は bin/setup の責務とする。
+#
+# 各検査は関数などの間接層を挟まず、トップレベルで直接実行する。
+# 実行を共通関数へ委ねると、その関数を無処理にするだけで全検査を飛ばせてしまい、
+# 「検査が書かれていること」と「検査が実行されること」が一致しなくなる。
+# 直接実行であれば、失敗は set -e の通常の失敗伝播でそのまま非ゼロ終了になる。
 set -euo pipefail
 
 APP_ROOT="$(
@@ -33,43 +38,34 @@ if [[ "$#" -ne 0 ]]; then
   exit 1
 fi
 
-# コマンドは配列で渡し、shell の解釈を経由させない。
-run_step() {
-  local title="$1"
-  shift
-
-  printf '\n== %s ==\n' "$title"
-  "$@"
-}
-
-run_step "Ruby 依存関係" \
-  bundle check
+printf '\n== Ruby 依存関係 ==\n'
+bundle check
 
 # Rails コードの静的セキュリティ検査。
 # 実行バージョンは Gemfile.lock で固定する。新しい Brakeman の公開そのものは
 # 失敗条件にしない（bin/brakeman は --ensure-latest を付与しない）。
-run_step "セキュリティ静的解析" \
-  bin/brakeman --no-pager
+printf '\n== セキュリティ静的解析 ==\n'
+bin/brakeman --no-pager
 
 # 依存関係の既知脆弱性検査。
 #
 # advisory database を更新してから Gemfile.lock を監査する。
 # 更新には外部通信と git が必要であり、取得・更新に失敗した場合はこの検証も失敗する。
 # 古い database へ黙って退避して成功扱いにすると、検査した事実を保証できなくなる。
-run_step "依存関係の脆弱性" \
-  bin/bundler-audit check --update
+printf '\n== 依存関係の脆弱性 ==\n'
+bin/bundler-audit check --update
 
-run_step "Ruby スタイル" \
-  bin/rubocop
+printf '\n== Ruby スタイル ==\n'
+bin/rubocop
 
-run_step "test データベース準備" \
-  env RAILS_ENV=test bin/rails db:prepare
+printf '\n== test データベース準備 ==\n'
+env RAILS_ENV=test bin/rails db:prepare
 
-run_step "Zeitwerk" \
-  env RAILS_ENV=test bin/rails zeitwerk:check
+printf '\n== Zeitwerk ==\n'
+env RAILS_ENV=test bin/rails zeitwerk:check
 
 # 実行時間の長い検証を最後へ置き、静的な契約違反を先に失敗させる。
-run_step "Rails test" \
-  env RAILS_ENV=test bin/rails test
+printf '\n== Rails test ==\n'
+env RAILS_ENV=test bin/rails test
 
 printf '\n== 検証完了 ==\n'
