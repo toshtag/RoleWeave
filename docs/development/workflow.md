@@ -101,7 +101,66 @@ Issue に宣言された変更可能範囲（write scope）以外のファイル
 - 各タスクで正の検証と負の検証の両方を実施する
 - スコープ外で発見した問題は、そのタスクで実装せず、新しい Issue として登録する
 
-## 6. ADR
+## 6. セキュリティ検査
+
+### 標準検証に含まれるもの
+
+`docker compose run --rm app bin/verify` は、lint・autoload・test に加えて次を実行する。
+
+- Brakeman による Rails コードの静的セキュリティ解析
+- bundler-audit による依存関係の既知脆弱性検査
+- 監査に先立つ advisory database の更新
+
+呼び出しが削除・無効化・任意化されていないことは `scripts/verify-security` が検査し、
+その検証器自体の退行は `scripts/verify-security-self-test` が検出する。
+どちらも完全検証から実行する。
+
+### ネットワーク要件
+
+bundler-audit の advisory database 更新には、外部通信と `git` が必要となる。
+
+- 更新に失敗した場合は標準検証も失敗する
+- 取得済みの古い database へ黙ってフォールバックしない
+- オフライン環境向けに成功扱いする経路は提供しない
+
+検査したという事実を保証できない状態を、成功として記録しない。
+
+### ignore ポリシー
+
+`config/bundler-audit.yml` の `ignore` は空とする。
+
+検出された脆弱性は、原則として依存関係の更新で解消する。
+一時的な除外が必要になった場合は、別 Issue で advisory ID、影響を受けない根拠、
+恒久対応の Issue、再確認期限、承認者を明記したうえで追加する。
+説明のない除外と、実在しない placeholder は残さない。
+
+### 秘密情報検査の範囲
+
+完全検証は、次の path が Git 追跡対象になっていないことを検査する。
+
+- `.env` および `.env.*`
+- `config/master.key` と `config/**/*.key`
+- `config/credentials.yml.enc` と `config/credentials/*.yml.enc`
+
+判定するのは Git 追跡の有無であり、作業ツリー上の存在ではない。
+
+これは path ベースの制御である。次は行わない。
+
+- ファイル内容に含まれる API キーや資格情報の検出
+- Git 履歴全体の走査
+- 秘密情報検出ツール相当の網羅的な検査
+
+検査していない範囲を、検査済みとして扱わない。
+
+### バージョンの固定
+
+Brakeman と bundler-audit のバージョンは `Gemfile.lock` で固定する。
+
+- 新しいバージョンの公開そのものを検証の失敗条件にしない。
+  `bin/brakeman` は `--ensure-latest` を付与しない
+- バージョンの更新は、依存関係更新のタスクとして扱う
+
+## 7. ADR
 
 将来も参照する必要がある設計判断だけを `docs/decisions/*.md` に ADR として残す。
 実装の経緯や作業ログは ADR にしない。それらは PR と Git 履歴が保持する。
@@ -109,7 +168,7 @@ Issue に宣言された変更可能範囲（write scope）以外のファイル
 `docs/decisions/` は最初の ADR が必要になった時点で作る。
 空の将来用ディレクトリを先回りして作らない。
 
-## 7. AI Agent の扱い
+## 8. AI Agent の扱い
 
 AI Agent も人間の開発者と同じ工程を使用する。
 
