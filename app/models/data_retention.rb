@@ -70,10 +70,10 @@ class DataRetention
   def apply
     POLICIES.to_h do |table, policy|
       count = case policy.fetch(:strategy)
-              when :delete then expired(policy).delete_all
-              when :anonymize then anonymize(table, expired(policy))
-              else raise ArgumentError, "未知の扱い: #{policy.fetch(:strategy)}"
-              end
+      when :delete then expired(policy).delete_all
+      when :anonymize then anonymize(table, expired(policy))
+      else raise ArgumentError, "未知の扱い: #{policy.fetch(:strategy)}"
+      end
 
       [ table, count ]
     end
