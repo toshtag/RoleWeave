@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_195910) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_201606) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -264,12 +264,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_195910) do
 
   create_table "notifications", force: :cascade do |t|
     t.datetime "created_at", null: false
+    t.integer "email_attempts", default: 0, null: false
+    t.datetime "email_delivered_at"
+    t.text "email_error"
+    t.string "email_status", default: "pending", null: false
     t.bigint "job_application_id"
     t.string "kind", null: false
     t.bigint "message_id"
     t.datetime "read_at"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["email_status"], name: "index_notifications_on_email_status"
     t.index ["job_application_id"], name: "index_notifications_on_job_application_id"
     t.index ["message_id"], name: "index_notifications_on_message_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
