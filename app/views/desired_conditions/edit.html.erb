@@ -1,0 +1,65 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<%= form_with model: @desired_condition,
+              url: profile_desired_condition_path(locale: I18n.locale),
+              method: :patch,
+              class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :employment_type %>
+    <%#
+      雇用形態と通貨の語彙は求人と同じものを使う。
+      食い違うと、希望と求人を突き合わせられない。
+    %>
+    <%= form.select :employment_type,
+                    DesiredCondition::EMPLOYMENT_TYPES.map { |type|
+                      [ t("job_postings.employment_types.#{type}"), type ]
+                    },
+                    include_blank: t("job_postings.form.unspecified") %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :salary_currency %>
+    <%= form.select :salary_currency,
+                    DesiredCondition::SALARY_CURRENCIES.map { |currency|
+                      [ t("job_postings.salary_currencies.#{currency}"), currency ]
+                    },
+                    { include_blank: t("job_postings.form.unspecified") },
+                    aria: { describedby: field_error_id(@desired_condition, :salary_currency) } %>
+    <%= render "registrations/field_errors", record: @desired_condition, attribute: :salary_currency %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :annual_salary_min %>
+    <%= form.number_field :annual_salary_min,
+                          min: 0,
+                          aria: { describedby: field_error_id(@desired_condition, :annual_salary_min) } %>
+    <p class="form__hint"><%= t(".salary_hint") %></p>
+    <%= render "registrations/field_errors", record: @desired_condition, attribute: :annual_salary_min %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :location %>
+    <%= form.text_field :location %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :available_from %>
+    <%= form.date_field :available_from %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :note %>
+    <%= form.text_area :note,
+                       rows: 4,
+                       aria: { describedby: field_error_id(@desired_condition, :note) } %>
+    <%= render "registrations/field_errors", record: @desired_condition, attribute: :note %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>

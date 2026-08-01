@@ -12,7 +12,11 @@ class CandidateProfilesController < ApplicationController
 
     # まだ作っていない場合は、作成の画面を出す。
     # 空の詳細を見せても、次に何をすればよいかが伝わらない。
-    redirect_to new_profile_path(locale: I18n.locale) if @candidate_profile.nil?
+    return redirect_to new_profile_path(locale: I18n.locale) if @candidate_profile.nil?
+
+    # 応募に必要な項目がそろっているかの確認。画面の中で数えると、
+    # 数え方が画面側へ散らばる。
+    @completeness = ProfileCompleteness.new(@candidate_profile)
   end
 
   def new

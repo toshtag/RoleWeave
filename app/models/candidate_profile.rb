@@ -13,6 +13,7 @@ class CandidateProfile < ApplicationRecord
   has_many :work_experiences, dependent: :destroy
   has_many :educations, dependent: :destroy
   has_many :skills, dependent: :destroy
+  has_one :desired_condition, dependent: :destroy
 
   # 所属先のアカウントは、作成した後で変えられないようにする。
   # 変えられると、他人のプロフィールを自分のものにできる。

@@ -19,6 +19,13 @@ en:
         introduction: Introduction
         location: Location
         desired_occupation: Desired occupation
+      desired_condition:
+        employment_type: Preferred employment type
+        salary_currency: Currency
+        annual_salary_min: Minimum annual salary
+        location: Preferred location
+        available_from: Available from
+        note: Notes
       education:
         school_name: School
         field_of_study: Field of study
@@ -61,6 +68,10 @@ en:
           attributes:
             annual_salary_max:
               less_than_minimum: cannot be lower than the minimum annual salary
+        desired_condition:
+          attributes:
+            salary_currency:
+              incomplete_salary: and the salary must both be filled in or both be left blank
         education:
           attributes:
             ended_on:
@@ -102,6 +113,18 @@ en:
       title: Profile
       edit: Edit profile
       work_experiences: Manage work experience
+      desired_condition: Preferences
+      desired_condition_empty: No preferences have been added yet.
+      desired_condition_edit: Edit preferences
+      completeness: Items used when applying
+      completeness_complete: Everything used when applying has been filled in.
+      completeness_missing: These items have not been filled in. You can still apply without them.
+      completeness_items:
+        introduction: Introduction
+        work_experience: Work experience
+        education: Education
+        skill: Skills
+        desired_condition: Preferences
       educations: Manage education
       skills: Manage skills
     new:
@@ -111,6 +134,13 @@ en:
     edit:
       title: Edit profile
       submit: Save
+  desired_conditions:
+    edit:
+      title: Preferences
+      body: What you are looking for. Everything here is optional and can be changed later.
+      salary_hint: Enter the salary together with its currency. One without the other cannot be saved.
+      submit: Save
+      back: Back to profile
   educations:
     form:
       ended_on_hint: Leave blank if you are still enrolled.

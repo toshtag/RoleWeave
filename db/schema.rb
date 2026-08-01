@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_162754) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_164143) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -36,6 +36,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_162754) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_candidate_profiles_on_user_id", unique: true
+  end
+
+  create_table "desired_conditions", force: :cascade do |t|
+    t.integer "annual_salary_min"
+    t.date "available_from"
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.string "employment_type"
+    t.string "location"
+    t.text "note"
+    t.string "salary_currency"
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id"], name: "index_desired_conditions_on_candidate_profile_id", unique: true
   end
 
   create_table "educations", force: :cascade do |t|
@@ -174,6 +187,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_162754) do
 
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "candidate_profiles", "users"
+  add_foreign_key "desired_conditions", "candidate_profiles"
   add_foreign_key "educations", "candidate_profiles"
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "users", column: "invited_by_id", on_delete: :nullify
