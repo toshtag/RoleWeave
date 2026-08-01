@@ -6,6 +6,10 @@ require "rails/all"
 # you've limited to :test, :development, or :production.
 Bundler.require(*Rails.groups)
 
+# 例外応答は middleware stack の組み立て時に必要になり、autoload では間に合わない。
+# また middleware が保持する定数を reload の対象にしない。
+require_relative "../lib/localized_public_exceptions"
+
 module RoleWeave
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -14,7 +18,9 @@ module RoleWeave
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
-    config.autoload_lib(ignore: %w[assets tasks])
+    # localized_public_exceptions.rb は上で明示的に読み込む。autoload の対象から外し、
+    # 読み込み方が 2 通りある状態を残さない。
+    config.autoload_lib(ignore: %w[assets tasks localized_public_exceptions.rb])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -37,5 +43,19 @@ module RoleWeave
     # フォールバックを有効にすると、英語の未翻訳が日本語のまま表示され、
     # 翻訳漏れが「動いている」状態に紛れて検出できなくなる。
     config.i18n.fallbacks = false
+
+    # エラー画面も URL のロケールに従わせる。
+    #
+    # 500 は、アプリケーション側の描画に障害がある状況でも表示できる必要がある。
+    # Controller・View・アセットパイプラインを経由せず、public/ の静的 HTML を返す。
+    # 詳細は docs/decisions/0003-localized-static-error-pages.md を参照する。
+    #
+    # 環境ごとに切り替えず、すべての環境で同じ exceptions app を使う。
+    # 実際に表示するかどうかは consider_all_requests_local と show_exceptions が決める。
+    config.exceptions_app = LocalizedPublicExceptions.new(
+      public_path: Rails.public_path,
+      available_locales: config.i18n.available_locales,
+      default_locale: config.i18n.default_locale
+    )
   end
 end
