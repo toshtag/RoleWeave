@@ -16,6 +16,9 @@ en:
     attributes:
       candidate_profile:
         visibility: Visibility
+        resume: Resume
+        curriculum_vitae: Curriculum vitae
+        documents_visible: Show my resume and CV to organizations
         desired_salary_visible: Show my salary expectation to organizations
         display_name: Display name
         introduction: Introduction
@@ -70,6 +73,14 @@ en:
           attributes:
             annual_salary_max:
               less_than_minimum: cannot be lower than the minimum annual salary
+        candidate_profile:
+          attributes:
+            resume:
+              invalid_content_type: must be a PDF file
+              too_large: is too large
+            curriculum_vitae:
+              invalid_content_type: must be a PDF file
+              too_large: is too large
         desired_condition:
           attributes:
             salary_currency:
@@ -118,6 +129,7 @@ en:
       desired_condition: Preferences
       desired_condition_empty: No preferences have been added yet.
       desired_condition_edit: Edit preferences
+      documents: Attach resume and CV
       visibility: Set visibility
       completeness: Items used when applying
       completeness_complete: Everything used when applying has been filled in.
@@ -240,6 +252,14 @@ en:
         title: "Operating %{organization}"
         grant_owner: Make administrator
         back: Back to all organizations
+  profile_documents:
+    edit:
+      title: Resume and CV
+      body: PDF files only, up to %{size} each.
+      destroy: Delete
+      submit: Save
+      visibility: Set visibility
+      back: Back to profile
   profile_visibilities:
     edit:
       title: Visibility
@@ -252,6 +272,7 @@ en:
         closed: Only you can see it. Organizations cannot see it until you change this setting.
         applied_organizations: Applications do not exist yet. With this setting, no organization can see your profile for now.
         all_organizations: Anyone working for an organization that posts jobs can open your profile.
+      documents_hint: Resumes often contain details this application does not handle, such as date of birth or a photo.
       desired_salary_hint: Your salary expectation is part of what you negotiate. You can keep it hidden.
       submit: Save
       back: Back to profile

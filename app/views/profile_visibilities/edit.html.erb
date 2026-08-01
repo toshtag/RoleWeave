@@ -24,6 +24,16 @@
     <% end %>
   </fieldset>
 
+<%#
+  履歴書・職務経歴書は、このアプリケーションが持たないと決めた項目
+  （生年月日・性別・顔写真）を含みうる。公開範囲とは別に決める。
+%>
+<div class="form__field">
+  <%= form.check_box :documents_visible %>
+  <%= form.label :documents_visible %>
+  <p class="form__hint"><%= t(".documents_hint") %></p>
+</div>
+
   <div class="form__field">
     <%= form.check_box :desired_salary_visible %>
     <%= form.label :desired_salary_visible %>

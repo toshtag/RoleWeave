@@ -1,0 +1,43 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body", size: number_to_human_size(CandidateProfile::DOCUMENT_MAX_BYTE_SIZE)) %></p>
+
+<%= form_with model: @candidate_profile,
+              url: profile_documents_path(locale: I18n.locale),
+              method: :patch,
+              class: "form" do |form| %>
+  <% CandidateProfile::DOCUMENT_KINDS.each do |kind| %>
+    <% attachment = @candidate_profile.public_send(kind) %>
+    <div class="form__field">
+      <%= form.label kind %>
+
+      <%#
+        すでに添付があれば、いま何が入っているかを先に示す。
+        入力欄だけを出すと、差し替えなのか新規なのかが分からない。
+      %>
+      <% if attachment.attached? %>
+        <p>
+          <%= link_to attachment.filename.to_s,
+                      profile_document_path(locale: I18n.locale, kind: kind) %>
+          （<%= number_to_human_size(attachment.byte_size) %>）
+        </p>
+        <%= button_to t(".destroy"),
+                      profile_document_path(locale: I18n.locale, kind: kind),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      <% end %>
+
+      <%= form.file_field kind,
+                          accept: CandidateProfile::DOCUMENT_CONTENT_TYPE,
+                          aria: { describedby: field_error_id(@candidate_profile, kind) } %>
+      <%= render "registrations/field_errors", record: @candidate_profile, attribute: kind %>
+    </div>
+  <% end %>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p><%= link_to t(".visibility"), edit_profile_visibility_path(locale: I18n.locale) %></p>
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>
