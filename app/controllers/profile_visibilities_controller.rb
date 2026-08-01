@@ -19,6 +19,6 @@ class ProfileVisibilitiesController < ApplicationController
 
   private
     def visibility_params
-      params.expect(candidate_profile: %i[visibility desired_salary_visible])
+      params.expect(candidate_profile: %i[visibility desired_salary_visible documents_visible scout_opt_in])
     end
 end

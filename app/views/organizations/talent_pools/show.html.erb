@@ -1,0 +1,39 @@
+<% content_for :title, "#{@talent_pool.name} | #{t("application.name")}" %>
+
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= @talent_pool.name %></h1>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<% if @members.any? %>
+  <ul>
+    <% @members.each do |member| %>
+      <li>
+        <%= member.candidate_profile.display_name %>
+        <%= member.candidate_profile.location %>
+        <%= t(".added_by", email_address: member.added_by&.email_address || t(".removed_account")) %>
+
+        <%= link_to t(".show"),
+                    organization_candidate_profile_path(locale: I18n.locale,
+                                                        organization_id: @organization,
+                                                        id: member.candidate_profile) %>
+        <%= button_to t(".destroy"),
+                      organization_talent_pool_member_path(locale: I18n.locale,
+                                                           organization_id: @organization,
+                                                           talent_pool_id: @talent_pool, id: member),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p>
+  <%= link_to t(".back"),
+              organization_talent_pools_path(locale: I18n.locale, organization_id: @organization) %>
+</p>

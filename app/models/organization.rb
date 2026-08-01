@@ -25,6 +25,9 @@ class Organization < ApplicationRecord
   # 応募と取消の記録。応募そのものが消えても残す。
   has_many :job_application_events, dependent: :destroy
 
+  # タレントプール。組織を消したら残さない。
+  has_many :talent_pools, dependent: :destroy
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 

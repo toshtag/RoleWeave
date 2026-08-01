@@ -52,6 +52,7 @@ en:
         curriculum_vitae: Curriculum vitae
         documents_visible: Show my resume and CV to organizations
         desired_salary_visible: Show my salary expectation to organizations
+        scout_opt_in: Let organizations find and contact me
         display_name: Display name
         introduction: Introduction
         location: Location
@@ -375,6 +376,7 @@ en:
           job_application_viewed: Viewed an application
           candidate_document_downloaded: Downloaded an attachment
           personal_data_exported: Exported their own data
+          candidate_search_performed: Searched for candidates
         removed_account: deleted account
         empty: No records yet.
         organizations: Back to organizations
@@ -418,6 +420,7 @@ en:
         closed: Only you can see it. Organizations cannot see it until you change this setting.
         applied_organizations: Applications do not exist yet. With this setting, no organization can see your profile for now.
         all_organizations: Anyone working for an organization that posts jobs can open your profile.
+      scout_hint: When enabled, organizations can find you in candidate search. This has no effect while your visibility is set to no one.
       documents_hint: Resumes often contain details this application does not handle, such as date of birth or a photo.
       desired_salary_hint: Your salary expectation is part of what you negotiate. You can keep it hidden.
       submit: Save
@@ -440,6 +443,39 @@ en:
         save: Save this job posting
         back: Back to job postings
   organizations:
+    candidate_searches:
+      index:
+        title: Find candidates
+        body: Only candidates who opted in to being contacted appear here. Others do not exist on this screen.
+        skill: Skill
+        submit: Filter
+        show: View profile
+        add_to: Add to %{name}
+        empty: No candidates match these conditions.
+    talent_pools:
+      index:
+        title: Talent pools
+        body: A place to keep candidates. Pools are shared within the organization.
+        name: Pool name
+        create: Create
+        members:
+          one: "%{count} person"
+          other: "%{count} people"
+        destroy: Delete
+        empty: No pools yet.
+        search: Find candidates
+      create:
+        invalid: Could not create. The name is taken, or you have reached the limit.
+      show:
+        added_by: "(added by %{email_address})"
+        removed_account: deleted account
+        show: View profile
+        destroy: Remove from pool
+        empty: No candidates in this pool yet.
+        back: Back to talent pools
+    talent_pool_members:
+      create:
+        invalid: Could not add. The candidate is already in this pool.
     application_reviews:
       create:
         invalid: The review could not be saved. Enter a rating or a comment.
@@ -502,6 +538,8 @@ en:
       empty: You do not belong to any organization yet.
       new: Create an organization
       members: View members
+      candidate_searches: Find candidates
+      talent_pools: Talent pools
       job_postings: View job postings
     new:
       title: Create an organization

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_230409) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_231904) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -91,9 +91,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_230409) do
     t.boolean "documents_visible", default: false, null: false
     t.text "introduction"
     t.string "location"
+    t.boolean "scout_opt_in", default: false, null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.string "visibility", default: "closed", null: false
+    t.index ["scout_opt_in"], name: "index_candidate_profiles_on_scout_opt_in"
     t.index ["user_id"], name: "index_candidate_profiles_on_user_id", unique: true
     t.index ["visibility"], name: "index_candidate_profiles_on_visibility"
   end
@@ -346,6 +348,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_230409) do
     t.index ["candidate_profile_id"], name: "index_skills_on_candidate_profile_id"
   end
 
+  create_table "talent_pool_members", force: :cascade do |t|
+    t.bigint "added_by_id"
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "talent_pool_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["added_by_id"], name: "index_talent_pool_members_on_added_by_id"
+    t.index ["candidate_profile_id"], name: "index_talent_pool_members_on_candidate_profile_id"
+    t.index ["talent_pool_id", "candidate_profile_id"], name: "idx_on_talent_pool_id_candidate_profile_id_0850361836", unique: true
+    t.index ["talent_pool_id"], name: "index_talent_pool_members_on_talent_pool_id"
+  end
+
+  create_table "talent_pools", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "organization_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "name"], name: "index_talent_pools_on_organization_id_and_name", unique: true
+    t.index ["organization_id"], name: "index_talent_pools_on_organization_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "confirmed_at"
     t.datetime "created_at", null: false
@@ -414,5 +437,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_230409) do
   add_foreign_key "saved_searches", "candidate_profiles"
   add_foreign_key "sessions", "users"
   add_foreign_key "skills", "candidate_profiles"
+  add_foreign_key "talent_pool_members", "candidate_profiles"
+  add_foreign_key "talent_pool_members", "talent_pools"
+  add_foreign_key "talent_pool_members", "users", column: "added_by_id", on_delete: :nullify
+  add_foreign_key "talent_pools", "organizations"
   add_foreign_key "work_experiences", "candidate_profiles"
 end

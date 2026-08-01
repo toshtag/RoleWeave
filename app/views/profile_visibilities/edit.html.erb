@@ -41,6 +41,16 @@
     <p class="form__hint"><%= t(".desired_salary_hint") %></p>
   </div>
 
+<%#
+  企業から探される許可。既定は「許可しない」である。
+  応募先に見せることと、一覧に並ぶことは別の同意である（ADR 0030、ADR 0055）。
+%>
+<div class="form__field">
+  <%= form.check_box :scout_opt_in %>
+  <%= form.label :scout_opt_in %>
+  <p class="form__hint"><%= t(".scout_hint") %></p>
+</div>
+
   <%= form.submit t(".submit"), class: "button" %>
 <% end %>
 

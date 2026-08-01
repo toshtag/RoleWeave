@@ -36,6 +36,9 @@ class CandidateProfile < ApplicationRecord
   has_many :saved_job_postings, dependent: :destroy
   has_many :saved_searches, dependent: :destroy
 
+  # タレントプールへの登録。プロフィールを消したら残さない。
+  has_many :talent_pool_members, dependent: :destroy
+
   # 履歴書と職務経歴書。1 つずつだけ持つ。差し替えたら古いファイルは残さない。
   has_one_attached :resume
   has_one_attached :curriculum_vitae
@@ -68,6 +71,13 @@ class CandidateProfile < ApplicationRecord
     where(visibility: "all_organizations")
       .or(where(visibility: "applied_organizations", id: applied_profile_ids(organization)))
   }
+
+  # 企業が探せるプロフィール。
+  #
+  # **受信を許可した候補者だけ**を対象にする。
+  # 公開範囲が closed の場合は、許可していても対象にしない。
+  # 一覧に並ぶことは、応募先に見せることとは別の同意である（ADR 0030、ADR 0055）。
+  scope :searchable, -> { where(scout_opt_in: true).where.not(visibility: "closed") }
 
   # その組織の求人へ応募中のプロフィールの id。
   def self.applied_profile_ids(organization)

@@ -49,6 +49,12 @@ Rails.application.routes.draw do
       resources :memberships, only: %i[index update]
       # 求職者のプロフィールの詳細。一覧は持たない。
       # 一覧があること自体が、公開範囲を「探されてよい」という意味へ変えてしまう。
+      # 受信を許可した候補者の検索とタレントプール。
+      # 詳細は docs/decisions/0055-candidate-search.md を参照する。
+      resources :candidate_searches, only: :index, module: :organizations
+      resources :talent_pools, only: %i[index show create destroy], module: :organizations do
+        resources :members, only: %i[create destroy], controller: "talent_pool_members"
+      end
       resources :candidate_profiles, only: :show, module: :organizations do
         # 添付は、公開範囲と添付の設定の両方が開いているときだけ取れる。
         get "documents/:kind" => "candidate_profile_documents#show", as: :document
