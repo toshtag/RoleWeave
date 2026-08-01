@@ -13,6 +13,9 @@ class Organizations::JobApplicationsController < ApplicationController
 
   def index
     @job_applications = @job_posting.job_applications.recent
+
+    # 応募そのものが消えても、記録は残る。両方を出す。
+    @job_application_events = @job_posting.job_application_events.recent.limit(50)
   end
 
   def show

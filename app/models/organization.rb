@@ -22,6 +22,9 @@ class Organization < ApplicationRecord
   # 履歴は組織を削除しても残す。参照は外部キー側で nullify する。
   has_many :membership_events, dependent: nil
 
+  # 応募と取消の記録。応募そのものが消えても残す。
+  has_many :job_application_events, dependent: :destroy
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 
