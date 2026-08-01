@@ -219,6 +219,7 @@ bin/verify --full
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
 - [コーディングスタイル](docs/development/coding-style.md) — 実装中に参照する言語・コメント・構造の要点
 - [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
+- [ファイルの保存先](docs/development/file-storage.md) — 添付の保存先と自己ホストでの運用
 - [横断品質要件](docs/quality/cross-cutting-requirements.md) — 各機能フェーズで同時に満たす品質要件
 
 ## 開発の進め方

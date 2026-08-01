@@ -47,7 +47,7 @@ Rails.application.routes.draw do
       # 一覧があること自体が、公開範囲を「探されてよい」という意味へ変えてしまう。
       resources :candidate_profiles, only: :show, module: :organizations do
         # 添付は、公開範囲と添付の設定の両方が開いているときだけ取れる。
-        get "documents/:kind" => "organizations/candidate_profile_documents#show", as: :document
+        get "documents/:kind" => "candidate_profile_documents#show", as: :document
       end
       resources :job_postings, only: %i[index new create edit update] do
         # 公開されたときと同じ見え方の確認。公開側の経路とは別に置く。
@@ -91,9 +91,11 @@ Rails.application.routes.draw do
       # 履歴書・職務経歴書。種類はパスへ置き、決まった 2 つだけを受け取る。
       # 詳細は docs/decisions/0031-profile-documents.md を参照する。
       resource :documents, only: %i[edit update], controller: "profile_documents"
-      get "documents/:kind" => "profile_documents#show", as: :document
-      delete "documents/:kind" => "profile_documents#destroy"
     end
+
+    # 添付そのものの経路。種類をパスへ置く。
+    get "profile/documents/:kind" => "profile_documents#show", as: :profile_document
+    delete "profile/documents/:kind" => "profile_documents#destroy"
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
