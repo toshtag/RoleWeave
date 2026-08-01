@@ -156,6 +156,27 @@ docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com
 運営者は、すべての組織の一覧と、組織の管理者を立て直す操作だけを行えます。
 詳細は [`docs/decisions/0015-operator-role.md`](docs/decisions/0015-operator-role.md) を参照してください。
 
+### 負荷試験を実行する
+
+データを作ってから測ります。外部の負荷ツールは要りません。
+
+```bash
+docker compose run --rm app bin/rails "roleweave:load:seed[5000]"
+```
+
+```bash
+docker compose run --rm app bin/rails "roleweave:load:measure[20]"
+```
+
+測り終えたら消します。
+
+```bash
+docker compose run --rm app bin/rails roleweave:load:clean
+```
+
+実測値は [`docs/performance/load-test-results.md`](docs/performance/load-test-results.md)、
+見積もりは [`docs/performance/capacity-model.md`](docs/performance/capacity-model.md) にあります。
+
 ### 保持期限を適用する
 
 保持期限を過ぎたデータを削除・匿名化します。自動では実行しません。
@@ -243,6 +264,8 @@ bin/verify --full
 - [脅威モデル](docs/security/threat-model.md) — 何から守り、何を受け入れているか
 - [セキュリティ報告手順](SECURITY.md) — 問題を見つけたときの連絡先
 - [バックアップと復元](docs/development/backup-and-restore.md) — データベースと添付を組で扱う
+- [負荷試験の実測値](docs/performance/load-test-results.md) — 測った値だけを書く
+- [容量モデル](docs/performance/capacity-model.md) — 前提を明示した見積もり
 
 ## 開発の進め方
 
