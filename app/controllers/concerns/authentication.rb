@@ -69,8 +69,13 @@ module Authentication
       render "confirmations/pending", status: :forbidden
     end
 
+    # 覚えるのは、たどり直しても副作用のない要求だけとする。
+    # HEAD は GET と同じ route へ届くが request.get? は false になる。
+    # 片方だけを見ると、経路によって覚える・覚えないが分かれる。
     def store_return_to
-      session[RETURN_TO_KEY] = request.fullpath if request.get?
+      return unless request.get? || request.head?
+
+      session[RETURN_TO_KEY] = request.fullpath
     end
 
     # 覚えていた戻り先を 1 度だけ返す。
