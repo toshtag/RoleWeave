@@ -25,6 +25,9 @@ class User < ApplicationRecord
   # 保存だけを正規化すると、find_by へ渡した値との比較が表記に依存する。
   # normalizes は検索条件にも同じ変換を適用するため、
   # 「登録できるが、そのままでは見つからない」状態が生まれない。
+  # アカウントを削除したら、そのアカウントのログイン状態も残さない。
+  has_many :sessions, dependent: :destroy
+
   normalizes :email_address, with: ->(email_address) { email_address.strip.downcase }
 
   # パスワードは復元できない形で保存する。
