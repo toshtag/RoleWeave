@@ -29,6 +29,7 @@ en:
   activerecord:
     models:
       candidate_profile: Profile
+      job_application: Application
       job_posting: Job posting
       invitation: Invitation
       organization: Organization
@@ -90,6 +91,12 @@ en:
         password_confirmation: Password confirmation
     errors:
       models:
+        job_application:
+          attributes:
+            job_posting:
+              not_published: is not accepting applications
+            candidate_profile_id:
+              taken: has already applied to this job posting
         job_posting:
           attributes:
             annual_salary_max:
@@ -312,6 +319,7 @@ en:
         minimum_salary: Minimum annual salary
         submit: Filter
       show:
+        apply: Apply to this job posting
         back: Back to job postings
   organizations:
     index:
@@ -323,6 +331,16 @@ en:
     new:
       title: Create an organization
       submit: Create organization
+  job_applications:
+    new:
+      title: Apply to %{title}
+      body: Your profile as it stands now will be sent to %{organization}.
+      sent: What will be sent
+      desired_salary_included: Your salary expectation will be included. Turn it off in your visibility settings to leave it out.
+      desired_salary_excluded: Your salary expectation will not be included. Turn it on in your visibility settings to include it.
+      snapshot_notice: What you send is kept as it was at the time. Later changes to your profile do not change this application.
+      submit: Send this application
+      back: Back to the job posting
   job_postings:
     index:
       title: "Job postings of %{organization}"
