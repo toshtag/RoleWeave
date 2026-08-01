@@ -7,8 +7,8 @@
     <% @organizations.each do |organization| %>
       <li>
         <%= organization.name %>
-        <%= link_to t(".invite"),
-                    new_organization_invitation_path(locale: I18n.locale, organization_id: organization) %>
+        <%= link_to t(".members"),
+                    organization_memberships_path(locale: I18n.locale, organization_id: organization) %>
       </li>
     <% end %>
   </ul>

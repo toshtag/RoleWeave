@@ -21,6 +21,13 @@ ja:
         email_address: メールアドレス
         password: パスワード
         password_confirmation: パスワード（確認用）
+    errors:
+      models:
+        membership:
+          attributes:
+            role:
+              self_change: は自分では変更できません
+              last_owner: は組織の最後の管理者から変更できません
   application:
     name: RoleWeave
     skip_to_content: 本文へ移動
@@ -76,11 +83,16 @@ ja:
       title: 所属する組織
       empty: まだどの組織にも所属していません。
       new: 組織を作成する
-      invite: メンバーを招待する
+      members: メンバーを見る
     new:
       title: 組織の作成
       submit: 組織を作成する
   memberships:
+    index:
+      title: "%{organization} のメンバー"
+      change_role: 役割を変更する
+      submit: 変更する
+      invite: メンバーを招待する
     roles:
       owner: 管理者
       member: メンバー
