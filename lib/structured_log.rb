@@ -41,6 +41,16 @@ class StructuredLog
     }.compact
   end
 
+  # 遅い問い合わせ。値（bind）は出さない。個人情報が入りうる。
+  def self.slow_query(payload, duration:)
+    {
+      event: "slow_query",
+      name: payload[:name],
+      duration_ms: round(duration),
+      sql: payload[:sql]
+    }.compact
+  end
+
   # query string は出さない。絞り込みの条件に個人情報が入りうる。
   def self.path_without_query(path)
     path&.split("?")&.first
