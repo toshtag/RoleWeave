@@ -116,6 +116,19 @@ body {
   padding-inline: var(--page-gutter);
 }
 
+/*
+ * ヘッダーはブランドと言語切替を横に並べる。狭い画面で 1 行へ収まらないときは
+ * 折り返す。1 行を維持すると、内容がヘッダーからはみ出して横スクロールが生まれる。
+ * 幅と余白は上の共有規則が決めるため、ここでは並べ方だけを指定する。
+ */
+.site-header__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--content-gap);
+}
+
 .site-header__brand {
   /* 本文中のリンクと役割が異なるため、色ではなく文字の強さで示す。 */
   color: var(--color-text);
@@ -125,6 +138,27 @@ body {
 
 .site-header__brand:hover {
   text-decoration: underline;
+}
+
+/*
+ * 言語切替。
+ *
+ * 選択肢が一覧であることは HTML が伝えるため、既定の記号と余白は取り除く。
+ * 言語名は言語ごとに長さが異なる。行を固定せず、収まらないときは折り返す。
+ */
+.language-switcher__list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--content-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.language-switcher__current {
+  /* 現在の言語はリンクではないため、リンクとの色の違いだけでは区別の根拠にならない。 */
+  font-weight: 700;
 }
 
 main {

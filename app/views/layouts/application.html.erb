@@ -33,6 +33,32 @@
         <%= link_to t("application.name"),
                     localized_root_path(locale: I18n.locale),
                     class: "site-header__brand" %>
+
+        <%#
+          表示言語の正本は URL とする。Cookie や Accept-Language で切り替えると、
+          閲覧者が見ている URL と表示言語が一致しない状態が生まれる。
+          選択肢は I18n.available_locales から導く。ここへ言語を書き並べると、
+          対応言語が増えたときに、切替へ現れない言語ができる。
+        %>
+        <nav class="language-switcher" aria-label="<%= t("application.language_switcher.label") %>">
+          <ul class="language-switcher__list">
+            <% I18n.available_locales.each do |locale| %>
+              <% language_name = t("application.language_switcher.languages.#{locale}") %>
+              <li class="language-switcher__item">
+                <% if locale == I18n.locale %>
+                  <%# 現在地への自己リンクは、たどっても何も起きない導線になる。 %>
+                  <span class="language-switcher__current" lang="<%= locale %>" aria-current="page"><%= language_name %></span>
+                <% else %>
+                  <%= link_to language_name,
+                              localized_root_path(locale: locale),
+                              class: "language-switcher__link",
+                              lang: locale,
+                              hreflang: locale %>
+                <% end %>
+              </li>
+            <% end %>
+          </ul>
+        </nav>
       </div>
     </header>
 

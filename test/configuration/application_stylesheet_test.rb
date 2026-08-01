@@ -218,6 +218,38 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     end
   end
 
+  test "ヘッダーの中身が狭い画面で折り返せる" do
+    # ブランドと言語切替を 1 行へ収めきれない幅でも、横スクロールを発生させない。
+    header = properties_for(".site-header__inner")
+
+    assert_equal "flex", header["display"]
+    assert_equal "wrap", header["flex-wrap"]
+    assert_equal "center", header["align-items"]
+    assert_includes header["gap"].to_s, "var(--content-gap)"
+    assert_nil header["min-width"], ".site-header__inner に固定の最小幅がある"
+  end
+
+  test "言語切替を折り返せるリストとして並べる" do
+    # 一覧としての意味は HTML が持つ。ここでは既定の記号と余白だけを取り除く。
+    list = properties_for(".language-switcher__list")
+
+    assert_equal "flex", list["display"]
+    assert_equal "wrap", list["flex-wrap"]
+    assert_equal "none", list["list-style"]
+    assert_equal "0", list["margin"]
+    assert_equal "0", list["padding"]
+    assert_includes list["gap"].to_s, "var(--content-gap)"
+    assert_nil list["min-width"], ".language-switcher__list に固定の最小幅がある"
+  end
+
+  test "現在の表示言語を視覚的にも区別する" do
+    # 現在の言語はリンクではないため、リンク色との差だけでは区別の根拠にならない。
+    # 強調の度合いは見た目の調整に委ね、区別する指定があることだけを固定する。
+    weight = properties_for(".language-switcher__current")["font-weight"]
+
+    assert weight, "現在の表示言語に視覚的な区別がない"
+  end
+
   test "ヘッダーとフッターの境界線の色をデザイン変数から設定する" do
     # 線を引く辺と太さは見た目の調整に委ね、色の正本だけを固定する。
     %w[.site-header .site-footer].each do |selector|
