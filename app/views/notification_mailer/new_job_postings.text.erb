@@ -1,0 +1,9 @@
+<%#
+  件数だけを伝える。求人の中身は書かない。
+  メールは転送も保存もされる経路であり、何を探しているかが残り続ける。
+%><%= t(".body", name: @saved_search&.name, count: @count) %>
+
+<%= @jobs_url %>
+
+--
+<%= t("application.name") %>

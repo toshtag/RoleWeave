@@ -60,6 +60,19 @@
   <%= form.submit t(".submit"), class: "button" %>
 <% end %>
 
+<%#
+  いまの条件を保存する。検索の条件をそのまま渡す。
+  ログインしていない場合はログインへ送られる。
+%>
+<%= form_with url: profile_saved_searches_path(locale: I18n.locale), method: :post, class: "form" do |form| %>
+  <% @search.each do |key, value| %>
+    <%= form.hidden_field key, value: value %>
+  <% end %>
+  <%= form.label :name, t(".save_search_name") %>
+  <%= form.text_field :name %>
+  <%= form.submit t(".save_search"), class: "button button--quiet" %>
+<% end %>
+
 <% if @job_postings.any? %>
   <ul class="job-posting-list">
     <% @job_postings.each do |job_posting| %>

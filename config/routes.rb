@@ -124,6 +124,11 @@ Rails.application.routes.draw do
       # 自分の応募。応募そのものの経路（求人の下）とは分けて置く。
       # 詳細は docs/decisions/0035-application-withdrawal.md を参照する。
       resources :applications, only: %i[index show destroy], controller: "candidate_job_applications"
+
+      # 保存した求人と検索条件。
+      # 詳細は docs/decisions/0054-saved-searches.md を参照する。
+      resources :saved_jobs, only: %i[index create destroy], controller: "saved_job_postings"
+      resources :saved_searches, only: %i[index create update destroy]
     end
 
     # 添付そのものの経路。種類をパスへ置く。

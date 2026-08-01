@@ -23,5 +23,13 @@
 <p>
   <%= link_to t(".apply"), new_public_job_posting_application_path(locale: I18n.locale, public_job_posting_id: @job_posting) %>
 </p>
+<%# 気になる求人を保存する。ログインしていない場合はログインへ送られる。 %>
+<p>
+  <%= button_to t(".save"),
+                profile_saved_jobs_path(locale: I18n.locale, job_posting_id: @job_posting),
+                method: :post,
+                class: "button button--quiet" %>
+</p>
+
 
 <p><%= link_to t(".back"), public_job_postings_path(locale: I18n.locale) %></p>

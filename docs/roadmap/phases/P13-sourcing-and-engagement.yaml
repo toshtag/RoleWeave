@@ -3,7 +3,7 @@ name: Sourcing and Engagement
 weight: 8
 confidence: low
 risk: medium
-status: planned
+status: in_progress
 depends_on:
   - P12
 objective: |-

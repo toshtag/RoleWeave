@@ -1,0 +1,41 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<p><%= t(".body", count: SavedSearch::MAX_PER_PROFILE) %></p>
+
+<% if @saved_searches.any? %>
+  <ul>
+    <% @saved_searches.each do |saved_search| %>
+      <li>
+        <%= link_to saved_search.name,
+                    public_job_postings_path(locale: I18n.locale, **saved_search.conditions.symbolize_keys) %>
+        <%#
+          何を条件にしているかを出す。名前だけでは、後から分からなくなる。
+        %>
+        <%= saved_search.conditions.map { |key, value| "#{key}: #{value}" }.join(" / ") %>
+
+        <%= form_with url: profile_saved_search_path(locale: I18n.locale, id: saved_search),
+                      method: :patch, class: "form" do |form| %>
+          <%= form.check_box :notify, checked: saved_search.notify %>
+          <%= form.label :notify, t(".notify") %>
+          <%= form.submit t(".save_notify"), class: "button button--quiet" %>
+        <% end %>
+
+        <%= button_to t(".destroy"),
+                      profile_saved_search_path(locale: I18n.locale, id: saved_search),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".search"), public_job_postings_path(locale: I18n.locale) %></p>
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>

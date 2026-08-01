@@ -45,6 +45,8 @@ class DataRetention
     "educations" => "プロフィールに従属する",
     "skills" => "プロフィールに従属する",
     "desired_conditions" => "プロフィールに従属する",
+    "saved_job_postings" => "求職者が自分で保存したもの。プロフィールの削除で消える",
+    "saved_searches" => "求職者が自分で保存したもの。プロフィールの削除で消える",
     "organizations" => "組織の削除の経路がまだない",
     "memberships" => "現在の所属であり、期限で消す対象ではない",
     "invitations" => "受諾されない招待は token の期限で無効になる",

@@ -205,6 +205,8 @@ ja:
       documents: 履歴書・職務経歴書を添付する
       visibility: 公開範囲を設定する
       applications: 応募の一覧を見る
+      saved_jobs: 保存した求人を見る
+      saved_searches: 保存した検索条件を見る
       export: 自分のデータをダウンロードする
       destroy: プロフィールを削除する
       destroy_confirm: プロフィールと、職歴・学歴・スキル・希望条件・添付を削除します。アカウントは残ります。
@@ -340,6 +342,7 @@ ja:
       kinds:
         message_received: 新しいメッセージがあります
         stage_changed: 選考の状況が変わりました
+      new_job_postings: 新しい求人があります
       open: 開く
       empty: まだ通知はありません。
   notification_settings:
@@ -351,6 +354,13 @@ ja:
       submit: 保存する
       back: アカウント情報へ戻る
   notification_mailer:
+    new_job_postings:
+      subject:
+        one: 新しい求人が %{count} 件あります
+        other: 新しい求人が %{count} 件あります
+      body:
+        one: "保存した検索条件「%{name}」に一致する求人が %{count} 件公開されました。"
+        other: "保存した検索条件「%{name}」に一致する求人が %{count} 件公開されました。"
     message_received:
       subject: 新しいメッセージがあります
       body: 応募についての新しいメッセージが届いています。内容は次の画面で確認できます。
@@ -425,8 +435,11 @@ ja:
         any_currency: 通貨を指定しない
         minimum_salary: 最低年収
         submit: 絞り込む
+        save_search: この条件を保存する
+        save_search_name: 条件の名前
       show:
         apply: この求人へ応募する
+        save: この求人を保存する
         back: 求人の一覧へ
   organizations:
     application_reviews:
@@ -603,6 +616,28 @@ ja:
       label: ページ送り
       previous: 前のページ
       next: 次のページ
+  saved_job_postings:
+    index:
+      title: 保存した求人
+      no_longer_published: （現在は公開されていません）
+      destroy: 保存を外す
+      empty: まだ保存した求人はありません。
+      back: プロフィールへ戻る
+    create:
+      invalid: 保存できませんでした。すでに保存しているか、保存できる件数を超えています。
+  saved_searches:
+    index:
+      title: 保存した検索条件
+      body: 最大 %{count} 件まで保存できます。新着の通知を受け取るかどうかは条件ごとに決められます。
+      notify: 新着を通知する
+      save_notify: 通知の設定を保存する
+      destroy: 削除する
+      empty: まだ保存した検索条件はありません。
+      search: 求人を探す
+      back: プロフィールへ戻る
+    create:
+      default_name: 保存した検索条件
+      invalid: 保存できませんでした。保存できる件数を超えているか、条件が正しくありません。
   sessions:
     new:
       title: ログイン

@@ -205,6 +205,8 @@ en:
       documents: Attach resume and CV
       visibility: Set visibility
       applications: View my applications
+      saved_jobs: View saved job postings
+      saved_searches: View saved searches
       export: Download my data
       destroy: Delete my profile
       destroy_confirm: This deletes your profile along with work experience, education, skills, preferences and attachments. Your account stays.
@@ -338,6 +340,7 @@ en:
       kinds:
         message_received: You have a new message
         stage_changed: The status of your application changed
+      new_job_postings: New job postings match your saved search
       open: Open
       empty: No notifications yet.
   notification_settings:
@@ -349,6 +352,13 @@ en:
       submit: Save
       back: Back to account
   notification_mailer:
+    new_job_postings:
+      subject:
+        one: "%{count} new job posting matches your saved search"
+        other: "%{count} new job postings match your saved search"
+      body:
+        one: "%{count} job posting matching your saved search \"%{name}\" has been published."
+        other: "%{count} job postings matching your saved search \"%{name}\" have been published."
     message_received:
       subject: You have a new message
       body: "There is a new message about an application. You can read it here:"
@@ -423,8 +433,11 @@ en:
         any_currency: Any currency
         minimum_salary: Minimum annual salary
         submit: Filter
+        save_search: Save this search
+        save_search_name: Name
       show:
         apply: Apply to this job posting
+        save: Save this job posting
         back: Back to job postings
   organizations:
     application_reviews:
@@ -601,6 +614,28 @@ en:
       label: Pagination
       previous: Previous page
       next: Next page
+  saved_job_postings:
+    index:
+      title: Saved job postings
+      no_longer_published: (no longer published)
+      destroy: Remove
+      empty: You have not saved any job postings yet.
+      back: Back to profile
+    create:
+      invalid: Could not save. It is already saved, or you have reached the limit.
+  saved_searches:
+    index:
+      title: Saved searches
+      body: You can save up to %{count}. Notifications can be turned on or off per search.
+      notify: Notify me about new postings
+      save_notify: Save notification setting
+      destroy: Delete
+      empty: You have not saved any searches yet.
+      search: Find jobs
+      back: Back to profile
+    create:
+      default_name: Saved search
+      invalid: Could not save. You have reached the limit, or the conditions are not valid.
   sessions:
     new:
       title: Sign in
