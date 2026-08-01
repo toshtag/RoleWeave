@@ -14,3 +14,6 @@
     </li>
   <% end %>
 </ul>
+
+<%# 配信に失敗した通知。運営の側でしか気付けない。 %>
+<p><%= link_to t(".notification_deliveries"), operator_notification_deliveries_path(locale: I18n.locale) %></p>

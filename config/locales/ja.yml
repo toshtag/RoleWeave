@@ -358,9 +358,20 @@ ja:
       subject: 選考の状況が変わりました
       body: 応募の選考の状況が変わりました。内容は次の画面で確認できます。
   operator:
+    notification_deliveries:
+      index:
+        title: 配信に失敗した通知
+        body: メールの送信に失敗した通知です。原因を確かめてから再送してください。
+        attempts:
+          one: "試行 %{count} 回"
+          other: "試行 %{count} 回"
+        resend: 再送する
+        empty: 失敗した通知はありません。
+        organizations: 組織の一覧へ
     organizations:
       index:
         title: すべての組織
+        notification_deliveries: 配信に失敗した通知を見る
         owner_count: "管理者 %{count} 人"
       show:
         title: "%{organization} の運営"

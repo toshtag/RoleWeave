@@ -4,7 +4,9 @@ require "test_helper"
 #
 # 検証対象は、誰に何が作られるか、メールの設定が何を止めるかである。
 class NotificationTest < ActionDispatch::IntegrationTest
-  include ActionMailer::TestHelper
+  # 通知のメールは専用のジョブ（NotificationEmailJob）で送る。
+  # 積まれたことは、そのジョブの数で数える。
+  include ActiveJob::TestHelper
 
   PASSWORD = "correct horse battery".freeze
 
@@ -60,7 +62,7 @@ class NotificationTest < ActionDispatch::IntegrationTest
     # 通知そのものは作られる。止まるのはメールだけである。
     @candidate.update!(email_notifications: false)
 
-    assert_no_enqueued_emails do
+    assert_no_enqueued_jobs only: NotificationEmailJob do
       assert_difference -> { Notification.where(kind: "stage_changed").count }, 1 do
         @job_application.move_to("interviewing", changed_by: @owner)
       end
@@ -68,7 +70,7 @@ class NotificationTest < ActionDispatch::IntegrationTest
   end
 
   test "選考の状況の通知は、受け取りが有効ならメールが積まれる" do
-    assert_enqueued_emails 1 do
+    assert_enqueued_jobs 1, only: NotificationEmailJob do
       @job_application.move_to("interviewing", changed_by: @owner)
     end
   end
@@ -81,7 +83,7 @@ class NotificationTest < ActionDispatch::IntegrationTest
     @owner.update!(email_notifications: false)
     @member.update!(email_notifications: false)
 
-    assert_no_enqueued_emails do
+    assert_no_enqueued_jobs only: NotificationEmailJob do
       assert_difference -> { Notification.count }, 2 do
         @conversation.messages.create!(sender: @candidate, body: "応募者からの連絡")
       end
@@ -91,7 +93,7 @@ class NotificationTest < ActionDispatch::IntegrationTest
   test "受け取りが有効なら宛先の数だけメールが積まれる" do
     @member.update!(email_notifications: false)
 
-    assert_enqueued_emails 1 do
+    assert_enqueued_jobs 1, only: NotificationEmailJob do
       @conversation.messages.create!(sender: @candidate, body: "応募者からの連絡")
     end
   end

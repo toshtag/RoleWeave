@@ -356,9 +356,20 @@ en:
       subject: The status of your application changed
       body: "The status of your application changed. You can see it here:"
   operator:
+    notification_deliveries:
+      index:
+        title: Failed notification emails
+        body: These notification emails failed to send. Check the cause before resending.
+        attempts:
+          one: "%{count} attempt"
+          other: "%{count} attempts"
+        resend: Resend
+        empty: No failed notifications.
+        organizations: Back to organizations
     organizations:
       index:
         title: All organizations
+        notification_deliveries: View failed notification emails
         owner_count: "%{count} administrator(s)"
       show:
         title: "Operating %{organization}"

@@ -89,6 +89,10 @@ Rails.application.routes.draw do
       resources :organizations, only: %i[index show] do
         resources :memberships, only: :update
       end
+
+      # 配信に失敗した通知の一覧と再送。
+      # 詳細は docs/decisions/0043-notification-delivery-failures.md を参照する。
+      resources :notification_deliveries, only: %i[index update]
     end
 
     # 招待の受諾。token は URL のパスへ置く。
