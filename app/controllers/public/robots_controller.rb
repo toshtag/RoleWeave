@@ -25,6 +25,9 @@ class Public::RobotsController < ApplicationController
     end
     @sitemap_url = sitemap_url
 
+    # 内容は設定だけで決まり、ログイン状態に依存しない。
+    expires_in 1.day, public: true
+
     render formats: :text, content_type: "text/plain"
   end
 end

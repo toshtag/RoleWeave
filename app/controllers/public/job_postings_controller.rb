@@ -25,12 +25,25 @@ class Public::JobPostingsController < ApplicationController
 
     @pagination = Pagination.new(scope, page: params[:page])
     @job_postings = @pagination.records
+
+    # 内容が変わっていなければ 304 を返し、本文を送らない。
+    #
+    # 材料に絞り込みの条件と現在のページを含める。同じ URL でも条件が違えば別の応答になる。
+    # ログイン状態も含める。レイアウトのヘッダーがログイン状態で変わるためである。
+    # 詳細は docs/decisions/0025-public-page-caching.md を参照する。
+    fresh_when(
+      etag: [ @job_postings.to_a, @search, @pagination.current_page, signed_in? ],
+      last_modified: scope.maximum(:updated_at),
+      public: false
+    )
   end
 
   def show
     # 公開中でない求人は、存在しない求人と同じ 404 とする。
     # 分けると、審査中の求人があることだけが分かる。
     @job_posting = JobPosting.published.find(params[:id])
+
+    fresh_when(@job_posting, etag: [ @job_posting, signed_in? ], public: false)
   end
 
   private
