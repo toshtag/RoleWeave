@@ -119,6 +119,20 @@ class JobPostingPreviewTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "自組織の経路から他組織の求人をプレビューできない" do
+    # 組織だけを自分のものにして、対象の求人を他組織のものにする。
+    outsider = confirmed_user("outsider@example.com")
+    other = Organization.create_with_owner!(name: "Another Inc.", user: outsider)
+    other_posting = other.job_postings.create!(status: "draft", title: "他組織の求人", description: "内容")
+    sign_in_as(@member)
+
+    get preview_organization_job_posting_path(
+      locale: :ja, organization_id: @organization, id: other_posting
+    )
+
+    assert_response :not_found
+  end
+
   private
     def confirmed_user(email_address)
       User.create!(email_address: email_address, password: PASSWORD).tap(&:confirm)
