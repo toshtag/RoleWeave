@@ -371,3 +371,14 @@ video {
 .job-posting-list li {
   margin-block-end: var(--page-block-padding);
 }
+
+/*
+ * ページ送り。
+ * 前後の導線を横に並べ、狭い画面では折り返す。
+ */
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--content-gap);
+  margin-block-start: var(--page-block-padding);
+}
