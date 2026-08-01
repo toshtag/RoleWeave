@@ -6,11 +6,15 @@ An open source, self-hostable recruiting platform.
 
 ## Current status
 
-**Under development. Not recommended for production use.**
+**v0.1.0 — ready to evaluate, not guaranteed for production use.**
 
-This repository is at an early stage. The Rails application foundation is present,
-but business features such as job postings, applications, and authentication have
-not yet been implemented. Breaking changes may be made without notice.
+Accounts, organizations, job postings, public job discovery, candidate profiles,
+applications, hiring workflow, messaging and notifications, plus the privacy,
+security and operations work behind them, are implemented.
+What is *not* included (sourcing, external integrations) and the known limitations
+are listed in the [changelog](CHANGELOG.md).
+
+While on `0.x`, breaking changes may still land between versions.
 
 ## About this project
 
