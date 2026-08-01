@@ -1,0 +1,15 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if @organizations.any? %>
+  <ul>
+    <% @organizations.each do |organization| %>
+      <li><%= organization.name %></li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".new"), new_organization_path(locale: I18n.locale) %></p>
