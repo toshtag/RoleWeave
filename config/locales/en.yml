@@ -116,6 +116,11 @@ en:
       reject: Send back
       suspend: Suspend
       empty: There are no job postings yet.
+      history: Status history
+      created: was created
+      status_changed: changed from %{from} to %{to}
+      changed_by: "(by %{email_address})"
+      removed_account: deleted account
     new:
       title: "Create a job posting for %{organization}"
       submit: Save as draft

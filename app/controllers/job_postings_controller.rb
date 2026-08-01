@@ -12,6 +12,10 @@ class JobPostingsController < ApplicationController
   def index
     # 自組織の求人だけを出す。対象は set_organization がすでに絞っている。
     @job_postings = @organization.job_postings.recent
+
+    # 履歴は所属者であれば見られる。差し戻された担当者が、
+    # いつ差し戻されたかを自分で確認できる必要がある。
+    @job_posting_events = @organization.job_posting_events.includes(:changed_by).recent.limit(50)
   end
 
   def new
@@ -20,6 +24,8 @@ class JobPostingsController < ApplicationController
 
   def create
     @job_posting = @organization.job_postings.new(job_posting_params.merge(status: "draft"))
+    # 誰が作ったかを記録へ残す。
+    @job_posting.changed_by = current_user
 
     if @job_posting.save
       redirect_to organization_job_postings_path(locale: I18n.locale, organization_id: @organization)

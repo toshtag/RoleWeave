@@ -16,6 +16,9 @@ class Organization < ApplicationRecord
   # 組織を消したら、その組織の求人も残さない。
   has_many :job_postings, dependent: :destroy
 
+  # 求人の公開状態の履歴は、組織を削除しても残す。
+  has_many :job_posting_events, dependent: nil
+
   # 履歴は組織を削除しても残す。参照は外部キー側で nullify する。
   has_many :membership_events, dependent: nil
 

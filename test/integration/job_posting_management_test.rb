@@ -113,7 +113,8 @@ class JobPostingManagementTest < ActionDispatch::IntegrationTest
 
     get organization_job_postings_path(locale: :ja, organization_id: @organization)
 
-    assert_select "main li", text: /自組織の求人/, count: 1
+    # 履歴の一覧にも題名が現れるため、求人の一覧の項目だけを見る。
+    assert_select "main ul:first-of-type li", text: /自組織の求人/, count: 1
     assert_select "main li", text: /他組織の求人/, count: 0
   end
 

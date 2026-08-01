@@ -59,3 +59,28 @@
 <% else %>
   <p><%= t(".empty") %></p>
 <% end %>
+
+<% if @job_posting_events.any? %>
+  <h2><%= t(".history") %></h2>
+
+  <%#
+    履歴は所属者であれば見られる。差し戻された担当者が、
+    いつ差し戻されたかを自分で確認できる必要がある。
+  %>
+  <ul>
+    <% @job_posting_events.each do |event| %>
+      <li>
+        <%= l(event.created_at, format: :long) %>
+        <%= event.job_posting_title %>
+        <% if event.created? %>
+          <%= t(".created") %>
+        <% else %>
+          <%= t(".status_changed",
+                from: t("job_postings.statuses.#{event.from_status}"),
+                to: t("job_postings.statuses.#{event.to_status}")) %>
+        <% end %>
+        <%= t(".changed_by", email_address: event.changed_by&.email_address || t(".removed_account")) %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
