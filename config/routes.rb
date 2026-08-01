@@ -53,8 +53,7 @@ Rails.application.routes.draw do
       # 詳細は docs/decisions/0055-candidate-search.md を参照する。
       resources :candidate_searches, only: :index, module: :organizations
       resources :talent_pools, only: %i[index show create destroy], module: :organizations do
-        resources :members, only: %i[create destroy], module: :organizations,
-                            controller: "talent_pool_members"
+        resources :members, only: %i[create destroy], controller: "talent_pool_members"
       end
       resources :candidate_profiles, only: :show, module: :organizations do
         # 添付は、公開範囲と添付の設定の両方が開いているときだけ取れる。
