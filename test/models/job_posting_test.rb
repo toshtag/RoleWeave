@@ -35,7 +35,7 @@ class JobPostingTest < ActiveSupport::TestCase
       assert_predicate build(status: status), :valid?
     end
 
-    assert_not build(status: "published").valid?
+    assert_not build(status: "unknown").valid?
   end
 
   test "決められた雇用形態だけを受け付ける" do
