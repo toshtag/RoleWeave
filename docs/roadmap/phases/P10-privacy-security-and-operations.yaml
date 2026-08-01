@@ -3,7 +3,7 @@ name: Privacy Security and Operations
 weight: 9
 confidence: medium
 risk: high
-status: in_progress
+status: done
 depends_on:
   - P9
 objective: |-
