@@ -111,6 +111,75 @@ class PublicJobPostingsTest < ActionDispatch::IntegrationTest
     assert_select "main a[href=?]", public_job_postings_path(locale: :ja)
   end
 
+  test "キーワードで絞り込める" do
+    other = create_job_posting(status: "published", title: "Backend Engineer")
+
+    get public_job_postings_path(locale: :ja, keyword: "Backend")
+
+    assert_select "main a", text: other.title
+    assert_select "main a", text: @published.title, count: 0
+  end
+
+  test "条件を組み合わせて絞り込める" do
+    @published.update!(location: "東京", employment_type: "full_time")
+    create_job_posting(status: "published", title: "大阪の求人").update!(location: "大阪")
+
+    get public_job_postings_path(locale: :ja, location: "東京", employment_type: "full_time")
+
+    assert_select "main a", text: @published.title
+    assert_select "main a", text: "大阪の求人", count: 0
+  end
+
+  test "条件に一致しないときはその旨を伝える" do
+    get public_job_postings_path(locale: :ja, keyword: "一致しない語")
+
+    assert_response :success
+    assert_select "main p", text: I18n.t("public.job_postings.index.no_results")
+  end
+
+  test "絞り込んでも公開中でない求人は出ない" do
+    create_job_posting(status: "draft", title: "下書きの求人")
+
+    get public_job_postings_path(locale: :ja, keyword: "求人")
+
+    assert_select "main", text: /下書きの求人/, count: 0
+  end
+
+  test "空の条件はすべての公開求人を返す" do
+    get public_job_postings_path(locale: :ja, keyword: "", location: "")
+
+    assert_select "main a", text: @published.title
+  end
+
+  test "条件を持つ一覧の canonical が条件を持たない一覧になる" do
+    # 同じ求人の集合へ無数の URL から到達できる状態を、検索エンジンへ渡さない。
+    get public_job_postings_path(locale: :ja, keyword: "採用")
+
+    assert_select "head link[rel=?][href=?]", "canonical", public_job_postings_url(locale: :ja), count: 1
+  end
+
+  test "条件を持つ一覧を索引させない" do
+    get public_job_postings_path(locale: :ja, keyword: "採用")
+
+    assert_select "head meta[name=?][content=?]", "robots", "noindex, follow", count: 1
+  end
+
+  test "条件を持たない一覧は索引させる" do
+    get public_job_postings_path(locale: :ja)
+
+    assert_select "head meta[name=?]", "robots", count: 0
+  end
+
+  test "絞り込みの入力欄を日本語と英語で表示する" do
+    I18n.available_locales.each do |locale|
+      get public_job_postings_path(locale: locale)
+
+      assert_select "form label", text: I18n.t("public.job_postings.index.keyword", locale: locale)
+      assert_select "form input[name=?]", "keyword"
+      assert_select "form select[name=?]", "employment_type"
+    end
+  end
+
   private
     def create_job_posting(status:, title:)
       @organization.job_postings.create!(status: status, title: title, description: "内容")

@@ -55,6 +55,44 @@ class JobPosting < ApplicationRecord
   # 公開側へ出せるのは公開中の求人だけとする。
   scope :published, -> { where(status: "published") }
 
+  # キーワードの対象。ここへ列を足すと、そのまま検索の対象が広がる。
+  SEARCHABLE_COLUMNS = %i[title description occupation location].freeze
+
+  # キーワードによる部分一致。
+  #
+  # 日本語は PostgreSQL の標準機能だけでは語の区切りを判定できない。
+  # 拡張を増やさない方針のため、初期の検索は部分一致とする。
+  # 詳細は docs/decisions/0021-public-job-search.md を参照する。
+  #
+  # 語を空白で分け、すべての語を含む求人だけを返す。
+  # いずれかを含む条件にすると、語を足すほど結果が増えて絞り込みにならない。
+  scope :matching_keyword, ->(keyword) do
+    words = keyword.to_s.split
+    next all if words.empty?
+
+    words.reduce(all) do |relation, word|
+      # sanitize_sql_like は % と _ をそのままの文字として扱わせる。
+      # これを外すと、利用者の入力が部分一致の記号として解釈される。
+      pattern = "%#{sanitize_sql_like(word)}%"
+      conditions = SEARCHABLE_COLUMNS.map { |column| arel_table[column].matches(pattern) }
+
+      relation.where(conditions.reduce(:or))
+    end
+  end
+
+  scope :matching_location, ->(location) do
+    location.present? ? where(arel_table[:location].matches("%#{sanitize_sql_like(location)}%")) : all
+  end
+
+  scope :matching_occupation, ->(occupation) do
+    occupation.present? ? where(arel_table[:occupation].matches("%#{sanitize_sql_like(occupation)}%")) : all
+  end
+
+  scope :matching_employment_type, ->(employment_type) do
+    # 決められた値だけを受け付ける。それ以外は条件として無視する。
+    EMPLOYMENT_TYPES.include?(employment_type) ? where(employment_type: employment_type) : all
+  end
+
   def draft?
     status == "draft"
   end
