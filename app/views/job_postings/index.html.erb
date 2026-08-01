@@ -18,6 +18,9 @@
         <%= job_posting.title %>
         <%= t("job_postings.statuses.#{job_posting.status}") %>
 
+        <%= link_to t(".preview"),
+                    preview_organization_job_posting_path(locale: I18n.locale, organization_id: @organization, id: job_posting) %>
+
         <%# 状態に応じて、いま行える操作だけを出す。 %>
         <% if job_posting.editable? %>
           <%= link_to t(".edit"),

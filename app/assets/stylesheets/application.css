@@ -332,3 +332,28 @@ video {
   max-width: 100%;
   height: auto;
 }
+
+/*
+ * 求人の公開時の表示。
+ * 一覧や編集画面ではなく、公開されたときの見え方に使う。
+ */
+.job-posting__organization {
+  font-weight: 700;
+}
+
+/* 本文は書き手の段落を保つ。段落の間に読みやすい間隔を置く。 */
+.job-posting__body p {
+  margin-block-end: var(--content-gap);
+}
+
+/*
+ * 画面の状態を伝える文。
+ * 誤りではないため、誤りと同じ色では示さない。枠で区切る。
+ */
+.notice {
+  max-width: var(--form-max-width);
+  margin-block-end: var(--content-gap);
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--control-radius);
+}

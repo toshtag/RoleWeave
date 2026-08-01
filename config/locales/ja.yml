@@ -116,6 +116,7 @@ ja:
       reject: 差し戻す
       suspend: 公開を停止する
       empty: まだ求人がありません。
+      preview: 公開時の表示を見る
       history: 公開状態の履歴
       created: を作成しました
       status_changed: の状態が %{from} から %{to} へ変わりました
@@ -127,6 +128,10 @@ ja:
     edit:
       title: 求人を編集する
       submit: 保存する
+    preview:
+      title: 公開時の表示
+      notice: "これはプレビューです。この求人の状態は「%{status}」です。"
+      back: 求人の一覧へ
     form:
       unspecified: 指定しない
     review:
