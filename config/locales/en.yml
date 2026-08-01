@@ -93,6 +93,11 @@ en:
       change_role: Change role
       submit: Change
       invite: Invite a member
+      history: Change history
+      joined: joined as %{role}
+      role_changed: changed role from %{from} to %{to}
+      changed_by: "(by %{email_address})"
+      removed_account: deleted account
     roles:
       owner: Administrator
       member: Member

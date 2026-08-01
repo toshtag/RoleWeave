@@ -6,8 +6,12 @@ require "test_helper"
 # 1 つずつ書くと、新しいモデルが増えたときに書き忘れが穴になる。
 class OrganizationScopingTest < ActiveSupport::TestCase
   # 検査から外すモデル。外す場合は、外してよい理由をここへ書く。
-  # 現時点で外すものはない。
-  EXCLUDED = [].freeze
+  #
+  # MembershipEvent は所属の変更の記録であり、組織を削除しても残す。
+  # 「いつ何が起きたか」まで消すと、削除の前後の調査ができなくなる。
+  # そのため組織を必須にできず、削除時にも消さない。
+  # このモデル固有の契約は membership_event_test が持つ。
+  EXCLUDED = %w[MembershipEvent].freeze
 
   test "組織へ従属するモデルが 1 つ以上ある" do
     # 対象が 0 件のまま「すべて満たしている」と報告しない。

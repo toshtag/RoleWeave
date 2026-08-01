@@ -38,3 +38,27 @@
     </li>
   <% end %>
 </ul>
+
+<% if @membership_events %>
+  <h2><%= t(".history") %></h2>
+
+  <%#
+    履歴は管理者だけが見られる。誰がいつ役割を変えたかは、組織の運営に属する情報である。
+  %>
+  <ul>
+    <% @membership_events.each do |event| %>
+      <li>
+        <%= l(event.created_at, format: :long) %>
+        <%= event.user&.email_address || t(".removed_account") %>
+        <% if event.kind == "joined" %>
+          <%= t(".joined", role: t("memberships.roles.#{event.to_role}")) %>
+        <% else %>
+          <%= t(".role_changed",
+                from: t("memberships.roles.#{event.from_role}"),
+                to: t("memberships.roles.#{event.to_role}")) %>
+        <% end %>
+        <%= t(".changed_by", email_address: event.changed_by&.email_address || t(".removed_account")) %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>

@@ -47,7 +47,10 @@ class Invitation < ApplicationRecord
   # 「受諾できなかった」と伝えると、すでに入れている利用者を混乱させる。
   def accept!(user)
     transaction do
-      organization.memberships.create!(user: user, role: role) unless organization.users.exists?(user.id)
+      unless organization.users.exists?(user.id)
+        # 受諾した本人を変更の主体として記録する。
+        organization.memberships.create!(user: user, role: role, changed_by: user)
+      end
       update!(accepted_at: Time.current)
     end
   end

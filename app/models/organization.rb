@@ -13,6 +13,9 @@ class Organization < ApplicationRecord
   # 組織を消したら、その組織への招待も残さない。
   has_many :invitations, dependent: :destroy
 
+  # 履歴は組織を削除しても残す。参照は外部キー側で nullify する。
+  has_many :membership_events, dependent: nil
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 
@@ -26,7 +29,7 @@ class Organization < ApplicationRecord
   def self.create_with_owner!(name:, user:, role: "owner")
     transaction do
       organization = create!(name: name)
-      organization.memberships.create!(user: user, role: role)
+      organization.memberships.create!(user: user, role: role, changed_by: user)
       organization
     end
   end

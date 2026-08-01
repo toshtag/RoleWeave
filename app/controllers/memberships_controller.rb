@@ -8,6 +8,10 @@ class MembershipsController < ApplicationController
 
   def index
     @memberships = @organization.memberships.includes(:user).order(:role, :id)
+
+    # 履歴は管理者だけが見られる。誰がいつ役割を変えたかは、
+    # 組織の運営に属する情報である。
+    @membership_events = membership_events if current_membership&.owner?
   end
 
   def update
@@ -26,6 +30,10 @@ class MembershipsController < ApplicationController
   end
 
   private
+    def membership_events
+      @organization.membership_events.includes(:user, :changed_by).order(created_at: :desc, id: :desc).limit(50)
+    end
+
     def membership_params
       params.expect(membership: [ :role ])
     end
