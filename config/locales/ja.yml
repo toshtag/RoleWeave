@@ -53,6 +53,7 @@ ja:
         curriculum_vitae: 職務経歴書
         documents_visible: 履歴書・職務経歴書を企業へ見せる
         desired_salary_visible: 希望年収を企業へ見せる
+        scout_opt_in: 企業からのスカウトを受け取る
         introduction: 自己紹介
         location: 所在地
         desired_occupation: 希望職種
@@ -377,6 +378,7 @@ ja:
           job_application_viewed: 応募の詳細を閲覧
           candidate_document_downloaded: 添付を取得
           personal_data_exported: 本人がデータを持ち出し
+          candidate_search_performed: 候補者を検索
         removed_account: 削除されたアカウント
         empty: 記録はありません。
         organizations: 組織の一覧へ
@@ -420,6 +422,7 @@ ja:
         closed: 自分だけが見られます。設定を変えるまで、企業からは見えません。
         applied_organizations: 応募の仕組みはまだありません。この設定にしても、いまはどの企業からも見えません。
         all_organizations: 求人を掲載している企業の担当者が、あなたのプロフィールを開けるようになります。
+      scout_hint: 許可すると、企業が条件で候補者を探す画面に表示されます。公開範囲を「誰にも見せない」にしている場合は表示されません。
       documents_hint: 履歴書には、このアプリケーションが扱っていない情報（生年月日・顔写真など）が含まれることがあります。
       desired_salary_hint: 希望年収は応募先との交渉の材料です。見せないままにもできます。
       submit: 保存する
@@ -442,6 +445,39 @@ ja:
         save: この求人を保存する
         back: 求人の一覧へ
   organizations:
+    candidate_searches:
+      index:
+        title: 候補者を探す
+        body: スカウトの受信を許可した候補者だけが出ます。許可していない候補者は、この画面に存在しません。
+        skill: スキル
+        submit: 絞り込む
+        show: プロフィールを見る
+        add_to: "%{name} へ追加"
+        empty: 条件に一致する候補者はいません。
+    talent_pools:
+      index:
+        title: タレントプール
+        body: 候補者を保存しておく場所です。組織の中で共有されます。
+        name: プールの名前
+        create: 作る
+        members:
+          one: "%{count} 人"
+          other: "%{count} 人"
+        destroy: 削除する
+        empty: まだプールはありません。
+        search: 候補者を探す
+      create:
+        invalid: 作れませんでした。同じ名前があるか、作れる数を超えています。
+      show:
+        added_by: "（追加: %{email_address}）"
+        removed_account: 削除されたアカウント
+        show: プロフィールを見る
+        destroy: プールから外す
+        empty: まだ候補者が入っていません。
+        back: タレントプールの一覧へ
+    talent_pool_members:
+      create:
+        invalid: 追加できませんでした。すでに入っています。
     application_reviews:
       create:
         invalid: 評価を記録できませんでした。評価かコメントのどちらかを入力してください。
@@ -504,6 +540,8 @@ ja:
       empty: まだどの組織にも所属していません。
       new: 組織を作成する
       members: メンバーを見る
+      candidate_searches: 候補者を探す
+      talent_pools: タレントプール
       job_postings: 求人を見る
     new:
       title: 組織の作成
