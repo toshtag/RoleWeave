@@ -21,6 +21,7 @@ en:
   accounts:
     show:
       export: Download my data
+      notification_settings: Set email notifications
       delete: Delete my account
       title: Account
       confirmed_at: Email address confirmed at
@@ -160,6 +161,7 @@ en:
       sign_up: Sign up
       sign_out: Sign out
       organizations: Organizations
+      notifications: "Notifications (%{count})"
       profile: Profile
     language_switcher:
       label: Display language
@@ -330,6 +332,29 @@ en:
       title: This invitation is for a different email address
       body: "You are signed in as %{email_address}. Sign in with the invited email address instead."
       organizations: Go to your organizations
+  notifications:
+    index:
+      title: Notifications
+      kinds:
+        message_received: You have a new message
+        stage_changed: The status of your application changed
+      open: Open
+      empty: No notifications yet.
+  notification_settings:
+    edit:
+      title: Email notifications
+      body: In-app notifications are kept regardless of this setting. Only emails can be turned off.
+      email_notifications: Also send notifications by email
+      in_app_notice: Even with emails off, you can still see everything in your notifications.
+      submit: Save
+      back: Back to account
+  notification_mailer:
+    message_received:
+      subject: You have a new message
+      body: "There is a new message about an application. You can read it here:"
+    stage_changed:
+      subject: The status of your application changed
+      body: "The status of your application changed. You can see it here:"
   operator:
     organizations:
       index:

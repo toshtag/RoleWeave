@@ -1,0 +1,18 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<%= form_with url: notification_settings_path(locale: I18n.locale), method: :patch, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.check_box :email_notifications, checked: current_user.email_notifications? %>
+    <%= form.label :email_notifications, t(".email_notifications") %>
+    <%# アプリ内の通知は、この設定によらず残る。 %>
+    <p class="form__hint"><%= t(".in_app_notice") %></p>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p><%= link_to t(".back"), account_path(locale: I18n.locale) %></p>

@@ -23,6 +23,7 @@ ja:
       title: アカウント情報
       confirmed_at: メールアドレスの確認日時
       export: 自分のデータをダウンロードする
+      notification_settings: メールの受け取りを設定する
       delete: アカウントを削除する
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
@@ -160,6 +161,7 @@ ja:
       sign_up: アカウント作成
       sign_out: ログアウト
       organizations: 組織
+      notifications: "通知（%{count}）"
       profile: プロフィール
     language_switcher:
       label: 表示言語
@@ -332,6 +334,29 @@ ja:
       title: この招待は別のメールアドレス宛です
       body: "現在 %{email_address} でログインしています。招待されたメールアドレスでログインし直してください。"
       organizations: 所属する組織へ
+  notifications:
+    index:
+      title: 通知
+      kinds:
+        message_received: 新しいメッセージがあります
+        stage_changed: 選考の状況が変わりました
+      open: 開く
+      empty: まだ通知はありません。
+  notification_settings:
+    edit:
+      title: メールの受け取り
+      body: アプリの中の通知は、この設定によらず残ります。止められるのはメールだけです。
+      email_notifications: 通知をメールでも受け取る
+      in_app_notice: 受け取らない設定にしても、通知の一覧では確認できます。
+      submit: 保存する
+      back: アカウント情報へ戻る
+  notification_mailer:
+    message_received:
+      subject: 新しいメッセージがあります
+      body: 応募についての新しいメッセージが届いています。内容は次の画面で確認できます。
+    stage_changed:
+      subject: 選考の状況が変わりました
+      body: 応募の選考の状況が変わりました。内容は次の画面で確認できます。
   operator:
     organizations:
       index:
