@@ -1,0 +1,16 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<%#
+  プレビューは検索結果へ載せない。公開前の内容が検索から到達できると、
+  公開の判断より先に外へ出る。
+%>
+<% content_for :robots, "noindex, nofollow" %>
+
+<%# プレビューであることを明示する。公開済みかどうかを見分けられなくなる。 %>
+<p class="notice"><%= t(".notice", status: t("job_postings.statuses.#{@job_posting.status}")) %></p>
+
+<%= render "public", job_posting: @job_posting %>
+
+<p>
+  <%= link_to t(".back"),
+              organization_job_postings_path(locale: I18n.locale, organization_id: @organization) %>
+</p>

@@ -1,0 +1,35 @@
+<%#
+  公開時の求人の見え方。
+  プレビューと公開ページの両方がこの 1 つを使う。
+  見え方を 2 か所へ書くと、プレビューと公開が食い違う。
+  方針は docs/decisions/0019-job-posting-presentation.md を正本とする。
+%>
+<article class="job-posting">
+  <h1><%= job_posting.title %></h1>
+
+  <p class="job-posting__organization"><%= job_posting.organization&.name %></p>
+
+  <%#
+    未入力の項目は行ごと出さない。空欄を並べると、
+    その項目が「無い」のか「書かれていない」のかが読み手に分からない。
+  %>
+  <dl>
+    <% { location: job_posting.location,
+         occupation: job_posting.occupation,
+         employment_type: job_posting.employment_type.presence && t("job_postings.employment_types.#{job_posting.employment_type}"),
+         salary: job_posting.salary }.each do |attribute, value| %>
+      <% next if value.blank? %>
+      <dt><%= JobPosting.human_attribute_name(attribute) %></dt>
+      <dd><%= value %></dd>
+    <% end %>
+  </dl>
+
+  <h2><%= JobPosting.human_attribute_name(:description) %></h2>
+  <%# 改行だけを残して表示する。書き手の段落をつぶさない。 %>
+  <div class="job-posting__body"><%= simple_format(job_posting.description) %></div>
+
+  <% if job_posting.requirements.present? %>
+    <h2><%= JobPosting.human_attribute_name(:requirements) %></h2>
+    <div class="job-posting__body"><%= simple_format(job_posting.requirements) %></div>
+  <% end %>
+</article>

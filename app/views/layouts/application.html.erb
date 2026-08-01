@@ -6,6 +6,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="<%= t("application.name") %>">
     <meta name="mobile-web-app-capable" content="yes">
+    <%# 検索結果へ載せたくない画面は、robots を宣言する。 %>
+    <% if content_for?(:robots) %>
+      <meta name="robots" content="<%= yield :robots %>">
+    <% end %>
+
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
 

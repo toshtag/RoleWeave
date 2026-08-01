@@ -116,6 +116,7 @@ en:
       reject: Send back
       suspend: Suspend
       empty: There are no job postings yet.
+      preview: View public presentation
       history: Status history
       created: was created
       status_changed: changed from %{from} to %{to}
@@ -127,6 +128,10 @@ en:
     edit:
       title: Edit job posting
       submit: Save
+    preview:
+      title: Public presentation
+      notice: "This is a preview. The status of this job posting is \"%{status}\"."
+      back: Back to job postings
     form:
       unspecified: Not specified
     review:
