@@ -10,6 +10,10 @@ module ActiveSupport
     # Setup all fixtures in test/fixtures/*.yml for all tests in alphabetical order.
     fixtures :all
 
+    # レート制限は Rails.cache で数える（ADR 0044）。
+    # テストの間で数が持ち越されると、後のテストが上限に達する。
+    setup { Rails.cache.clear }
+
     # Add more helper methods to be used by all tests here...
   end
 end

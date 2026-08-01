@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- 存在しない URL やエラー状態の画面を検索結果へ載せない。 -->
+    <meta name="robots" content="noindex, nofollow">
+    <title>アクセスが集中しています | RoleWeave</title>
+    <style>
+      /*
+       * エラー画面のスタイル。
+       *
+       * このページは application.css・Propshaft・Importmap を読み込まない。
+       * 描画経路に障害がある状況でも表示する必要があるためである。
+       * その代償として、application.css と同じ指定をここへ複製している。
+       * 方針は docs/decisions/0003-localized-static-error-pages.md を正本とする。
+       *
+       * 4 つのエラー画面はこの style 要素の内容を完全に一致させる。
+       */
+
+      :root {
+        /* 外部 Web フォントを読み込まず、閲覧環境の system font を使う。 */
+        --font-family-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+        --color-background: #f6f8fb;
+        --color-text: #182230;
+        --color-link: #175cd3;
+        --color-focus-ring: #175cd3;
+        --color-border: #7e8a9e;
+
+        --content-max-width: 72rem;
+        --page-gutter: clamp(1rem, 4vw, 2rem);
+        --page-block-padding: clamp(2rem, 8vw, 5rem);
+        --content-gap: 1rem;
+
+        --font-size-heading-1: clamp(2rem, 8vw, 3.5rem);
+        --line-height-body: 1.6;
+        --line-height-heading: 1.15;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--color-background);
+        color: var(--color-text);
+        font-family: var(--font-family-sans);
+        line-height: var(--line-height-body);
+        text-size-adjust: 100%;
+      }
+
+      body {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+        margin: 0;
+        /* 途中で改行できない長い文字列があっても、横スクロールを発生させない。 */
+        overflow-wrap: anywhere;
+      }
+
+      /*
+       * モバイルブラウザーの 100vh は、アドレスバーを含めた最大の表示高さを指す。
+       * 内容が短いページでは、続きが何もないまま縦スクロールが生まれる。
+       * 可視領域へ追従する dvh を、解釈できる環境でだけ上書きする。
+       */
+      @supports (min-height: 100dvh) {
+        body {
+          min-height: 100dvh;
+        }
+      }
+
+      /*
+       * 本文の先頭へ移動するリンク。
+       * display: none や visibility: hidden で隠すと、キーボードからフォーカスを
+       * 受け取れなくなり、リンクとして成立しない。画面の外へ動かして隠す。
+       */
+      .skip-link {
+        position: fixed;
+        z-index: 1;
+        inset-block-start: var(--content-gap);
+        inset-inline-start: var(--page-gutter);
+        padding: 0.5rem 1rem;
+        border: 0.0625rem solid var(--color-border);
+        background: var(--color-background);
+        transform: translateY(calc(-100% - var(--content-gap) * 2));
+      }
+
+      .skip-link:focus-visible {
+        transform: none;
+      }
+
+      .site-header {
+        border-block-end: 0.0625rem solid var(--color-border);
+      }
+
+      /*
+       * ヘッダーはブランドと言語切替を横に並べる。狭い画面で 1 行へ収まらないときは
+       * 折り返す。1 行を維持すると、内容がはみ出して横スクロールが生まれる。
+       */
+      .site-header__inner {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--content-gap);
+        width: 100%;
+        max-width: var(--content-max-width);
+        margin-inline: auto;
+        padding-block: var(--content-gap);
+        padding-inline: var(--page-gutter);
+      }
+
+      .site-header__brand {
+        /* 本文中のリンクと役割が異なるため、色ではなく文字の強さで示す。 */
+        color: var(--color-text);
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .site-header__brand:hover {
+        text-decoration: underline;
+      }
+
+      /* 言語名は言語ごとに長さが異なる。行を固定せず、収まらないときは折り返す。 */
+      .language-switcher {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: var(--content-gap);
+      }
+
+      .language-switcher__current {
+        /* 現在の言語はリンクではないため、リンクとの色の違いだけでは区別の根拠にならない。 */
+        font-weight: 700;
+      }
+
+      main {
+        flex: 1;
+        width: 100%;
+        max-width: var(--content-max-width);
+        margin-inline: auto;
+        padding: var(--page-block-padding) var(--page-gutter);
+      }
+
+      /* 状況を問い合わせるときの手がかりとして、HTTP status code を見出しの前へ置く。 */
+      .error-page__status {
+        font-weight: 700;
+      }
+
+      h1 {
+        margin-block: 0 var(--content-gap);
+        font-size: var(--font-size-heading-1);
+        line-height: var(--line-height-heading);
+      }
+
+      p {
+        /* 1 行が長すぎると、行末から次の行の先頭を追いにくくなる。 */
+        max-width: 65ch;
+        margin-block: 0 var(--content-gap);
+      }
+
+      a {
+        color: var(--color-link);
+        text-underline-offset: 0.15em;
+      }
+
+      a:hover {
+        text-decoration-thickness: 0.125em;
+      }
+
+      /*
+       * キーボード操作でたどり着いた位置を可視化する。
+       * 既定のフォーカス表示を消すと、ポインターを使わない閲覧者が現在位置を追えなくなる。
+       */
+      :where(a):focus-visible {
+        outline: 0.1875rem solid var(--color-focus-ring);
+        outline-offset: 0.1875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">本文へ移動</a>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <a class="site-header__brand" href="/ja">RoleWeave</a>
+
+        <!--
+          別言語の導線は、その言語の入口へ向ける。
+          エラーが起きた URL を機械的に変換しても、その先も存在しない。
+        -->
+        <nav class="language-switcher" aria-label="表示言語">
+          <span class="language-switcher__current" lang="ja" aria-current="page">日本語</span>
+          <a href="/en" lang="en" hreflang="en">English</a>
+        </nav>
+      </div>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      <p class="error-page__status">422</p>
+      <h1>しばらく時間をおいてからお試しください</h1>
+      <p>短い時間に同じ操作が繰り返されたため、一時的に受け付けを止めています。しばらく待ってから、もう一度お試しください。</p>
+      <p><a href="/ja">トップページへ戻る</a></p>
+    </main>
+  </body>
+</html>

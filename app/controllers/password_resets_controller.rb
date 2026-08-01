@@ -1,4 +1,8 @@
 class PasswordResetsController < ApplicationController
+  # 繰り返しの試行を抑える。上限と期間は ApplicationController が持つ。
+  rate_limit to: PASSWORD_RESET_ATTEMPT_LIMIT, within: RATE_LIMIT_PERIOD, only: :create,
+             with: -> { render_rate_limited }
+
   before_action :set_user_from_token, only: %i[edit update]
 
   def new
