@@ -135,7 +135,10 @@ ja:
     index:
       title: スキル
       new: スキルを追加する
+      # 日本語は数によって語形が変わらないが、one と other の両方を書く。
+      # 既定の複数形の規則は英語のものであり、1 のときに one を引く。
       years:
+        one: 経験 %{count} 年
         other: 経験 %{count} 年
       edit: 編集する
       destroy: 削除する
