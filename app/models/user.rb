@@ -32,6 +32,11 @@ class User < ApplicationRecord
   # アカウントを削除したら、そのアカウントのログイン状態も残さない。
   has_many :sessions, dependent: :destroy
 
+  # 認証の記録はアカウントを削除しても残す。
+  # 誰の操作だったかは失われるが、いつ何が起きたかまで消すと、
+  # 削除の前後の調査ができなくなる。参照は外部キー側で nullify する。
+  has_many :authentication_events, dependent: nil
+
   # 確認リンクの token。
   #
   # データベースへ token を保存しない。保存すると、漏えいした時点で
