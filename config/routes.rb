@@ -20,6 +20,10 @@ Rails.application.routes.draw do
   scope ":locale", locale: Regexp.union(I18n.available_locales.map(&:to_s)) do
     root "home#show", as: :localized_root
 
+    # 求職者が見る求人。組織側の管理画面とは経路を分ける。
+    # 詳細は docs/decisions/0020-public-job-posting-urls.md を参照する。
+    resources :jobs, only: %i[index show], controller: "public/job_postings", as: :public_job_postings
+
     # ログイン状態は 1 つしか持たないため、単数形の resource とする。
     # ログアウトは DELETE で行う。GET で状態を変えると、
     # 先読みやリンクの巡回だけでログアウトが起こる。
