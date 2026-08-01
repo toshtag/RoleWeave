@@ -29,7 +29,13 @@ Rails.application.routes.draw do
     resource :registration, only: %i[new create]
 
     # 所属する組織。作成と一覧だけを持つ。
-    resources :organizations, only: %i[index new create]
+    resources :organizations, only: %i[index new create] do
+      resources :invitations, only: %i[new create]
+    end
+
+    # 招待の受諾。token は URL のパスへ置く。
+    # query string へ置くと、Referer やアクセスログへ残りやすい。
+    get "invitation/:token" => "invitations#show", as: :invitation
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show

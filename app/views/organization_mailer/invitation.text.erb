@@ -1,0 +1,15 @@
+<%#
+  本文はテキストだけとする。装飾を持たせると、表示できる形式が受信環境に依存する。
+  受諾に必要なのはリンクだけとし、他の秘密は書かない。
+%><%= t(".greeting", organization: @organization.name) %>
+
+<%= t(".body") %>
+
+<%= @acceptance_url %>
+
+<%= t(".expiration", count: @expires_in_days) %>
+
+<%= t(".ignore") %>
+
+--
+<%= t("application.name") %>

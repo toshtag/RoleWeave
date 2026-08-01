@@ -1,0 +1,11 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%#
+  招待された宛先と同じアカウントでなければ受け入れない。
+  受け入れると、リンクを手にした別人が組織へ入れてしまう。
+%>
+<p><%= t(".body", email_address: current_user.email_address) %></p>
+
+<p><%= link_to t(".organizations"), organizations_path(locale: I18n.locale) %></p>

@@ -7,10 +7,14 @@ en:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      invitation: Invitation
       organization: Organization
       membership: Membership
       user: Account
     attributes:
+      invitation:
+        email_address: Email address to invite
+        role: Role
       organization:
         name: Organization name
       user:
@@ -55,14 +59,31 @@ en:
       submit: Create account
       password_hint: "Use at least %{count} characters. Any characters are allowed."
       sign_in: Already have an account? Sign in
+  invitations:
+    new:
+      title: "Invite someone to %{organization}"
+      submit: Send invitation
+    invalid:
+      title: This invitation cannot be used
+      body: The invitation has expired or has already been used. Ask the organization to send a new one.
+      organizations: Go to your organizations
+    mismatched:
+      title: This invitation is for a different email address
+      body: "You are signed in as %{email_address}. Sign in with the invited email address instead."
+      organizations: Go to your organizations
   organizations:
     index:
       title: Your organizations
       empty: You do not belong to any organization yet.
       new: Create an organization
+      invite: Invite a member
     new:
       title: Create an organization
       submit: Create organization
+  memberships:
+    roles:
+      owner: Administrator
+      member: Member
   password_resets:
     new:
       title: Reset your password
@@ -105,3 +126,10 @@ en:
       body: Open the following URL to set a new password.
       expiration: This URL is valid for %{count} minutes.
       ignore: If you did not request this, discard this email. Your password will not change.
+  organization_mailer:
+    invitation:
+      subject: "Invitation to %{organization}"
+      greeting: "You have been invited to join %{organization}."
+      body: Open the following URL to accept the invitation. Sign in with the invited email address first.
+      expiration: This URL is valid for %{count} days.
+      ignore: If you did not expect this, discard this email.

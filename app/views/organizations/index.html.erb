@@ -5,7 +5,11 @@
 <% if @organizations.any? %>
   <ul>
     <% @organizations.each do |organization| %>
-      <li><%= organization.name %></li>
+      <li>
+        <%= organization.name %>
+        <%= link_to t(".invite"),
+                    new_organization_invitation_path(locale: I18n.locale, organization_id: organization) %>
+      </li>
     <% end %>
   </ul>
 <% else %>

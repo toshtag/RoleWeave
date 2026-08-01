@@ -1,0 +1,49 @@
+class InvitationsController < ApplicationController
+  before_action :require_authentication
+  before_action :require_confirmed_email
+  before_action :set_organization, only: %i[new create]
+
+  def new
+    @invitation = @organization.invitations.new
+  end
+
+  def create
+    @invitation = @organization.invitations.new(invitation_params.merge(invited_by: current_user))
+
+    if @invitation.save
+      OrganizationMailer.invitation(@invitation, locale: I18n.locale).deliver_later
+
+      redirect_to organizations_path(locale: I18n.locale)
+    else
+      render :new, status: :unprocessable_content
+    end
+  end
+
+  # 受諾。メールのリンクは GET にしかできない。
+  def show
+    invitation = Invitation.find_by_token_for(:acceptance, params[:token])
+
+    # token が壊れている、期限切れ、宛先の変更後、受諾済みのいずれかである。
+    # どれであるかを画面で区別しない。区別すると、token を試す手がかりになる。
+    return render :invalid, status: :unprocessable_content if invitation.nil?
+
+    # 招待された宛先と同じアカウントでなければ受け入れない。
+    # 受け入れると、リンクを手にした別人が組織へ入れてしまう。
+    return render :mismatched, status: :forbidden unless invitation.email_address == current_user.email_address
+
+    invitation.accept!(current_user)
+
+    redirect_to organizations_path(locale: I18n.locale)
+  end
+
+  private
+    def set_organization
+      # 自分が所属する組織からしか招待できない。
+      # Organization.find だと、所属していない組織の存在を確かめられる。
+      @organization = current_user.organizations.find(params[:organization_id])
+    end
+
+    def invitation_params
+      params.expect(invitation: %i[email_address role])
+    end
+end
