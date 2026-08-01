@@ -93,6 +93,11 @@ ja:
       change_role: 役割を変更する
       submit: 変更する
       invite: メンバーを招待する
+      history: 変更履歴
+      joined: が %{role} として参加しました
+      role_changed: の役割が %{from} から %{to} へ変わりました
+      changed_by: "（実行: %{email_address}）"
+      removed_account: 削除されたアカウント
     roles:
       owner: 管理者
       member: メンバー
