@@ -4,7 +4,11 @@
 # 方針は docs/decisions/0024-structured-data-and-crawling.md を正本とする。
 class Public::SitemapsController < ApplicationController
   def show
-    @job_postings = JobPosting.published.recent
+@job_postings = JobPosting.published.recent
+
+# ログイン状態に依存しないため、共有キャッシュへ載せてよい。
+expires_in 1.hour, public: true
+fresh_when(etag: @job_postings.to_a, last_modified: @job_postings.maximum(:updated_at), public: true)
 
     render formats: :xml, content_type: "application/xml"
   end
