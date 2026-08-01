@@ -346,18 +346,25 @@ ja:
         apply: この求人へ応募する
         back: 求人の一覧へ
   organizations:
+    job_application_stages:
+      update:
+        invalid_transition: この操作は現在の状態では行えません。
     job_applications:
       index:
         title: "%{title} への応募"
         empty: まだ応募はありません。
         back: 求人の一覧へ戻る
         history: 応募の記録
+        stage_changed: "%{from} から %{to} へ変更"
+        changed_by: "（%{email_address}）"
+        removed_account: 削除されたアカウント
         kinds:
           submitted: 応募
           withdrawn: 取り消し
       show:
         applied_at: 応募日時
         status: 状態
+        stage: 選考の段階
         withdrawn_notice: この応募は取り消されています。
         snapshot: 応募時点に送られた内容
         snapshot_notice: 応募の後にプロフィールが変わっても、ここに出る内容は変わりません。
@@ -373,6 +380,19 @@ ja:
       title: 組織の作成
       submit: 組織を作成する
   job_applications:
+    stages:
+      screening: 書類選考
+      interviewing: 面接
+      offered: 内定
+      hired: 採用
+      rejected: 不採用
+      declined: 辞退
+    stage_actions:
+      interviewing: 面接へ進める
+      offered: 内定を出す
+      hired: 採用を確定する
+      rejected: 不採用にする
+      declined: 辞退として記録する
     new:
       title: "%{title} へ応募する"
       body: "%{organization} へ、いまのプロフィールの内容を送ります。"

@@ -344,18 +344,25 @@ en:
         apply: Apply to this job posting
         back: Back to job postings
   organizations:
+    job_application_stages:
+      update:
+        invalid_transition: That change is not possible from the current stage.
     job_applications:
       index:
         title: Applications to %{title}
         empty: No applications yet.
         back: Back to job postings
         history: Application history
+        stage_changed: Moved from %{from} to %{to}
+        changed_by: "(%{email_address})"
+        removed_account: deleted account
         kinds:
           submitted: Applied
           withdrawn: Withdrawn
       show:
         applied_at: Applied at
         status: Status
+        stage: Stage
         withdrawn_notice: This application has been withdrawn.
         snapshot: What was sent with this application
         snapshot_notice: This does not change when the applicant edits their profile later.
@@ -371,6 +378,19 @@ en:
       title: Create an organization
       submit: Create organization
   job_applications:
+    stages:
+      screening: Screening
+      interviewing: Interviewing
+      offered: Offer made
+      hired: Hired
+      rejected: Not selected
+      declined: Declined
+    stage_actions:
+      interviewing: Move to interviewing
+      offered: Make an offer
+      hired: Confirm hire
+      rejected: Reject
+      declined: Record as declined
     new:
       title: Apply to %{title}
       body: Your profile as it stands now will be sent to %{organization}.
