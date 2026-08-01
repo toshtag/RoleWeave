@@ -10,7 +10,8 @@ class JobPostingReviewsController < ApplicationController
   before_action :set_organization
   before_action :set_job_posting
   # 承認と差し戻しは管理者だけができる。申請は所属者であれば行える。
-  before_action :require_organization_owner, only: %i[approve reject]
+  # 停止も公開と同じ重さの操作とする。
+  before_action :require_organization_owner, only: %i[approve reject suspend]
 
   def submit
     change_status_to("pending_review")
@@ -22,6 +23,10 @@ class JobPostingReviewsController < ApplicationController
 
   def reject
     change_status_to("rejected")
+  end
+
+  def suspend
+    change_status_to("suspended")
   end
 
   private

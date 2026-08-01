@@ -38,6 +38,7 @@ Rails.application.routes.draw do
               patch :submit, to: "job_posting_reviews#submit"
               patch :approve, to: "job_posting_reviews#approve"
               patch :reject, to: "job_posting_reviews#reject"
+          patch :suspend, to: "job_posting_reviews#suspend"
             end
     end
 

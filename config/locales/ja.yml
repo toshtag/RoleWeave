@@ -114,6 +114,7 @@ ja:
       submit: 公開を申請する
       approve: 承認して公開する
       reject: 差し戻す
+      suspend: 公開を停止する
       empty: まだ求人がありません。
     new:
       title: "%{organization} の求人を作成する"
@@ -130,6 +131,7 @@ ja:
       pending_review: 審査待ち
       published: 公開中
       rejected: 差し戻し
+      suspended: 停止中
     employment_types:
       full_time: 正社員
       part_time: パート・アルバイト

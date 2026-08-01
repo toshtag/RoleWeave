@@ -45,6 +45,14 @@
                         method: :patch,
                         class: "button button--quiet" %>
         <% end %>
+
+        <%# 停止も公開と同じ重さの操作とし、管理者だけへ出す。 %>
+        <% if current_membership&.owner? && job_posting.can_transition_to?("suspended") %>
+          <%= button_to t(".suspend"),
+                        organization_job_posting_suspend_path(locale: I18n.locale, organization_id: @organization, job_posting_id: job_posting),
+                        method: :patch,
+                        class: "button button--quiet" %>
+        <% end %>
       </li>
     <% end %>
   </ul>

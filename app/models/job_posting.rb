@@ -6,8 +6,7 @@ class JobPosting < ApplicationRecord
   TITLE_MAX_LENGTH = 200
 
   # 取り得る公開状態。値をここで閉じる。
-  # 停止は後続タスクで足す。使い道のない状態を先に並べない。
-  STATUSES = %w[draft pending_review published rejected].freeze
+  STATUSES = %w[draft pending_review published rejected suspended].freeze
 
   # 許された遷移。ここにない組み合わせは通さない。
   #
@@ -17,11 +16,14 @@ class JobPosting < ApplicationRecord
   TRANSITIONS = {
     "draft" => %w[pending_review],
     "rejected" => %w[pending_review],
-    "pending_review" => %w[published rejected]
+    "pending_review" => %w[published rejected],
+    # 停止から直接公開へは戻さない。再公開も審査を通す。
+    "published" => %w[suspended],
+    "suspended" => %w[pending_review]
   }.freeze
 
   # 編集できる状態。申請中と公開中の内容が、審査や公開の後で勝手に変わらないようにする。
-  EDITABLE_STATUSES = %w[draft rejected].freeze
+  EDITABLE_STATUSES = %w[draft rejected suspended].freeze
 
   # 雇用形態。自由記述にすると、公開側の絞り込みで表記のゆれを吸収することになる。
   EMPLOYMENT_TYPES = %w[full_time part_time contract internship].freeze
