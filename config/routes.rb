@@ -122,6 +122,12 @@ Rails.application.routes.draw do
     get "profile/documents/:kind" => "profile_documents#show", as: :profile_document
     delete "profile/documents/:kind" => "profile_documents#destroy"
 
+    # 応募に紐づく会話。応募者と組織の所属者が同じ経路を使う。
+    # 詳細は docs/decisions/0041-application-conversation.md を参照する。
+    resources :applications, only: [] do
+      resource :conversation, only: %i[show create]
+    end
+
     # 自分のデータの持ち出し。対象は常にログインしている本人とする。
     # 詳細は docs/decisions/0032-personal-data-export.md を参照する。
     resource :export, only: :show, controller: "profile_exports"

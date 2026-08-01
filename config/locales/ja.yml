@@ -187,6 +187,7 @@ ja:
       no_longer_published: 現在は公開されていません
       job_posting_snapshot: 応募時点の求人の内容
       candidate_profile_snapshot: 応募時点に送った内容
+      conversation: やり取りを見る
       withdraw_notice: 取り消すと、この求人へは応募し直せません。
       withdraw: 応募を取り消す
       withdraw_confirm: この応募を取り消します。同じ求人へは応募し直せません。
@@ -223,6 +224,18 @@ ja:
     edit:
       title: プロフィールの編集
       submit: 保存する
+  conversations:
+    show:
+      title: やり取り
+      about: "「%{title}」への応募についてのやり取りです。"
+      empty: まだメッセージはありません。
+      removed_account: 削除されたアカウント
+      body: メッセージ
+      submit: 送信する
+      closed: この応募は取り消されているため、新しいメッセージは送れません。
+    create:
+      closed: この応募は取り消されているため、新しいメッセージは送れません。
+      invalid: メッセージを送れませんでした。内容を確かめてください。
   desired_conditions:
     edit:
       title: 希望条件
@@ -398,6 +411,7 @@ ja:
         applied_at: 応募日時
         status: 状態
         stage: 選考の段階
+        conversation: やり取りを見る
         reviews: 社内の評価
         interviews: 面接の予定
         decide_by: 結論を出す期限
