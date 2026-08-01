@@ -56,4 +56,31 @@ class MembershipTest < ActiveSupport::TestCase
   test "組織のないアカウントのない所属を作れない" do
     assert_not Membership.new(role: "owner").valid?
   end
+  test "組織の最後の管理者を降格できない" do
+    # 管理者が 0 人になると、以後その組織で誰も招待も変更もできなくなる。
+    # 画面以外の経路（変更主体を持たない更新）でも守る。
+    membership = @organization.memberships.create!(user: @user, role: "owner")
+
+    assert_not membership.update(role: "member")
+    assert_includes membership.errors.attribute_names, :role
+  end
+
+  test "管理者が 2 人いれば片方を降格できる" do
+    @organization.memberships.create!(user: @user, role: "owner")
+    other = User.create!(email_address: "other@example.com", password: "correct horse battery")
+    second = @organization.memberships.create!(user: other, role: "owner")
+
+    assert second.update(role: "member")
+  end
+
+  test "変更主体が本人のときは役割を変更できない" do
+    # 誤って自分を降格させると、元へ戻せなくなる。
+    membership = @organization.memberships.create!(user: @user, role: "owner")
+    other = User.create!(email_address: "other@example.com", password: "correct horse battery")
+    @organization.memberships.create!(user: other, role: "owner")
+
+    membership.changed_by = @user
+
+    assert_not membership.update(role: "member")
+  end
 end

@@ -82,24 +82,16 @@ class OrganizationAuthorizationTest < ActionDispatch::IntegrationTest
 
   test "自分自身の役割は変更できない" do
     # 誤って自分を降格させると、元へ戻せなくなる。
+    #
+    # 他に管理者がいる状況で試す。管理者が自分だけだと、
+    # 最後の管理者を守る検証の方が先に効き、この契約を確かめられない。
+    @member_membership.update_column(:role, "owner")
     sign_in_as(@owner)
     own = @organization.memberships.find_by(user: @owner)
 
     change_role(own, "member")
 
     assert_response :unprocessable_content
-    assert_predicate own.reload, :owner?
-  end
-
-  test "最後の管理者を降格できない" do
-    # 管理者が 0 人になると、以後その組織で誰も招待も変更もできなくなる。
-    sign_in_as(@owner)
-    @member_membership.update!(role: "owner")
-    own = @organization.memberships.find_by(user: @owner)
-    @member_membership.update_column(:role, "member")
-
-    change_role(own, "member")
-
     assert_predicate own.reload, :owner?
   end
 
