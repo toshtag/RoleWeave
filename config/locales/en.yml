@@ -21,6 +21,10 @@ en:
         employment_type: Employment type
         salary: Salary
         requirements: Requirements
+        salary_currency: Salary currency
+        annual_salary_min: Minimum annual salary
+        annual_salary_max: Maximum annual salary
+        annual_salary: Annual salary
       invitation:
         email_address: Email address to invite
         role: Role
@@ -32,6 +36,10 @@ en:
         password_confirmation: Password confirmation
     errors:
       models:
+        job_posting:
+          attributes:
+            annual_salary_max:
+              less_than_minimum: cannot be lower than the minimum annual salary
         membership:
           attributes:
             role:
@@ -104,6 +112,8 @@ en:
         no_results: No job postings match your conditions.
         keyword: Keyword
         any_employment_type: All employment types
+        any_currency: Any currency
+        minimum_salary: Minimum annual salary
         submit: Filter
       show:
         back: Back to job postings
@@ -153,6 +163,12 @@ en:
       published: Published
       rejected: Sent back
       suspended: Suspended
+    salary_currencies:
+      JPY: JPY
+      USD: USD
+      EUR: EUR
+    salary_from: "From %{amount}"
+    salary_up_to: "Up to %{amount}"
     employment_types:
       full_time: Full-time
       part_time: Part-time

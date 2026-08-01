@@ -45,6 +45,35 @@
     <%= form.text_field :salary %>
   </div>
 
+  <%#
+    金額での絞り込みに使う値。自由記述の給与とは別に持つ。
+    「経験に応じて相談」のように金額で表せない求人は、ここを空のままにする。
+  %>
+  <div class="form__field">
+    <%= form.label :salary_currency %>
+    <%= form.select :salary_currency,
+                    JobPosting::SALARY_CURRENCIES.map { |currency| [ t("job_postings.salary_currencies.#{currency}"), currency ] },
+                    { include_blank: t(".unspecified") },
+                    aria: { describedby: field_error_id(job_posting, :salary_currency) } %>
+    <%= render "registrations/field_errors", record: job_posting, attribute: :salary_currency %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :annual_salary_min %>
+    <%= form.number_field :annual_salary_min,
+                          min: 0,
+                          aria: { describedby: field_error_id(job_posting, :annual_salary_min) } %>
+    <%= render "registrations/field_errors", record: job_posting, attribute: :annual_salary_min %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :annual_salary_max %>
+    <%= form.number_field :annual_salary_max,
+                          min: 0,
+                          aria: { describedby: field_error_id(job_posting, :annual_salary_max) } %>
+    <%= render "registrations/field_errors", record: job_posting, attribute: :annual_salary_max %>
+  </div>
+
   <div class="form__field">
     <%= form.label :requirements %>
     <%= form.text_area :requirements, rows: 5 %>

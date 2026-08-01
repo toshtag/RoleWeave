@@ -60,6 +60,9 @@ class JobPostingsController < ApplicationController
 
     # 状態は画面から受け取らない。公開状態を変える経路は別に用意する。
     def job_posting_params
-      params.expect(job_posting: %i[title description location occupation employment_type salary requirements])
+      params.expect(job_posting: %i[
+        title description location occupation employment_type
+        salary salary_currency annual_salary_min annual_salary_max requirements
+      ])
     end
 end

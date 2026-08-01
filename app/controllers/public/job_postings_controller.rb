@@ -14,6 +14,7 @@ class Public::JobPostingsController < ApplicationController
                               .matching_location(@search[:location])
                               .matching_occupation(@search[:occupation])
                               .matching_employment_type(@search[:employment_type])
+                              .matching_minimum_salary(@search[:salary_currency], @search[:minimum_salary])
                               .includes(:organization)
                               .recent
   end
@@ -26,9 +27,8 @@ class Public::JobPostingsController < ApplicationController
 
   private
     def search_params
-      params.permit(:keyword, :location, :occupation, :employment_type)
-            .to_h
-            .symbolize_keys
-            .slice(:keyword, :location, :occupation, :employment_type)
+      keys = %i[keyword location occupation employment_type salary_currency minimum_salary]
+
+      params.permit(*keys).to_h.symbolize_keys.slice(*keys)
     end
 end
