@@ -9,6 +9,12 @@ class Invitation < ApplicationRecord
   EXPIRES_IN = 7.days
 
   belongs_to :organization
+
+  # 所属先の組織は、作成した後で変えられないようにする。
+  # 変えられると、自分の組織のレコードを他組織へ付け替えられる。
+  # 詳細は docs/decisions/0013-role-based-authorization.md を参照する。
+  attr_readonly :organization_id
+
   belongs_to :invited_by, class_name: "User", optional: true
 
   # 宛先は User と同じ規則で正規化する。規則がずれると、

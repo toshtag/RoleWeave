@@ -8,6 +8,12 @@ class Membership < ApplicationRecord
   ROLES = %w[owner member].freeze
 
   belongs_to :organization
+
+  # 所属先の組織は、作成した後で変えられないようにする。
+  # 変えられると、自分の組織のレコードを他組織へ付け替えられる。
+  # 詳細は docs/decisions/0013-role-based-authorization.md を参照する。
+  attr_readonly :organization_id
+
   belongs_to :user
 
   validates :role, inclusion: { in: ROLES }
