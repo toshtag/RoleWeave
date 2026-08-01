@@ -88,6 +88,9 @@ class NotificationTest < ActionDispatch::IntegrationTest
         @conversation.messages.create!(sender: @candidate, body: "応募者からの連絡")
       end
     end
+
+    # 送らないことも状態として残す。失敗と区別できるようにする。
+    assert_equal %w[skipped skipped], Notification.pluck(:email_status)
   end
 
   test "受け取りが有効なら宛先の数だけメールが積まれる" do
