@@ -187,17 +187,27 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
     # 呼び出し側が画面の種類を意識すると、片方だけへ契約を書く余地が残る。
     def each_page
       I18n.available_locales.each do |locale|
-        path = localized_root_path(locale: locale)
-        get path
+        dynamic_paths(locale).each do |path|
+          get path
 
-        assert_response :success
+          assert_response :success
 
-        yield path, locale, Nokogiri::HTML5(response.body)
+          yield path, locale, Nokogiri::HTML5(response.body)
+        end
       end
 
       STATIC_PAGES.each do |page, locale|
         yield page, locale, Nokogiri::HTML5(page_source(page))
       end
+    end
+
+    # 未ログインで到達できる動的画面。
+    # 画面が増えるたびにここへ加える。加え忘れると、その画面だけ契約から外れる。
+    def dynamic_paths(locale)
+      [
+        localized_root_path(locale: locale),
+        new_session_path(locale: locale)
+      ]
     end
 
     # 各画面へ実際に効いている CSS を渡す。
