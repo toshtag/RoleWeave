@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_131544) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_143602) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -56,6 +56,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_131544) do
   end
 
   create_table "job_postings", force: :cascade do |t|
+    t.integer "annual_salary_max"
+    t.integer "annual_salary_min"
     t.datetime "created_at", null: false
     t.text "description", null: false
     t.string "employment_type"
@@ -64,11 +66,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_131544) do
     t.bigint "organization_id", null: false
     t.text "requirements"
     t.string "salary"
+    t.string "salary_currency"
     t.string "status", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
     t.index ["organization_id", "status", "created_at"], name: "idx_on_organization_id_status_created_at_dbef991872"
     t.index ["organization_id"], name: "index_job_postings_on_organization_id"
+    t.index ["salary_currency", "annual_salary_min"], name: "index_job_postings_on_salary_currency_and_annual_salary_min"
   end
 
   create_table "membership_events", force: :cascade do |t|

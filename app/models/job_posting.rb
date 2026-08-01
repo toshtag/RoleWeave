@@ -28,6 +28,10 @@ class JobPosting < ApplicationRecord
   # 雇用形態。自由記述にすると、公開側の絞り込みで表記のゆれを吸収することになる。
   EMPLOYMENT_TYPES = %w[full_time part_time contract internship].freeze
 
+# 給与の通貨。1 つに固定できないため、求人ごとに持つ。
+# 換算はしない。通貨をまたいだ比較は、為替の時点を決めないと成り立たない。
+SALARY_CURRENCIES = %w[JPY USD EUR].freeze
+
   belongs_to :organization
 
   # 所属先の組織は、作成した後で変えられないようにする。
@@ -40,6 +44,14 @@ class JobPosting < ApplicationRecord
   validates :title, presence: true, length: { maximum: TITLE_MAX_LENGTH }
   validates :description, presence: true
   validates :employment_type, inclusion: { in: EMPLOYMENT_TYPES }, allow_blank: true
+
+validates :salary_currency, inclusion: { in: SALARY_CURRENCIES }, allow_blank: true
+validates :annual_salary_min, :annual_salary_max,
+          numericality: { only_integer: true, greater_than_or_equal_to: 0 },
+          allow_nil: true
+
+validate :salary_range_is_ordered
+validate :salary_amount_has_currency
 
   # 公開状態の変更を記録する。
   #
@@ -88,6 +100,18 @@ class JobPosting < ApplicationRecord
     occupation.present? ? where(arel_table[:occupation].matches("%#{sanitize_sql_like(occupation)}%")) : all
   end
 
+# 給与の絞り込み。通貨と最低年収の組で使う。
+#
+# 通貨をまたいだ比較はしない。換算は為替の時点を決めないと成り立たない。
+# 金額を持たない求人は、条件を指定したときに含めない。
+# 「未記載」を「条件を満たす」と扱うと、結果が信用できなくなる。
+scope :matching_minimum_salary, ->(currency, amount) do
+  amount = amount.to_s.strip
+  next all if amount.empty? || !SALARY_CURRENCIES.include?(currency)
+
+  where(salary_currency: currency).where(arel_table[:annual_salary_min].gteq(amount.to_i))
+end
+
   scope :matching_employment_type, ->(employment_type) do
     # 決められた値だけを受け付ける。それ以外は条件として無視する。
     EMPLOYMENT_TYPES.include?(employment_type) ? where(employment_type: employment_type) : all
@@ -119,8 +143,27 @@ class JobPosting < ApplicationRecord
     update(status: next_status)
   end
 
-  private
-    def record_created
+# 構造化された給与を持つか。表示と絞り込みの両方で使う。
+def structured_salary?
+  annual_salary_min.present? || annual_salary_max.present?
+end
+
+private
+  def salary_range_is_ordered
+    return if annual_salary_min.blank? || annual_salary_max.blank?
+    return if annual_salary_max >= annual_salary_min
+
+    errors.add(:annual_salary_max, :less_than_minimum)
+  end
+
+  def salary_amount_has_currency
+    return unless structured_salary?
+    return if salary_currency.present?
+
+    errors.add(:salary_currency, :blank)
+  end
+
+  def record_created
       record_event(nil, status)
     end
 
