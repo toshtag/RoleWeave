@@ -1,7 +1,41 @@
 <% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<%#
+  条件を持つ一覧の canonical は、条件を持たない一覧とする。
+  同じ求人の集合へ無数の URL から到達できる状態を、検索エンジンへ渡さない。
+%>
 <% content_for :canonical, public_job_postings_url(locale: I18n.locale) %>
+<% if @search.any? { |_key, value| value.present? } %>
+  <%# 条件つきの結果は索引させない。リンクはたどらせる。 %>
+  <% content_for :robots, "noindex, follow" %>
+<% end %>
 
 <h1><%= t(".title") %></h1>
+
+<%= form_with url: public_job_postings_path(locale: I18n.locale), method: :get, class: "form search-form" do |form| %>
+  <div class="form__field">
+    <%= form.label :keyword, t(".keyword") %>
+    <%= form.search_field :keyword, value: @search[:keyword] %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :location, JobPosting.human_attribute_name(:location) %>
+    <%= form.text_field :location, value: @search[:location] %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :occupation, JobPosting.human_attribute_name(:occupation) %>
+    <%= form.text_field :occupation, value: @search[:occupation] %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :employment_type, JobPosting.human_attribute_name(:employment_type) %>
+    <%= form.select :employment_type,
+                    JobPosting::EMPLOYMENT_TYPES.map { |type| [ t("job_postings.employment_types.#{type}"), type ] },
+                    { include_blank: t(".any_employment_type"), selected: @search[:employment_type] } %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
 
 <% if @job_postings.any? %>
   <ul class="job-posting-list">
@@ -17,5 +51,5 @@
     <% end %>
   </ul>
 <% else %>
-  <p><%= t(".empty") %></p>
+  <p><%= @search.any? { |_key, value| value.present? } ? t(".no_results") : t(".empty") %></p>
 <% end %>

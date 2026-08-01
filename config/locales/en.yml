@@ -101,6 +101,10 @@ en:
       index:
         title: Find a job
         empty: There are no published job postings right now.
+        no_results: No job postings match your conditions.
+        keyword: Keyword
+        any_employment_type: All employment types
+        submit: Filter
       show:
         back: Back to job postings
   organizations:

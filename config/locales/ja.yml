@@ -101,6 +101,10 @@ ja:
       index:
         title: 求人を探す
         empty: 現在、公開中の求人はありません。
+        no_results: 条件に一致する求人はありません。
+        keyword: キーワード
+        any_employment_type: すべての雇用形態
+        submit: 絞り込む
       show:
         back: 求人の一覧へ
   organizations:
