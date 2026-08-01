@@ -3,7 +3,7 @@ name: Public Job Discovery and SEO
 weight: 9
 confidence: medium
 risk: medium
-status: in_progress
+status: done
 depends_on:
   - P4
 objective: |-
