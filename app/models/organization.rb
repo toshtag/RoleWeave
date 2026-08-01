@@ -10,6 +10,9 @@ class Organization < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :users, through: :memberships
 
+  # 組織を消したら、その組織への招待も残さない。
+  has_many :invitations, dependent: :destroy
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 
