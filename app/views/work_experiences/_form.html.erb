@@ -1,0 +1,45 @@
+<%= form_with model: work_experience, url: url, method: method, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :organization_name %>
+    <%= form.text_field :organization_name,
+                        required: true,
+                        autofocus: true,
+                        aria: { describedby: field_error_id(work_experience, :organization_name) } %>
+    <%= render "registrations/field_errors", record: work_experience, attribute: :organization_name %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :position %>
+    <%= form.text_field :position,
+                        required: true,
+                        aria: { describedby: field_error_id(work_experience, :position) } %>
+    <%= render "registrations/field_errors", record: work_experience, attribute: :position %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :started_on %>
+    <%= form.date_field :started_on,
+                        required: true,
+                        aria: { describedby: field_error_id(work_experience, :started_on) } %>
+    <%= render "registrations/field_errors", record: work_experience, attribute: :started_on %>
+  </div>
+
+  <%# 終了日は任意とする。空であれば在籍中として扱う。 %>
+  <div class="form__field">
+    <%= form.label :ended_on %>
+    <%= form.date_field :ended_on,
+                        aria: { describedby: field_error_id(work_experience, :ended_on) } %>
+    <p class="form__hint"><%= t("work_experiences.form.ended_on_hint") %></p>
+    <%= render "registrations/field_errors", record: work_experience, attribute: :ended_on %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :description %>
+    <%= form.text_area :description,
+                       rows: 6,
+                       aria: { describedby: field_error_id(work_experience, :description) } %>
+    <%= render "registrations/field_errors", record: work_experience, attribute: :description %>
+  </div>
+
+  <%= form.submit submit_label, class: "button" %>
+<% end %>

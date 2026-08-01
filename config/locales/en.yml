@@ -19,6 +19,12 @@ en:
         introduction: Introduction
         location: Location
         desired_occupation: Desired occupation
+      work_experience:
+        organization_name: Organization
+        position: Position
+        description: Responsibilities
+        started_on: Start date
+        ended_on: End date
       job_posting:
         title: Title
         description: Job description
@@ -46,6 +52,12 @@ en:
           attributes:
             annual_salary_max:
               less_than_minimum: cannot be lower than the minimum annual salary
+        work_experience:
+          attributes:
+            ended_on:
+              before_start: can't be earlier than the start date
+            started_on:
+              in_the_future: can't be in the future
         membership:
           attributes:
             role:
@@ -74,12 +86,31 @@ en:
     show:
       title: Profile
       edit: Edit profile
+      work_experiences: Manage work experience
     new:
       title: Create your profile
       body: This is what employers see when you apply. Only the display name is required; you can add the rest later.
       submit: Create profile
     edit:
       title: Edit profile
+      submit: Save
+  work_experiences:
+    form:
+      ended_on_hint: Leave blank if you still work here.
+    index:
+      title: Work experience
+      new: Add work experience
+      period: "%{started_on} – %{ended_on}"
+      period_current: "%{started_on} – present"
+      edit: Edit
+      destroy: Delete
+      empty: No work experience has been added yet.
+      back: Back to profile
+    new:
+      title: Add work experience
+      submit: Add work experience
+    edit:
+      title: Edit work experience
       submit: Save
   confirmations:
     pending:
