@@ -36,6 +36,9 @@ class User < ApplicationRecord
   has_many :memberships, dependent: :destroy
   has_many :organizations, through: :memberships
 
+  # 履歴はアカウントを削除しても残す。参照は外部キー側で nullify する。
+  has_many :membership_events, dependent: nil
+
   # 認証の記録はアカウントを削除しても残す。
   # 誰の操作だったかは失われるが、いつ何が起きたかまで消すと、
   # 削除の前後の調査ができなくなる。参照は外部キー側で nullify する。

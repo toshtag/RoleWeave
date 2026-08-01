@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_112932) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_120449) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_112932) do
     t.index ["invited_by_id"], name: "index_invitations_on_invited_by_id"
     t.index ["organization_id", "email_address"], name: "index_pending_invitations_on_organization_and_email", unique: true, where: "(accepted_at IS NULL)"
     t.index ["organization_id"], name: "index_invitations_on_organization_id"
+  end
+
+  create_table "membership_events", force: :cascade do |t|
+    t.bigint "changed_by_id"
+    t.datetime "created_at", null: false
+    t.string "from_role"
+    t.string "kind", null: false
+    t.bigint "organization_id"
+    t.string "to_role", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id"
+    t.index ["changed_by_id"], name: "index_membership_events_on_changed_by_id"
+    t.index ["organization_id", "created_at"], name: "index_membership_events_on_organization_id_and_created_at"
+    t.index ["organization_id"], name: "index_membership_events_on_organization_id"
+    t.index ["user_id"], name: "index_membership_events_on_user_id"
   end
 
   create_table "memberships", force: :cascade do |t|
@@ -77,6 +92,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_112932) do
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "users", column: "invited_by_id", on_delete: :nullify
+  add_foreign_key "membership_events", "organizations", on_delete: :nullify
+  add_foreign_key "membership_events", "users", column: "changed_by_id", on_delete: :nullify
+  add_foreign_key "membership_events", "users", on_delete: :nullify
   add_foreign_key "memberships", "organizations"
   add_foreign_key "memberships", "users"
   add_foreign_key "sessions", "users"

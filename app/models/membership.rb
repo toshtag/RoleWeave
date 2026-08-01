@@ -26,6 +26,13 @@ class Membership < ApplicationRecord
   # 管理者が 0 人になると、以後その組織で誰も招待も変更もできなくなる。
   validate :last_owner_remains
 
+# 所属と役割の変更を記録する。
+#
+# Controller ではなくモデルへ置く。所属を作る・変える経路が増えても、
+# 記録の書き忘れが起こらない。招待の受諾も所属を作る経路である。
+after_create :record_joined
+after_update :record_role_change, if: :saved_change_to_role?
+
   # 役割を変更する主体。検証のためだけに使い、保存はしない。
   attr_accessor :changed_by
 
@@ -39,6 +46,29 @@ class Membership < ApplicationRecord
       return unless changed_by && changed_by == user
 
       errors.add(:role, :self_change)
+    end
+
+    def record_joined
+      MembershipEvent.create!(
+        organization: organization,
+        user: user,
+        changed_by: changed_by,
+        kind: "joined",
+        to_role: role
+      )
+    end
+
+    def record_role_change
+      before, after = saved_change_to_role
+
+      MembershipEvent.create!(
+        organization: organization,
+        user: user,
+        changed_by: changed_by,
+        kind: "role_changed",
+        from_role: before,
+        to_role: after
+      )
     end
 
     def last_owner_remains
