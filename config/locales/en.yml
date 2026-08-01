@@ -7,12 +7,18 @@ en:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      candidate_profile: Profile
       job_posting: Job posting
       invitation: Invitation
       organization: Organization
       membership: Membership
       user: Account
     attributes:
+      candidate_profile:
+        display_name: Display name
+        introduction: Introduction
+        location: Location
+        desired_occupation: Desired occupation
       job_posting:
         title: Title
         description: Job description
@@ -54,6 +60,7 @@ en:
       sign_up: Sign up
       sign_out: Sign out
       organizations: Organizations
+      profile: Profile
     language_switcher:
       label: Display language
       # 言語名は訳さず、その言語自身の表記で書く。
@@ -63,6 +70,17 @@ en:
         en: English
     footer:
       description: An open-source project building a self-hostable recruiting platform.
+  candidate_profiles:
+    show:
+      title: Profile
+      edit: Edit profile
+    new:
+      title: Create your profile
+      body: This is what employers see when you apply. Only the display name is required; you can add the rest later.
+      submit: Create profile
+    edit:
+      title: Edit profile
+      submit: Save
   confirmations:
     pending:
       title: Email confirmation required

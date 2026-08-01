@@ -1,0 +1,26 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%#
+  未入力の項目は行ごと出さない。空欄を並べると、
+  その項目が「無い」のか「書かれていない」のかが読み手に分からない。
+%>
+<dl>
+  <dt><%= CandidateProfile.human_attribute_name(:display_name) %></dt>
+  <dd><%= @candidate_profile.display_name %></dd>
+
+  <% { location: @candidate_profile.location,
+       desired_occupation: @candidate_profile.desired_occupation }.each do |attribute, value| %>
+    <% next if value.blank? %>
+    <dt><%= CandidateProfile.human_attribute_name(attribute) %></dt>
+    <dd><%= value %></dd>
+  <% end %>
+</dl>
+
+<% if @candidate_profile.introduction.present? %>
+  <h2><%= CandidateProfile.human_attribute_name(:introduction) %></h2>
+  <div class="job-posting__body"><%= simple_format(@candidate_profile.introduction) %></div>
+<% end %>
+
+<p><%= link_to t(".edit"), edit_profile_path(locale: I18n.locale) %></p>

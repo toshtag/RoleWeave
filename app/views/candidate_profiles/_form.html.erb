@@ -1,0 +1,30 @@
+<%= form_with model: candidate_profile, url: url, method: method, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :display_name %>
+    <%= form.text_field :display_name,
+                        required: true,
+                        autofocus: true,
+                        aria: { describedby: field_error_id(candidate_profile, :display_name) } %>
+    <%= render "registrations/field_errors", record: candidate_profile, attribute: :display_name %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :introduction %>
+    <%= form.text_area :introduction,
+                       rows: 6,
+                       aria: { describedby: field_error_id(candidate_profile, :introduction) } %>
+    <%= render "registrations/field_errors", record: candidate_profile, attribute: :introduction %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :location %>
+    <%= form.text_field :location %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :desired_occupation %>
+    <%= form.text_field :desired_occupation %>
+  </div>
+
+  <%= form.submit submit_label, class: "button" %>
+<% end %>

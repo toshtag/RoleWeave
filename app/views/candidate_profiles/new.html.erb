@@ -1,0 +1,11 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<%= render "form",
+           candidate_profile: @candidate_profile,
+           url: profile_path(locale: I18n.locale),
+           method: :post,
+           submit_label: t(".submit") %>
