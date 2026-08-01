@@ -28,6 +28,7 @@ en:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      application_review: Review
       candidate_profile: Profile
       job_application: Application
       job_posting: Job posting
@@ -36,6 +37,9 @@ en:
       membership: Membership
       user: Account
     attributes:
+      application_review:
+        rating: Rating
+        comment: Comment
       candidate_profile:
         visibility: Visibility
         resume: Resume
@@ -93,6 +97,8 @@ en:
       models:
         job_application:
           attributes:
+            assignee:
+              not_a_member: is not a member of this organization
             job_posting:
               not_published: is not accepting applications
             candidate_profile_id:
@@ -101,6 +107,10 @@ en:
           attributes:
             annual_salary_max:
               less_than_minimum: cannot be lower than the minimum annual salary
+        application_review:
+          attributes:
+            base:
+              blank_review: needs a rating or a comment
         candidate_profile:
           attributes:
             resume:
@@ -344,6 +354,12 @@ en:
         apply: Apply to this job posting
         back: Back to job postings
   organizations:
+    application_reviews:
+      create:
+        invalid: The review could not be saved. Enter a rating or a comment.
+    job_application_assignments:
+      update:
+        invalid: The assignee could not be saved.
     job_application_stages:
       update:
         invalid_transition: That change is not possible from the current stage.
@@ -363,6 +379,15 @@ en:
         applied_at: Applied at
         status: Status
         stage: Stage
+        reviews: Internal reviews
+        assignee: Assignee
+        no_assignee: No assignee
+        assign: Save assignee
+        rating_value: "Rating %{rating} / %{max}"
+        no_rating: No rating
+        no_reviews: No reviews yet.
+        submit_review: Save review
+        removed_account: deleted account
         withdrawn_notice: This application has been withdrawn.
         snapshot: What was sent with this application
         snapshot_notice: This does not change when the applicant edits their profile later.

@@ -71,6 +71,10 @@ Rails.application.routes.draw do
           # 選考ステージを進める経路。見る経路とは分けて置く。
           # 詳細は docs/decisions/0038-selection-stage.md を参照する。
           patch "stage/:stage", to: "job_application_stages#update", as: :stage
+          # 評価とコメント。読み書きできるのは所属者だけとする。
+          # 詳細は docs/decisions/0039-application-review-and-assignment.md を参照する。
+          resources :reviews, only: :create, controller: "application_reviews"
+          resource :assignment, only: :update, controller: "job_application_assignments"
         end
       end
     end

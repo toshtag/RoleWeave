@@ -98,6 +98,67 @@
   </p>
 <% end %>
 
+<%#
+  評価とコメントは応募者には見えない。社内の判断の材料である。
+  求職者側の画面・エクスポート・応募の写しには現れない。
+%>
+<h2><%= t(".reviews") %></h2>
+
+<div class="form__field">
+  <%= form_with url: organization_job_posting_application_assignment_path(
+                  locale: I18n.locale, organization_id: @organization,
+                  job_posting_id: @job_posting, application_id: @job_application
+                ),
+                method: :patch,
+                class: "form" do |form| %>
+    <%= form.label :assignee_id, t(".assignee") %>
+    <%= form.select :assignee_id,
+                    @members.map { |member| [ member.email_address, member.id ] },
+                    { include_blank: t(".no_assignee"), selected: @job_application.assignee_id } %>
+    <%= form.submit t(".assign"), class: "button button--quiet" %>
+  <% end %>
+</div>
+
+<% if @application_reviews.any? %>
+  <ul>
+    <% @application_reviews.each do |review| %>
+      <li>
+        <%= l(review.created_at, format: :long) %>
+        <%= review.reviewer&.email_address || t(".removed_account") %>
+        <% if review.rating.present? %>
+          <%= t(".rating_value", rating: review.rating, max: ApplicationReview::MAX_RATING) %>
+        <% end %>
+        <% if review.comment.present? %>
+          <div class="job-posting__body"><%= simple_format(review.comment) %></div>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".no_reviews") %></p>
+<% end %>
+
+<%= form_with model: @application_review,
+              url: organization_job_posting_application_reviews_path(
+                locale: I18n.locale, organization_id: @organization,
+                job_posting_id: @job_posting, application_id: @job_application
+              ),
+              class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :rating, ApplicationReview.human_attribute_name(:rating) %>
+    <%= form.select :rating,
+                    (ApplicationReview::MIN_RATING..ApplicationReview::MAX_RATING).to_a,
+                    include_blank: t(".no_rating") %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :comment, ApplicationReview.human_attribute_name(:comment) %>
+    <%= form.text_area :comment, rows: 4 %>
+  </div>
+
+  <%= form.submit t(".submit_review"), class: "button" %>
+<% end %>
+
 <p>
   <%= link_to t(".back"),
               organization_job_posting_applications_path(
