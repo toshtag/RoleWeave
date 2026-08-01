@@ -111,6 +111,9 @@ ja:
       title: "%{organization} の求人"
       new: 求人を作成する
       edit: 編集する
+      submit: 公開を申請する
+      approve: 承認して公開する
+      reject: 差し戻す
       empty: まだ求人がありません。
     new:
       title: "%{organization} の求人を作成する"
@@ -120,8 +123,13 @@ ja:
       submit: 保存する
     form:
       unspecified: 指定しない
+    review:
+      rejected_transition: この求人は、いまその操作を行える状態ではありません。
     statuses:
       draft: 下書き
+      pending_review: 審査待ち
+      published: 公開中
+      rejected: 差し戻し
     employment_types:
       full_time: 正社員
       part_time: パート・アルバイト
