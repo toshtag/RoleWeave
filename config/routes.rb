@@ -34,6 +34,14 @@ Rails.application.routes.draw do
       resources :memberships, only: %i[index update]
     end
 
+    # 運営者専用の経路。通常の組織の画面とは分けて置く。
+    # 混ぜると、組織の所属に基づく制限と運営者の権限が同じ経路の中で絡み合う。
+    namespace :operator do
+      resources :organizations, only: %i[index show] do
+        resources :memberships, only: :update
+      end
+    end
+
     # 招待の受諾。token は URL のパスへ置く。
     # query string へ置くと、Referer やアクセスログへ残りやすい。
     get "invitation/:token" => "invitations#show", as: :invitation

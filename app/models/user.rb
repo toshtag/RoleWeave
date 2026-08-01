@@ -85,6 +85,11 @@ class User < ApplicationRecord
             length: { minimum: PASSWORD_MIN_LENGTH },
             allow_nil: true
 
+  # このサーバーを運用する側かどうか。組織の中での役割とは別の軸である。
+  def operator?
+    operator
+  end
+
   def confirmed?
     confirmed_at.present?
   end
