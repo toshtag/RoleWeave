@@ -32,7 +32,13 @@ Rails.application.routes.draw do
     resources :organizations, only: %i[index new create] do
       resources :invitations, only: %i[new create]
       resources :memberships, only: %i[index update]
-      resources :job_postings, only: %i[index new create edit update]
+      resources :job_postings, only: %i[index new create edit update] do
+              # 公開状態を変える経路は、編集とは別に置く。
+              # 同じ経路にすると、編集の権限がそのまま公開の権限になる。
+              patch :submit, to: "job_posting_reviews#submit"
+              patch :approve, to: "job_posting_reviews#approve"
+              patch :reject, to: "job_posting_reviews#reject"
+            end
     end
 
     # 運営者専用の経路。通常の組織の画面とは分けて置く。

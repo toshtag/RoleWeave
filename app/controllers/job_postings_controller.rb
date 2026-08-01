@@ -5,6 +5,9 @@ class JobPostingsController < ApplicationController
   before_action :require_confirmed_email
   before_action :set_organization
   before_action :set_job_posting, only: %i[edit update]
+  # 編集できるのは下書きと差し戻しだけとする。
+  # 申請中と公開中の内容が、審査や公開の後で勝手に変わらないようにする。
+  before_action :require_editable, only: %i[edit update]
 
   def index
     # 自組織の求人だけを出す。対象は set_organization がすでに絞っている。
@@ -37,6 +40,10 @@ class JobPostingsController < ApplicationController
   end
 
   private
+    def require_editable
+      raise ActiveRecord::RecordNotFound unless @job_posting.editable?
+    end
+
     def set_job_posting
       @job_posting = @organization.job_postings.find(params[:id])
     end

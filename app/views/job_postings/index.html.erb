@@ -2,6 +2,10 @@
 
 <h1><%= t(".title", organization: @organization.name) %></h1>
 
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
 <p>
   <%= link_to t(".new"),
               new_organization_job_posting_path(locale: I18n.locale, organization_id: @organization) %>
@@ -13,8 +17,34 @@
       <li>
         <%= job_posting.title %>
         <%= t("job_postings.statuses.#{job_posting.status}") %>
-        <%= link_to t(".edit"),
-                    edit_organization_job_posting_path(locale: I18n.locale, organization_id: @organization, id: job_posting) %>
+
+        <%# 状態に応じて、いま行える操作だけを出す。 %>
+        <% if job_posting.editable? %>
+          <%= link_to t(".edit"),
+                      edit_organization_job_posting_path(locale: I18n.locale, organization_id: @organization, id: job_posting) %>
+        <% end %>
+
+        <% if job_posting.can_transition_to?("pending_review") %>
+          <%= button_to t(".submit"),
+                        organization_job_posting_submit_path(locale: I18n.locale, organization_id: @organization, job_posting_id: job_posting),
+                        method: :patch,
+                        class: "button button--quiet" %>
+        <% end %>
+
+        <%#
+          承認と差し戻しは管理者だけができる。
+          画面から消しても経路は残るため、制限は Controller 側が持つ。
+        %>
+        <% if current_membership&.owner? && job_posting.can_transition_to?("published") %>
+          <%= button_to t(".approve"),
+                        organization_job_posting_approve_path(locale: I18n.locale, organization_id: @organization, job_posting_id: job_posting),
+                        method: :patch,
+                        class: "button button--quiet" %>
+          <%= button_to t(".reject"),
+                        organization_job_posting_reject_path(locale: I18n.locale, organization_id: @organization, job_posting_id: job_posting),
+                        method: :patch,
+                        class: "button button--quiet" %>
+        <% end %>
       </li>
     <% end %>
   </ul>

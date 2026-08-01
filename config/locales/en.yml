@@ -111,6 +111,9 @@ en:
       title: "Job postings of %{organization}"
       new: Create a job posting
       edit: Edit
+      submit: Submit for review
+      approve: Approve and publish
+      reject: Send back
       empty: There are no job postings yet.
     new:
       title: "Create a job posting for %{organization}"
@@ -120,8 +123,13 @@ en:
       submit: Save
     form:
       unspecified: Not specified
+    review:
+      rejected_transition: This job posting is not in a state where that action is allowed.
     statuses:
       draft: Draft
+      pending_review: Under review
+      published: Published
+      rejected: Sent back
     employment_types:
       full_time: Full-time
       part_time: Part-time
