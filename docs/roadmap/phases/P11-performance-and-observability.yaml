@@ -3,7 +3,7 @@ name: Performance and Observability
 weight: 7
 confidence: low
 risk: medium
-status: planned
+status: in_progress
 depends_on:
   - P10
 objective: |-
