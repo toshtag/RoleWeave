@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_103132) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_111045) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,6 +25,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_103132) do
     t.index ["email_address", "created_at"], name: "index_authentication_events_on_email_address_and_created_at"
     t.index ["user_id", "created_at"], name: "index_authentication_events_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_authentication_events_on_user_id"
+  end
+
+  create_table "memberships", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "organization_id", null: false
+    t.string "role", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["organization_id", "user_id"], name: "index_memberships_on_organization_id_and_user_id", unique: true
+    t.index ["organization_id"], name: "index_memberships_on_organization_id"
+    t.index ["user_id"], name: "index_memberships_on_user_id"
+  end
+
+  create_table "organizations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -45,5 +62,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_103132) do
   end
 
   add_foreign_key "authentication_events", "users", on_delete: :nullify
+  add_foreign_key "memberships", "organizations"
+  add_foreign_key "memberships", "users"
   add_foreign_key "sessions", "users"
 end
