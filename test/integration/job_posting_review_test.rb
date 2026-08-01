@@ -168,6 +168,79 @@ class JobPostingReviewTest < ActionDispatch::IntegrationTest
     assert_select "main button", text: I18n.t("job_postings.index.approve"), count: 1
   end
 
+  test "管理者は公開中の求人を停止できる" do
+    # 募集が終わった求人を公開したままにすると、応募できない求人へ応募される。
+    @job_posting.update!(status: "published")
+    sign_in_as(@owner)
+
+    suspend
+
+    assert_equal "suspended", @job_posting.reload.status
+  end
+
+  test "メンバーは停止できない" do
+    @job_posting.update!(status: "published")
+    sign_in_as(@member)
+
+    suspend
+
+    assert_response :not_found
+    assert_predicate @job_posting.reload, :published?
+  end
+
+  test "公開中でない求人を停止できない" do
+    sign_in_as(@owner)
+
+    suspend
+
+    assert_predicate @job_posting.reload, :draft?
+  end
+
+  test "停止中の求人を編集できる" do
+    @job_posting.update!(status: "published")
+    @job_posting.update!(status: "suspended")
+    sign_in_as(@owner)
+
+    edit_title("書き換え")
+
+    assert_equal "書き換え", @job_posting.reload.title
+  end
+
+  test "停止中の求人を再申請できる" do
+    @job_posting.update!(status: "published")
+    @job_posting.update!(status: "suspended")
+    sign_in_as(@member)
+
+    submit
+
+    assert_equal "pending_review", @job_posting.reload.status
+  end
+
+  test "停止中の求人を直接公開へ戻せない" do
+    # 再公開も審査を通す。
+    @job_posting.update!(status: "published")
+    @job_posting.update!(status: "suspended")
+    sign_in_as(@owner)
+
+    approve
+
+    assert_equal "suspended", @job_posting.reload.status
+  end
+
+  test "停止の操作が公開中かつ管理者のときだけ出る" do
+    @job_posting.update!(status: "published")
+    sign_in_as(@owner)
+
+    get organization_job_postings_path(locale: :ja, organization_id: @organization)
+
+    assert_select "main button", text: I18n.t("job_postings.index.suspend"), count: 1
+
+    @job_posting.update!(status: "suspended")
+    get organization_job_postings_path(locale: :ja, organization_id: @organization)
+
+    assert_select "main button", text: I18n.t("job_postings.index.suspend"), count: 0
+  end
+
   private
     def confirmed_user(email_address)
       User.create!(email_address: email_address, password: PASSWORD).tap(&:confirm)
@@ -191,6 +264,12 @@ class JobPostingReviewTest < ActionDispatch::IntegrationTest
 
     def reject
       patch organization_job_posting_reject_path(
+        locale: :ja, organization_id: @organization, job_posting_id: @job_posting
+      )
+    end
+
+    def suspend
+      patch organization_job_posting_suspend_path(
         locale: :ja, organization_id: @organization, job_posting_id: @job_posting
       )
     end
