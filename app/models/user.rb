@@ -11,8 +11,9 @@ class User < ApplicationRecord
   PASSWORD_MIN_LENGTH = 12
 
   # bcrypt は 72 バイトを超える入力を切り捨てる。
-  # 切り捨てを黙って受け入れると、入力の一部が認証に使われない状態になる。
-  PASSWORD_MAX_BYTESIZE = 72
+  # 切り捨ての拒否は has_secure_password が行うため、ここでは値を写さず参照する。
+  # 自前で 72 と書くと、Rails 側が変わったときに 2 つの上限が食い違う。
+  PASSWORD_MAX_BYTESIZE = ActiveModel::SecurePassword::MAX_PASSWORD_LENGTH_ALLOWED
 
   # 形式の判定は Ruby 標準の正規表現に委ねる。
   # 独自の正規表現は、実在する書式を拒否する方向へ外れやすい。
@@ -39,20 +40,11 @@ class User < ApplicationRecord
             format: { with: EMAIL_ADDRESS_FORMAT },
             uniqueness: true
 
-  # 長さだけを条件にする。
-  # 未入力のときは has_secure_password の存在検証が理由を伝えるため、ここでは重ねない。
+  # 最小長だけを条件にする。
+  #
+  # 上限（bcrypt の 72 バイト）は has_secure_password が見るため重ねない。
+  # 未入力のときも has_secure_password の存在検証が理由を伝える。
   validates :password,
             length: { minimum: PASSWORD_MIN_LENGTH },
             allow_nil: true
-
-  validate :password_fits_in_digest
-
-  private
-    # bcrypt が切り捨てる長さを、保存の前に拒否する。
-    # 文字数ではなくバイト数で判定する。日本語を含むパスワードは 1 文字が複数バイトになる。
-    def password_fits_in_digest
-      return if password.nil? || password.bytesize <= PASSWORD_MAX_BYTESIZE
-
-      errors.add(:password, :too_long_in_bytes, count: PASSWORD_MAX_BYTESIZE)
-    end
 end
