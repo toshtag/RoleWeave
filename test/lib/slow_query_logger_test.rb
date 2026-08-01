@@ -44,19 +44,12 @@ class SlowQueryLoggerTest < ActiveSupport::TestCase
   end
 
   private
+    # 実装そのものを呼ぶ。同じ判定をテストへ写すと、
+    # 実装側の判定を外しても気付けない。
     def capture_slow_queries(threshold_ms:)
       buffer = StringIO.new
-      logger = ActiveSupport::Logger.new(buffer)
-      subscriber = nil
-
-      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*args|
-        event = ActiveSupport::Notifications::Event.new(*args)
-
-        next if SlowQueryLogger::IGNORED_NAMES.include?(event.payload[:name])
-        next if event.duration < threshold_ms
-
-        logger.warn(StructuredLog.slow_query(event.payload, duration: event.duration).to_json)
-      end
+      subscriber = SlowQueryLogger.subscribe(logger: ActiveSupport::Logger.new(buffer),
+                                             threshold_ms: threshold_ms)
 
       yield
 
