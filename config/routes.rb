@@ -29,7 +29,11 @@ Rails.application.routes.draw do
 
     # 求職者が見る求人。組織側の管理画面とは経路を分ける。
     # 詳細は docs/decisions/0020-public-job-posting-urls.md を参照する。
-    resources :jobs, only: %i[index show], controller: "public/job_postings", as: :public_job_postings
+    resources :jobs, only: %i[index show], controller: "public/job_postings", as: :public_job_postings do
+      # 応募。求人の下へ置く。応募元は経路から受け取らず、常に本人のプロフィールとする。
+      # 詳細は docs/decisions/0034-job-application.md を参照する。
+      resource :application, only: %i[new create], controller: "job_applications"
+    end
 
     # ログイン状態は 1 つしか持たないため、単数形の resource とする。
     # ログアウトは DELETE で行う。GET で状態を変えると、

@@ -1,0 +1,45 @@
+<% content_for :title, "#{t(".title", title: @job_posting.title)} | #{t("application.name")}" %>
+
+<%# 応募の画面は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title", title: @job_posting.title) %></h1>
+
+<% if @job_application.errors.any? %>
+  <p class="form-error" role="alert">
+    <%= @job_application.errors.full_messages.to_sentence %>
+  </p>
+<% end %>
+
+<p><%= t(".body", organization: @job_posting.organization.name) %></p>
+
+<%#
+  何を出すことになるかを先に示す。
+  「応募する」だけでは、どこまで渡るのかが分からない。
+%>
+<h2><%= t(".sent") %></h2>
+
+<ul>
+  <li><%= CandidateProfile.human_attribute_name(:display_name) %>: <%= @candidate_profile.display_name %></li>
+  <li><%= t("work_experiences.index.title") %>: <%= @candidate_profile.work_experiences.count %></li>
+  <li><%= t("educations.index.title") %>: <%= @candidate_profile.educations.count %></li>
+  <li><%= t("skills.index.title") %>: <%= @candidate_profile.skills.count %></li>
+</ul>
+
+<%# 希望年収は、見せる設定のときだけ写す。応募と、年収を明かすことは別の判断である。 %>
+<p>
+  <% if @candidate_profile.desired_salary_visible? %>
+    <%= t(".desired_salary_included") %>
+  <% else %>
+    <%= t(".desired_salary_excluded") %>
+  <% end %>
+</p>
+
+<p><%= t(".snapshot_notice") %></p>
+
+<%= button_to t(".submit"),
+              public_job_posting_application_path(locale: I18n.locale, public_job_posting_id: @job_posting),
+              method: :post,
+              class: "button" %>
+
+<p><%= link_to t(".back"), public_job_posting_path(locale: I18n.locale, id: @job_posting) %></p>

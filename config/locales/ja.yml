@@ -29,6 +29,7 @@ ja:
   activerecord:
     models:
       candidate_profile: プロフィール
+      job_application: 応募
       job_posting: 求人
       invitation: 招待
       organization: 組織
@@ -90,6 +91,12 @@ ja:
         password_confirmation: パスワード（確認用）
     errors:
       models:
+        job_application:
+          attributes:
+            job_posting:
+              not_published: は現在応募を受け付けていません
+            candidate_profile_id:
+              taken: この求人にはすでに応募しています
         job_posting:
           attributes:
             annual_salary_max:
@@ -314,6 +321,7 @@ ja:
         minimum_salary: 最低年収
         submit: 絞り込む
       show:
+        apply: この求人へ応募する
         back: 求人の一覧へ
   organizations:
     index:
@@ -325,6 +333,16 @@ ja:
     new:
       title: 組織の作成
       submit: 組織を作成する
+  job_applications:
+    new:
+      title: "%{title} へ応募する"
+      body: "%{organization} へ、いまのプロフィールの内容を送ります。"
+      sent: 送られる内容
+      desired_salary_included: 希望年収も送られます。送りたくない場合は、公開範囲の設定で外してください。
+      desired_salary_excluded: 希望年収は送られません。送る場合は、公開範囲の設定で有効にしてください。
+      snapshot_notice: 送った内容は応募時点のまま保存されます。あとでプロフィールを変えても、この応募の内容は変わりません。
+      submit: この内容で応募する
+      back: 求人へ戻る
   job_postings:
     index:
       title: "%{organization} の求人"
