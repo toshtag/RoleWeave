@@ -95,6 +95,10 @@ Rails.application.routes.draw do
       # 履歴書・職務経歴書。種類はパスへ置き、決まった 2 つだけを受け取る。
       # 詳細は docs/decisions/0031-profile-documents.md を参照する。
       resource :documents, only: %i[edit update], controller: "profile_documents"
+
+      # 自分の応募。応募そのものの経路（求人の下）とは分けて置く。
+      # 詳細は docs/decisions/0035-application-withdrawal.md を参照する。
+      resources :applications, only: %i[index show destroy], controller: "candidate_job_applications"
     end
 
     # 添付そのものの経路。種類をパスへ置く。

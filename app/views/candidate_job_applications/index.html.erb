@@ -1,0 +1,25 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if @job_applications.any? %>
+  <ul>
+    <% @job_applications.each do |job_application| %>
+      <li>
+        <%#
+          出すのは応募時点の写しである。現在の求人の値を出すと、
+          あとから題名が変わったときに「応募した覚えのない求人」が並ぶ。
+        %>
+        <%= link_to job_application.job_posting_snapshot["title"],
+                    profile_application_path(locale: I18n.locale, id: job_application) %>
+        <%= job_application.job_posting_snapshot["organization_name"] %>
+        <%= l(job_application.created_at, format: :long) %>
+        <%= t(".statuses.#{job_application.status}") %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>
