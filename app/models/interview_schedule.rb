@@ -28,10 +28,10 @@ class InterviewSchedule < ApplicationRecord
 
   scope :upcoming, -> { order(:starts_at, :id) }
 
-# 予定の作成と取消も、その応募に起きたことである。
-# 応募の記録（ADR 0037）と同じ表へ残す。
-after_create :record_scheduled
-after_update :record_cancelled, if: :saved_change_to_status?
+  # 予定の作成と取消も、その応募に起きたことである。
+  # 応募の記録（ADR 0037）と同じ表へ残す。
+  after_create :record_scheduled
+  after_update :record_cancelled, if: :saved_change_to_status?
 
   def scheduled?
     status == "scheduled"
@@ -44,18 +44,18 @@ after_update :record_cancelled, if: :saved_change_to_status?
     update(status: "cancelled")
   end
 
-private
-  def record_scheduled
-    job_application.record_interview_event("interview_scheduled", changed_by: created_by)
-  end
+  private
+    def record_scheduled
+      job_application.record_interview_event("interview_scheduled", changed_by: created_by)
+    end
 
-  def record_cancelled
-    return unless status == "cancelled"
+    def record_cancelled
+      return unless status == "cancelled"
 
-    job_application.record_interview_event("interview_cancelled", changed_by: created_by)
-  end
+      job_application.record_interview_event("interview_cancelled", changed_by: created_by)
+    end
 
-  def starts_at_is_in_the_future
+    def starts_at_is_in_the_future
       return if starts_at.blank?
       return if starts_at > Time.current
 
