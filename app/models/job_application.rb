@@ -70,6 +70,9 @@ class JobApplication < ApplicationRecord
   after_create :record_submitted
   after_update :record_withdrawn, if: :saved_change_to_status?
   after_update :record_stage_changed, if: :saved_change_to_stage?
+  # 選考の状況の変化は応募者へだけ知らせる。
+  # 企業側は自分たちで動かしているため、知らせる意味がない。
+  after_commit :notify_candidate_of_stage_change, if: :saved_change_to_stage?
 
   # 通知はトランザクションが閉じた後に積む。
   #
@@ -171,6 +174,18 @@ end
         to_stage: to_stage,
         changed_by: changed_by
       )
+    end
+
+    def notify_candidate_of_stage_change
+      candidate = candidate_profile.user
+
+      notification = Notification.create!(
+    user: candidate, job_application: self, kind: "stage_changed"
+      )
+
+      return unless candidate.email_notifications?
+
+      NotificationMailer.stage_changed(notification, locale: I18n.locale).deliver_later
     end
 
     # 宛先は組織の管理者とする。一般の所属者へは送らない。

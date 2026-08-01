@@ -1,0 +1,27 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<%# 個人の通知は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if @notifications.any? %>
+  <ul>
+    <% @notifications.each do |notification| %>
+      <li>
+        <%= l(notification.created_at, format: :long) %>
+        <%= t(".kinds.#{notification.kind}") %>
+        <%#
+          中身は書かない。開く先で読む。
+        %>
+        <% if notification.job_application.present? %>
+          <%= link_to t(".open"),
+                      application_conversation_path(locale: I18n.locale,
+                                                    application_id: notification.job_application) %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>

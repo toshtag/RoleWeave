@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_194436) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_195910) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -262,6 +262,20 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_194436) do
     t.index ["sender_id"], name: "index_messages_on_sender_id"
   end
 
+  create_table "notifications", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_application_id"
+    t.string "kind", null: false
+    t.bigint "message_id"
+    t.datetime "read_at"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["job_application_id"], name: "index_notifications_on_job_application_id"
+    t.index ["message_id"], name: "index_notifications_on_message_id"
+    t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
+    t.index ["user_id"], name: "index_notifications_on_user_id"
+  end
+
   create_table "organizations", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -290,6 +304,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_194436) do
     t.datetime "confirmed_at"
     t.datetime "created_at", null: false
     t.string "email_address", null: false
+    t.boolean "email_notifications", default: true, null: false
     t.boolean "operator", default: false, null: false
     t.string "password_digest", null: false
     t.datetime "updated_at", null: false
@@ -342,6 +357,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_194436) do
   add_foreign_key "message_reads", "users"
   add_foreign_key "messages", "conversations"
   add_foreign_key "messages", "users", column: "sender_id", on_delete: :nullify
+  add_foreign_key "notifications", "job_applications", on_delete: :cascade
+  add_foreign_key "notifications", "messages", on_delete: :cascade
+  add_foreign_key "notifications", "users"
   add_foreign_key "sessions", "users"
   add_foreign_key "skills", "candidate_profiles"
   add_foreign_key "work_experiences", "candidate_profiles"

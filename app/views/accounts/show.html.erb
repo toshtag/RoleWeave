@@ -14,3 +14,4 @@
 <%# 自分のデータは、いつでも手元へ持ち出せるようにしておく。 %>
 <p><%= link_to t(".export"), export_path(locale: I18n.locale) %></p>
 <p><%= link_to t(".delete"), account_deletion_path(locale: I18n.locale) %></p>
+<p><%= link_to t(".notification_settings"), edit_notification_settings_path(locale: I18n.locale) %></p>

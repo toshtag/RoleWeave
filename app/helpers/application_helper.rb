@@ -1,4 +1,12 @@
 module ApplicationHelper
+  # ヘッダーへ出す未読の通知の数。
+  # 未ログインでは 0 とし、画面側で分岐を持たない。
+  def unread_notification_count
+    return 0 unless signed_in?
+
+    current_user.notifications.unread.count
+  end
+
   # 項目ごとの誤りの説明へ与える id。
   #
   # 誤りがない項目では nil を返す。存在しない id を aria-describedby へ書くと、

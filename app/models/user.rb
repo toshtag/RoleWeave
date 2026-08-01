@@ -47,6 +47,9 @@ class User < ApplicationRecord
   # 削除の前後の調査ができなくなる。参照は外部キー側で nullify する。
   has_many :authentication_events, dependent: nil
 
+  # アプリ内通知。アカウントを削除したら残さない。
+  has_many :notifications, dependent: :destroy
+
   # 確認リンクの token。
   #
   # データベースへ token を保存しない。保存すると、漏えいした時点で
@@ -91,6 +94,11 @@ class User < ApplicationRecord
   # このサーバーを運用する側かどうか。組織の中での役割とは別の軸である。
   def operator?
     operator
+  end
+
+  # メールの受け取り。アプリ内の通知はこの設定によらず作る。
+  def email_notifications?
+    email_notifications
   end
 
   def confirmed?

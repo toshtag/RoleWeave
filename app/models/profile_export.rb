@@ -22,7 +22,8 @@ class ProfileExport
 
   # 出す列。
   EXPORTED_COLUMNS = {
-    "users" => %w[email_address confirmed_at created_at updated_at],
+    # メールの受け取りの設定も本人が決めたものであり、本人のデータとして出す。
+    "users" => %w[email_address confirmed_at email_notifications created_at updated_at],
     "candidate_profiles" => %w[display_name introduction location desired_occupation
                                visibility desired_salary_visible documents_visible
                                created_at updated_at]
