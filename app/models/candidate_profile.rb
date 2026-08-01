@@ -39,6 +39,10 @@ class CandidateProfile < ApplicationRecord
   # タレントプールへの登録。プロフィールを消したら残さない。
   has_many :talent_pool_members, dependent: :destroy
 
+  # 受け取ったスカウトと、組織ごとの配信停止。
+  has_many :scouts, dependent: :destroy
+  has_many :scout_blocks, dependent: :destroy
+
   # 履歴書と職務経歴書。1 つずつだけ持つ。差し替えたら古いファイルは残さない。
   has_one_attached :resume
   has_one_attached :curriculum_vitae

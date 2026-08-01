@@ -26,6 +26,16 @@ def new_job_postings(notification, locale:)
   end
 end
 
+# スカウトの受信。本文は書かない。読むにはアプリを開いてもらう。
+def scout_received(notification, locale:)
+  @organization_name = notification.scout&.organization&.name
+  @scouts_url = profile_scouts_url(locale: locale)
+
+  I18n.with_locale(locale) do
+    mail to: notification.user.email_address, subject: t(".subject")
+  end
+end
+
   def stage_changed(notification, locale:)
     @job_application = notification.job_application
     @application_url = profile_application_url(locale: locale, id: @job_application)

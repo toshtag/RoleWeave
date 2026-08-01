@@ -11,6 +11,7 @@ class AccessEvent < ApplicationRecord
     candidate_document_downloaded
     personal_data_exported
     candidate_search_performed
+    scout_sent
   ].freeze
 
   belongs_to :actor, class_name: "User", optional: true

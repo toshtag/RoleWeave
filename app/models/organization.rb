@@ -28,6 +28,11 @@ class Organization < ApplicationRecord
   # タレントプール。組織を消したら残さない。
   has_many :talent_pools, dependent: :destroy
 
+  # 送ったスカウトとテンプレート。組織を消したら残さない。
+  has_many :scouts, dependent: :destroy
+  has_many :scout_templates, dependent: :destroy
+  has_many :scout_blocks, dependent: :destroy
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 

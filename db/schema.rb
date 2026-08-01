@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_231904) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_233703) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -292,12 +292,14 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_231904) do
     t.integer "new_job_postings_count"
     t.datetime "read_at"
     t.bigint "saved_search_id"
+    t.bigint "scout_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["email_status"], name: "index_notifications_on_email_status"
     t.index ["job_application_id"], name: "index_notifications_on_job_application_id"
     t.index ["message_id"], name: "index_notifications_on_message_id"
     t.index ["saved_search_id"], name: "index_notifications_on_saved_search_id"
+    t.index ["scout_id"], name: "index_notifications_on_scout_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
@@ -328,6 +330,42 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_231904) do
     t.datetime "updated_at", null: false
     t.index ["candidate_profile_id", "created_at"], name: "index_saved_searches_on_candidate_profile_id_and_created_at"
     t.index ["candidate_profile_id"], name: "index_saved_searches_on_candidate_profile_id"
+  end
+
+  create_table "scout_blocks", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "organization_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id", "organization_id"], name: "index_scout_blocks_on_candidate_profile_id_and_organization_id", unique: true
+    t.index ["candidate_profile_id"], name: "index_scout_blocks_on_candidate_profile_id"
+    t.index ["organization_id"], name: "index_scout_blocks_on_organization_id"
+  end
+
+  create_table "scout_templates", force: :cascade do |t|
+    t.text "body", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.bigint "organization_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "name"], name: "index_scout_templates_on_organization_id_and_name", unique: true
+    t.index ["organization_id"], name: "index_scout_templates_on_organization_id"
+  end
+
+  create_table "scouts", force: :cascade do |t|
+    t.text "body", null: false
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "job_posting_id"
+    t.bigint "organization_id", null: false
+    t.bigint "sent_by_id"
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id"], name: "index_scouts_on_candidate_profile_id"
+    t.index ["job_posting_id"], name: "index_scouts_on_job_posting_id"
+    t.index ["organization_id", "candidate_profile_id"], name: "index_scouts_on_organization_id_and_candidate_profile_id", unique: true
+    t.index ["organization_id", "created_at"], name: "index_scouts_on_organization_id_and_created_at"
+    t.index ["organization_id"], name: "index_scouts_on_organization_id"
+    t.index ["sent_by_id"], name: "index_scouts_on_sent_by_id"
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -431,10 +469,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_231904) do
   add_foreign_key "notifications", "job_applications", on_delete: :cascade
   add_foreign_key "notifications", "messages", on_delete: :cascade
   add_foreign_key "notifications", "saved_searches", on_delete: :cascade
+  add_foreign_key "notifications", "scouts", on_delete: :cascade
   add_foreign_key "notifications", "users"
   add_foreign_key "saved_job_postings", "candidate_profiles"
   add_foreign_key "saved_job_postings", "job_postings"
   add_foreign_key "saved_searches", "candidate_profiles"
+  add_foreign_key "scout_blocks", "candidate_profiles"
+  add_foreign_key "scout_blocks", "organizations"
+  add_foreign_key "scout_templates", "organizations"
+  add_foreign_key "scouts", "candidate_profiles"
+  add_foreign_key "scouts", "job_postings", on_delete: :nullify
+  add_foreign_key "scouts", "organizations"
+  add_foreign_key "scouts", "users", column: "sent_by_id", on_delete: :nullify
   add_foreign_key "sessions", "users"
   add_foreign_key "skills", "candidate_profiles"
   add_foreign_key "talent_pool_members", "candidate_profiles"
