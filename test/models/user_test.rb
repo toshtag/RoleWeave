@@ -198,6 +198,11 @@ class UserTest < ActiveSupport::TestCase
     end
   end
 
+  test "既定では運営者ではない" do
+    # 運営者は「そのサーバーを運用している人」であり、既定で与えられるものではない。
+    assert_not_predicate User.create!(attributes), :operator?
+  end
+
   private
     def attributes(overrides = {})
       { email_address: "member@example.com", password: PASSWORD }.merge(overrides)
