@@ -206,7 +206,8 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
     def dynamic_paths(locale)
       [
         localized_root_path(locale: locale),
-        new_session_path(locale: locale)
+        new_session_path(locale: locale),
+        new_registration_path(locale: locale)
       ]
     end
 
