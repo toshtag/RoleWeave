@@ -34,6 +34,22 @@
                     { include_blank: t(".any_employment_type"), selected: @search[:employment_type] } %>
   </div>
 
+  <%#
+    給与は「通貨」と「最低年収」の組で絞り込む。
+    通貨をまたいだ比較は、為替の時点を決めないと成り立たない。
+  %>
+  <div class="form__field">
+    <%= form.label :salary_currency, JobPosting.human_attribute_name(:salary_currency) %>
+    <%= form.select :salary_currency,
+                    JobPosting::SALARY_CURRENCIES.map { |currency| [ t("job_postings.salary_currencies.#{currency}"), currency ] },
+                    { include_blank: t(".any_currency"), selected: @search[:salary_currency] } %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :minimum_salary, t(".minimum_salary") %>
+    <%= form.number_field :minimum_salary, min: 0, value: @search[:minimum_salary] %>
+  </div>
+
   <%= form.submit t(".submit"), class: "button" %>
 <% end %>
 

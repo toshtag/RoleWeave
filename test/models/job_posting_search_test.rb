@@ -81,6 +81,40 @@ class JobPostingSearchTest < ActiveSupport::TestCase
     assert_equal [ @recruiter ], JobPosting.published.matching_keyword("採用").to_a
   end
 
+  test "通貨と最低年収で絞り込める" do
+    @recruiter.update!(salary_currency: "JPY", annual_salary_min: 5_000_000)
+    @engineer.update!(salary_currency: "JPY", annual_salary_min: 8_000_000)
+
+    assert_equal [ @engineer ], JobPosting.matching_minimum_salary("JPY", 6_000_000).to_a
+    assert_equal 2, JobPosting.matching_minimum_salary("JPY", 5_000_000).count
+  end
+
+  test "通貨をまたいだ比較をしない" do
+    # 換算は為替の時点を決めないと成り立たない。
+    @recruiter.update!(salary_currency: "JPY", annual_salary_min: 5_000_000)
+    @engineer.update!(salary_currency: "USD", annual_salary_min: 80_000)
+
+    assert_equal [ @recruiter ], JobPosting.matching_minimum_salary("JPY", 1_000).to_a
+    assert_equal [ @engineer ], JobPosting.matching_minimum_salary("USD", 1_000).to_a
+  end
+
+  test "金額を持たない求人は金額の条件で出ない" do
+    # 「未記載」を「条件を満たす」と扱うと、結果が信用できなくなる。
+    @recruiter.update!(salary_currency: "JPY", annual_salary_min: 5_000_000)
+
+    assert_equal [ @recruiter ], JobPosting.matching_minimum_salary("JPY", 1_000).to_a
+  end
+
+  test "最低年収が空なら絞り込まない" do
+    assert_equal 2, JobPosting.matching_minimum_salary("JPY", "").count
+    assert_equal 2, JobPosting.matching_minimum_salary("JPY", nil).count
+  end
+
+  test "決められていない通貨では絞り込まない" do
+    assert_equal 2, JobPosting.matching_minimum_salary("BTC", 1_000).count
+    assert_equal 2, JobPosting.matching_minimum_salary(nil, 1_000).count
+  end
+
   private
     def create(status: "published", **attributes)
       @organization.job_postings.create!({ status: status }.merge(attributes))

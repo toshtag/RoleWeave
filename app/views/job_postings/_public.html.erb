@@ -17,6 +17,7 @@
     <% { location: job_posting.location,
          occupation: job_posting.occupation,
          employment_type: job_posting.employment_type.presence && t("job_postings.employment_types.#{job_posting.employment_type}"),
+         annual_salary: annual_salary_range(job_posting),
          salary: job_posting.salary }.each do |attribute, value| %>
       <% next if value.blank? %>
       <dt><%= JobPosting.human_attribute_name(attribute) %></dt>

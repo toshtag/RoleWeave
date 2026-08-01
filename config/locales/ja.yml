@@ -21,6 +21,10 @@ ja:
         employment_type: 雇用形態
         salary: 給与
         requirements: 応募条件
+        salary_currency: 給与の通貨
+        annual_salary_min: 年収の下限
+        annual_salary_max: 年収の上限
+        annual_salary: 年収
       invitation:
         email_address: 招待するメールアドレス
         role: 役割
@@ -32,6 +36,10 @@ ja:
         password_confirmation: パスワード（確認用）
     errors:
       models:
+        job_posting:
+          attributes:
+            annual_salary_max:
+              less_than_minimum: は年収の下限を下回れません
         membership:
           attributes:
             role:
@@ -104,6 +112,8 @@ ja:
         no_results: 条件に一致する求人はありません。
         keyword: キーワード
         any_employment_type: すべての雇用形態
+        any_currency: 通貨を指定しない
+        minimum_salary: 最低年収
         submit: 絞り込む
       show:
         back: 求人の一覧へ
@@ -153,6 +163,12 @@ ja:
       published: 公開中
       rejected: 差し戻し
       suspended: 停止中
+    salary_currencies:
+      JPY: 円
+      USD: 米ドル
+      EUR: ユーロ
+    salary_from: "%{amount} 以上"
+    salary_up_to: "%{amount} まで"
     employment_types:
       full_time: 正社員
       part_time: パート・アルバイト

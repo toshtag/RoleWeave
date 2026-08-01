@@ -180,6 +180,49 @@ class PublicJobPostingsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "通貨と最低年収で絞り込める" do
+    @published.update!(salary_currency: "JPY", annual_salary_min: 5_000_000)
+    high = create_job_posting(status: "published", title: "高い求人")
+    high.update!(salary_currency: "JPY", annual_salary_min: 9_000_000)
+
+    get public_job_postings_path(locale: :ja, salary_currency: "JPY", minimum_salary: 8_000_000)
+
+    assert_select "main a", text: high.title
+    assert_select "main a", text: @published.title, count: 0
+  end
+
+  test "金額を持たない求人は金額の条件で出ない" do
+    get public_job_postings_path(locale: :ja, salary_currency: "JPY", minimum_salary: 1_000)
+
+    assert_select "main a", text: @published.title, count: 0
+  end
+
+  test "詳細に構造化された給与が出る" do
+    @published.update!(salary_currency: "JPY", annual_salary_min: 5_000_000, annual_salary_max: 7_000_000)
+
+    get public_job_posting_path(locale: :ja, id: @published)
+
+    assert_select "main dd", text: /5,000,000/
+    assert_select "main dd", text: /7,000,000/
+  end
+
+  test "下限だけの求人でも読める形で出る" do
+    @published.update!(salary_currency: "JPY", annual_salary_min: 5_000_000)
+
+    get public_job_posting_path(locale: :ja, id: @published)
+
+    assert_select "main dd", text: /#{Regexp.escape(I18n.t("job_postings.salary_from", amount: "5,000,000"))}/
+  end
+
+  test "給与の絞り込みの入力欄を日本語と英語で表示する" do
+    I18n.available_locales.each do |locale|
+      get public_job_postings_path(locale: locale)
+
+      assert_select "form label", text: I18n.t("public.job_postings.index.minimum_salary", locale: locale)
+      assert_select "form select[name=?]", "salary_currency"
+    end
+  end
+
   private
     def create_job_posting(status:, title:)
       @organization.job_postings.create!(status: status, title: title, description: "内容")
