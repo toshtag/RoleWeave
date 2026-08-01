@@ -1,0 +1,12 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%# 部品としてのスタイルは、それを必要とするタスクで追加する。ここでは意味だけを持たせる。 %>
+<dl>
+  <dt><%= User.human_attribute_name(:email_address) %></dt>
+  <dd><%= @user.email_address %></dd>
+
+  <dt><%= t(".confirmed_at") %></dt>
+  <dd><%= l(@user.confirmed_at, format: :long) %></dd>
+</dl>

@@ -1,4 +1,8 @@
 en:
+  accounts:
+    show:
+      title: Account
+      confirmed_at: Email address confirmed at
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
@@ -27,6 +31,10 @@ en:
     footer:
       description: An open-source project building a self-hostable recruiting platform.
   confirmations:
+    pending:
+      title: Email confirmation required
+      body: "Open the link in the confirmation email we sent to %{email_address}. You can use this page once it is confirmed."
+      back: Go to the home page
     show:
       confirmed:
         title: Your email address is confirmed

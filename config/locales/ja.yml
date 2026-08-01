@@ -1,4 +1,8 @@
 ja:
+  accounts:
+    show:
+      title: アカウント情報
+      confirmed_at: メールアドレスの確認日時
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
@@ -27,6 +31,10 @@ ja:
     footer:
       description: 自己ホスト可能な採用プラットフォームを開発するオープンソースプロジェクトです。
   confirmations:
+    pending:
+      title: メールアドレスの確認が必要です
+      body: "%{email_address} 宛に送った確認メールのリンクを開いてください。確認が完了すると、この画面を利用できます。"
+      back: トップページへ
     show:
       confirmed:
         title: メールアドレスを確認しました
