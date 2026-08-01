@@ -116,7 +116,7 @@ class InterviewScheduleRequestTest < ActionDispatch::IntegrationTest
 
     assert_response :success
     assert_no_match(/社内だけの会議室/, response.body)
-    assert_no_match(/#{(Date.current + 7).to_s}/, response.body)
+    assert_no_match(/#{Date.current + 7}/, response.body)
   end
 
   test "エクスポートに予定と期限が出ない" do
