@@ -39,15 +39,18 @@ class ProfileExportDownloadTest < ActionDispatch::IntegrationTest
 
   test "エクスポートには自分のデータだけが出る" do
     # 経路が ID を受け取らないため、他人のデータを指す方法がない。
-    other = User.create!(email_address: "other@example.com", password: PASSWORD).tap(&:confirm)
-    other.create_candidate_profile!(display_name: "他人の名前")
-    @user.create_candidate_profile!(display_name: "山田 太郎")
-    sign_in_as(@user)
+    # 「最初のアカウント」を返す実装になっていないことを、
+    # 後から登録した側でログインして確かめる。
+    @user.create_candidate_profile!(display_name: "先に登録した人")
+    later = User.create!(email_address: "later@example.com", password: PASSWORD).tap(&:confirm)
+    later.create_candidate_profile!(display_name: "後から登録した人")
+    sign_in_as(later)
 
     get export_path(locale: :ja)
 
-    assert_no_match(/他人の名前/, response.body)
-    assert_no_match(/other@example.com/, response.body)
+    assert_match(/後から登録した人/, response.body)
+    assert_no_match(/先に登録した人/, response.body)
+    assert_no_match(/member@example.com/, response.body)
   end
 
   test "プロフィールがなくてもダウンロードできる" do
