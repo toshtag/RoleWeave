@@ -132,9 +132,21 @@ class UserTest < ActiveSupport::TestCase
     assert_predicate User.new(attributes(password: "a" * User::PASSWORD_MIN_LENGTH)), :valid?
   end
 
+  test "最小長を 12 文字とする" do
+    # 値そのものを固定する。定数を基準に書いた境界のテストは、
+    # 定数ごと条件を緩める変更を検出できない。根拠は ADR 0006 にある。
+    assert_equal 12, User::PASSWORD_MIN_LENGTH
+  end
+
   test "bcrypt が切り捨てる長さのパスワードを拒否する" do
     # 切り捨てを黙って受け入れると、入力の一部が認証に使われない状態になる。
     assert_not User.new(attributes(password: "a" * (User::PASSWORD_MAX_BYTESIZE + 1))).valid?
+  end
+
+  test "上限と同じバイト数のパスワードを受け入れる" do
+    # 上限そのものを拒否すると、境界の判定が 1 バイトずれていることに気付けない。
+    # 上限の値が bcrypt の扱える範囲から外れていることも、ここで検出する。
+    assert_predicate User.new(attributes(password: "a" * User::PASSWORD_MAX_BYTESIZE)), :valid?
   end
 
   test "パスワードの長さを文字数ではなくバイト数で判定する" do
