@@ -40,6 +40,11 @@ ja:
       application_review:
         rating: 評価
         comment: コメント
+      interview_schedule:
+        starts_at: 開始日時
+        duration_minutes: 所要時間（分）
+        location: 場所
+        note: 備考
       candidate_profile:
         display_name: 表示名
         visibility: 公開範囲
@@ -97,6 +102,8 @@ ja:
       models:
         job_application:
           attributes:
+            decide_by:
+              in_the_past: に過ぎた日付は指定できません
             assignee:
               not_a_member: はこの組織の所属者ではありません
             job_posting:
@@ -111,6 +118,10 @@ ja:
           attributes:
             base:
               blank_review: 評価かコメントのどちらかを入力してください
+        interview_schedule:
+          attributes:
+            starts_at:
+              in_the_past: に過ぎた日時は指定できません
         candidate_profile:
           attributes:
             resume:
@@ -362,6 +373,12 @@ ja:
     job_application_assignments:
       update:
         invalid: 担当者を保存できませんでした。
+    interview_schedules:
+      create:
+        invalid: 予定を保存できませんでした。開始日時を確かめてください。
+    job_application_deadlines:
+      update:
+        invalid: 期限を保存できませんでした。
     job_application_stages:
       update:
         invalid_transition: この操作は現在の状態では行えません。
@@ -382,6 +399,17 @@ ja:
         status: 状態
         stage: 選考の段階
         reviews: 社内の評価
+        interviews: 面接の予定
+        decide_by: 結論を出す期限
+        overdue: 期限を過ぎています。
+        save_deadline: 期限を保存する
+        duration:
+          one: "%{count} 分"
+          other: "%{count} 分"
+        cancel_interview: 予定を取り消す
+        cancelled: 取り消し済み
+        no_interviews: まだ予定はありません。
+        add_interview: 予定を追加する
         assignee: 担当者
         no_assignee: 担当者を決めない
         assign: 担当者を保存する

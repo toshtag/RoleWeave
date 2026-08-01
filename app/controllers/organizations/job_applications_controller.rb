@@ -28,6 +28,10 @@ class Organizations::JobApplicationsController < ApplicationController
     @application_review = @job_application.application_reviews.build
     @members = @organization.users.order(:email_address)
 
+    # 面接の予定も社内の情報である。応募者側からは見えない。
+    @interview_schedules = @job_application.interview_schedules.upcoming
+    @interview_schedule = @job_application.interview_schedules.build
+
     @candidate_profile = CandidateProfile.visible_to(@organization)
                                          .find_by(id: @job_application.candidate_profile_id)
   end
