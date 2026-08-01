@@ -7,6 +7,10 @@ class RegistrationsController < ApplicationController
     @user = User.new(registration_params)
 
     if @user.save
+      # 確認メールは、登録した画面のロケールで送る。
+      # 宛先の言語を推測せず、利用者が選んでいた言語をそのまま使う。
+      UserMailer.email_confirmation(@user, locale: I18n.locale).deliver_later
+
       # 作成した直後にログイン状態にする。もう一度ログイン操作をさせると、
       # いま決めたばかりのパスワードを入力し直すことになる。
       start_new_session_for(@user)
