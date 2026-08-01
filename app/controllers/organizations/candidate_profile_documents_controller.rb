@@ -12,10 +12,10 @@ class Organizations::CandidateProfileDocumentsController < ApplicationController
   before_action :set_organization
 
   def show
-    candidate_profile = CandidateProfile.visible_to_organizations.find(params[:candidate_profile_id])
+    candidate_profile = CandidateProfile.visible_to(@organization).find(params[:candidate_profile_id])
 
     # 見せない設定の添付は、存在しない添付と同じ 404 とする。
-    raise ActiveRecord::RecordNotFound unless candidate_profile.documents_visible_to_organizations?
+    raise ActiveRecord::RecordNotFound unless candidate_profile.documents_visible_to?(@organization)
 
     send_document(candidate_profile.public_send(document_kind))
   end

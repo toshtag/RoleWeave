@@ -1,6 +1,6 @@
 # 企業側から求職者のプロフィールを見る経路。
 #
-# 見えるかどうかは `CandidateProfile.visible_to_organizations` だけが決める。
+# 見えるかどうかは `CandidateProfile.visible_to(@organization)` だけが決める。
 # ここに条件を書き足すと、判定が 2 か所へ分かれる。
 #
 # 一覧は持たない。候補者の検索は P6 の非目標であり、
@@ -16,7 +16,7 @@ class Organizations::CandidateProfilesController < ApplicationController
   def show
     # 見えないプロフィールは、存在しないプロフィールと同じ 404 とする。
     # 分けると、そのプロフィールがあることだけが分かる。
-    @candidate_profile = CandidateProfile.visible_to_organizations
+    @candidate_profile = CandidateProfile.visible_to(@organization)
                                          .includes(:work_experiences, :educations, :skills, :desired_condition)
                                          .find(params[:id])
   end

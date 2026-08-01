@@ -21,6 +21,10 @@
         <%= link_to t(".preview"),
                     preview_organization_job_posting_path(locale: I18n.locale, organization_id: @organization, id: job_posting) %>
 
+        <%# 届いた応募。求人ごとに分けて置く。 %>
+        <%= link_to t(".applications"),
+                    organization_job_posting_applications_path(locale: I18n.locale, organization_id: @organization, job_posting_id: job_posting) %>
+
         <%# 状態に応じて、いま行える操作だけを出す。 %>
         <% if job_posting.editable? %>
           <%= link_to t(".edit"),

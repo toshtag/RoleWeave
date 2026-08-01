@@ -25,6 +25,7 @@ class JobApplication < ApplicationRecord
   before_validation :capture_snapshots, on: :create
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
+  scope :submitted, -> { where(status: "submitted") }
 
   def submitted?
     status == "submitted"
