@@ -30,6 +30,20 @@ class JobApplication < ApplicationRecord
     status == "submitted"
   end
 
+  def withdrawn?
+    status == "withdrawn"
+  end
+
+  # 取り消す。すでに取り消した応募は、もう一度取り消せない。
+  #
+  # 記録は残す。消すと、企業側から見て「応募がなかったこと」になる。
+  # 詳細は docs/decisions/0035-application-withdrawal.md を参照する。
+  def withdraw
+    return false unless submitted?
+
+    update(status: "withdrawn")
+  end
+
   private
     def capture_snapshots
       return if candidate_profile.nil? || job_posting.nil?
