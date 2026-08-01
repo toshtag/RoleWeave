@@ -1,0 +1,15 @@
+<% content_for :title, "#{t(".#{@confirmed ? 'confirmed' : 'invalid'}.title")} | #{t("application.name")}" %>
+
+<% state = @confirmed ? "confirmed" : "invalid" %>
+
+<h1><%= t(".#{state}.title") %></h1>
+
+<p><%= t(".#{state}.body") %></p>
+
+<p>
+  <% if @confirmed %>
+    <%= link_to t(".confirmed.continue"), localized_root_path(locale: I18n.locale) %>
+  <% else %>
+    <%= link_to t(".invalid.sign_up"), new_registration_path(locale: I18n.locale) %>
+  <% end %>
+</p>

@@ -26,6 +26,16 @@ en:
         en: English
     footer:
       description: An open-source project building a self-hostable recruiting platform.
+  confirmations:
+    show:
+      confirmed:
+        title: Your email address is confirmed
+        body: This email address has been confirmed. You can continue using your account.
+        continue: Go to the home page
+      invalid:
+        title: This link cannot be used
+        body: The link has expired or is no longer valid. Please try creating your account again.
+        sign_up: Go to account creation
   registrations:
     new:
       title: Create an account
@@ -42,3 +52,10 @@ en:
   home:
     show:
       summary: We are building the foundation of a self-hostable recruiting platform.
+  user_mailer:
+    email_confirmation:
+      subject: Confirm your email address
+      greeting: Thank you for using RoleWeave.
+      body: Open the following URL to confirm your email address.
+      expiration: This URL is valid for %{count} hours.
+      ignore: If you did not request this, please discard this email.

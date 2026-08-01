@@ -26,6 +26,16 @@ ja:
         en: English
     footer:
       description: 自己ホスト可能な採用プラットフォームを開発するオープンソースプロジェクトです。
+  confirmations:
+    show:
+      confirmed:
+        title: メールアドレスを確認しました
+        body: このメールアドレスの確認が完了しました。引き続きご利用いただけます。
+        continue: トップページへ
+      invalid:
+        title: このリンクは使用できません
+        body: リンクの有効期限が切れているか、すでに使用できない状態です。もう一度アカウント作成からお試しください。
+        sign_up: アカウント作成へ
   registrations:
     new:
       title: アカウント作成
@@ -42,3 +52,10 @@ ja:
   home:
     show:
       summary: 自己ホスト可能な採用プラットフォームの基盤を開発しています。
+  user_mailer:
+    email_confirmation:
+      subject: メールアドレスの確認
+      greeting: RoleWeave をご利用いただきありがとうございます。
+      body: 次の URL を開いて、メールアドレスの確認を完了してください。
+      expiration: この URL の有効期限は %{count} 時間です。
+      ignore: 心当たりがない場合は、このメールを破棄してください。
