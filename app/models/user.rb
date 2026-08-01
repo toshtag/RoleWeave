@@ -32,6 +32,9 @@ class User < ApplicationRecord
   # アカウントを削除したら、そのアカウントのログイン状態も残さない。
   has_many :sessions, dependent: :destroy
 
+  # アカウントを削除したら、応募に使うプロフィールも残さない。
+  has_one :candidate_profile, dependent: :destroy
+
   # アカウントを削除したら、その所属も残さない。組織そのものは残る。
   has_many :memberships, dependent: :destroy
   has_many :organizations, through: :memberships
