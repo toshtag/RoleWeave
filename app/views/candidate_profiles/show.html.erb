@@ -23,7 +23,59 @@
   <div class="job-posting__body"><%= simple_format(@candidate_profile.introduction) %></div>
 <% end %>
 
+<h2><%= t(".desired_condition") %></h2>
+
+<% if @candidate_profile.desired_condition.present? && !@candidate_profile.desired_condition.blank_conditions? %>
+  <% desired_condition = @candidate_profile.desired_condition %>
+  <dl>
+    <% if desired_condition.employment_type.present? %>
+      <dt><%= DesiredCondition.human_attribute_name(:employment_type) %></dt>
+      <dd><%= t("job_postings.employment_types.#{desired_condition.employment_type}") %></dd>
+    <% end %>
+
+    <%# 通貨のない金額は読めないため、必ず対で出す。 %>
+    <% if desired_condition.annual_salary_min.present? %>
+      <dt><%= DesiredCondition.human_attribute_name(:annual_salary_min) %></dt>
+      <dd>
+        <%= t("job_postings.salary_currencies.#{desired_condition.salary_currency}") %>
+        <%= number_with_delimiter(desired_condition.annual_salary_min) %>
+      </dd>
+    <% end %>
+
+    <% { location: desired_condition.location, note: desired_condition.note }.each do |attribute, value| %>
+      <% next if value.blank? %>
+      <dt><%= DesiredCondition.human_attribute_name(attribute) %></dt>
+      <dd><%= value %></dd>
+    <% end %>
+
+    <% if desired_condition.available_from.present? %>
+      <dt><%= DesiredCondition.human_attribute_name(:available_from) %></dt>
+      <dd><%= l(desired_condition.available_from, format: :long) %></dd>
+    <% end %>
+  </dl>
+<% else %>
+  <p><%= t(".desired_condition_empty") %></p>
+<% end %>
+
+<h2><%= t(".completeness") %></h2>
+
+<%#
+  そろっていない項目を名前で示す。割合や点数として出すと、
+  「上げるために埋める」圧力になり、応募に不要な情報まで書かせることになる。
+%>
+<% if @completeness.complete? %>
+  <p><%= t(".completeness_complete") %></p>
+<% else %>
+  <p><%= t(".completeness_missing") %></p>
+  <ul>
+    <% @completeness.missing_items.each do |item| %>
+      <li><%= t(".completeness_items.#{item}") %></li>
+    <% end %>
+  </ul>
+<% end %>
+
 <p><%= link_to t(".edit"), edit_profile_path(locale: I18n.locale) %></p>
 <p><%= link_to t(".work_experiences"), profile_work_experiences_path(locale: I18n.locale) %></p>
 <p><%= link_to t(".educations"), profile_educations_path(locale: I18n.locale) %></p>
 <p><%= link_to t(".skills"), profile_skills_path(locale: I18n.locale) %></p>
+<p><%= link_to t(".desired_condition_edit"), edit_profile_desired_condition_path(locale: I18n.locale) %></p>

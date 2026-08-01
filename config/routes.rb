@@ -77,6 +77,7 @@ Rails.application.routes.draw do
       resources :work_experiences, only: %i[index new create edit update destroy]
       resources :educations, only: %i[index new create edit update destroy]
       resources :skills, only: %i[index new create edit update destroy]
+      resource :desired_condition, only: %i[edit update]
     end
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。

@@ -19,6 +19,13 @@ ja:
         introduction: 自己紹介
         location: 所在地
         desired_occupation: 希望職種
+      desired_condition:
+        employment_type: 希望する雇用形態
+        salary_currency: 希望年収の通貨
+        annual_salary_min: 希望年収の下限
+        location: 希望する勤務地
+        available_from: 就業可能日
+        note: 備考
       education:
         school_name: 学校名
         field_of_study: 専攻
@@ -61,6 +68,10 @@ ja:
           attributes:
             annual_salary_max:
               less_than_minimum: は年収の下限を下回れません
+        desired_condition:
+          attributes:
+            salary_currency:
+              incomplete_salary: と希望年収は、両方を入力するか両方を空にしてください
         education:
           attributes:
             ended_on:
@@ -102,6 +113,18 @@ ja:
       title: プロフィール
       edit: プロフィールを編集する
       work_experiences: 職歴を管理する
+      desired_condition: 希望条件
+      desired_condition_empty: まだ希望条件が登録されていません。
+      desired_condition_edit: 希望条件を編集する
+      completeness: 応募に必要な項目
+      completeness_complete: 応募に使う項目がそろっています。
+      completeness_missing: 次の項目がまだ書かれていません。書かずに応募することもできます。
+      completeness_items:
+        introduction: 自己紹介
+        work_experience: 職歴
+        education: 学歴
+        skill: スキル
+        desired_condition: 希望条件
       educations: 学歴を管理する
       skills: スキルを管理する
     new:
@@ -111,6 +134,13 @@ ja:
     edit:
       title: プロフィールの編集
       submit: 保存する
+  desired_conditions:
+    edit:
+      title: 希望条件
+      body: 応募のときに企業へ伝える希望です。すべて任意で、後から変えられます。
+      salary_hint: 通貨とあわせて入力してください。どちらか一方だけでは保存できません。
+      submit: 保存する
+      back: プロフィールへ戻る
   educations:
     form:
       ended_on_hint: 現在も在学している場合は空欄のままにしてください。

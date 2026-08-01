@@ -94,7 +94,8 @@ class CandidateProfileManagementTest < ActionDispatch::IntegrationTest
 
     # 表示名の 1 行だけが出る。
     assert_select "main dd", count: 1
-    assert_select "main h2", count: 0
+    # 自己紹介の見出しは、書かれていなければ出さない。
+    assert_select "main h2", text: CandidateProfile.human_attribute_name(:introduction), count: 0
   end
 
   test "他のアカウントのプロフィールへ到達する経路がない" do
