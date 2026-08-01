@@ -15,6 +15,8 @@ en:
       user: Account
     attributes:
       candidate_profile:
+        visibility: Visibility
+        desired_salary_visible: Show my salary expectation to organizations
         display_name: Display name
         introduction: Introduction
         location: Location
@@ -116,6 +118,7 @@ en:
       desired_condition: Preferences
       desired_condition_empty: No preferences have been added yet.
       desired_condition_edit: Edit preferences
+      visibility: Set visibility
       completeness: Items used when applying
       completeness_complete: Everything used when applying has been filled in.
       completeness_missing: These items have not been filled in. You can still apply without them.
@@ -237,6 +240,21 @@ en:
         title: "Operating %{organization}"
         grant_owner: Make administrator
         back: Back to all organizations
+  profile_visibilities:
+    edit:
+      title: Visibility
+      body: Choose how much of your profile, work experience, education, skills and preferences organizations can see.
+      visibilities:
+        closed: Visible to no one
+        applied_organizations: Visible only to organizations I apply to
+        all_organizations: Visible to every organization that posts jobs
+      visibility_descriptions:
+        closed: Only you can see it. Organizations cannot see it until you change this setting.
+        applied_organizations: Applications do not exist yet. With this setting, no organization can see your profile for now.
+        all_organizations: Anyone working for an organization that posts jobs can open your profile.
+      desired_salary_hint: Your salary expectation is part of what you negotiate. You can keep it hidden.
+      submit: Save
+      back: Back to profile
   public:
     job_postings:
       index:

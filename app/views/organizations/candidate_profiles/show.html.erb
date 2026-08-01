@@ -1,0 +1,95 @@
+<% content_for :title, "#{@candidate_profile.display_name} | #{t("application.name")}" %>
+
+<%# 候補者のプロフィールは検索へ出さない。公開範囲は企業へ向けたものである。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= @candidate_profile.display_name %></h1>
+
+<dl>
+  <% { location: @candidate_profile.location,
+       desired_occupation: @candidate_profile.desired_occupation }.each do |attribute, value| %>
+    <% next if value.blank? %>
+    <dt><%= CandidateProfile.human_attribute_name(attribute) %></dt>
+    <dd><%= value %></dd>
+  <% end %>
+</dl>
+
+<% if @candidate_profile.introduction.present? %>
+  <h2><%= CandidateProfile.human_attribute_name(:introduction) %></h2>
+  <div class="job-posting__body"><%= simple_format(@candidate_profile.introduction) %></div>
+<% end %>
+
+<% if @candidate_profile.work_experiences.any? %>
+  <h2><%= t("work_experiences.index.title") %></h2>
+  <ul>
+    <% @candidate_profile.work_experiences.recent.each do |work_experience| %>
+      <li>
+        <%= work_experience.organization_name %>
+        <%= work_experience.position %>
+        <% if work_experience.current? %>
+          <%= t("work_experiences.index.period_current",
+                started_on: l(work_experience.started_on, format: :long)) %>
+        <% else %>
+          <%= t("work_experiences.index.period",
+                started_on: l(work_experience.started_on, format: :long),
+                ended_on: l(work_experience.ended_on, format: :long)) %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if @candidate_profile.educations.any? %>
+  <h2><%= t("educations.index.title") %></h2>
+  <ul>
+    <% @candidate_profile.educations.recent.each do |education| %>
+      <li>
+        <%= education.school_name %>
+        <%= education.field_of_study %>
+        <%= education.degree %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if @candidate_profile.skills.any? %>
+  <h2><%= t("skills.index.title") %></h2>
+  <ul>
+    <% @candidate_profile.skills.alphabetical.each do |skill| %>
+      <li>
+        <%= skill.name %>
+        <% if skill.years_of_experience.present? %>
+          <%= t("skills.index.years", count: skill.years_of_experience) %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% desired_condition = @candidate_profile.desired_condition %>
+<% if desired_condition.present? && !desired_condition.blank_conditions? %>
+  <h2><%= t("candidate_profiles.show.desired_condition") %></h2>
+  <dl>
+    <% if desired_condition.employment_type.present? %>
+      <dt><%= DesiredCondition.human_attribute_name(:employment_type) %></dt>
+      <dd><%= t("job_postings.employment_types.#{desired_condition.employment_type}") %></dd>
+    <% end %>
+
+    <%#
+      希望年収は、本人が見せると決めたときだけ出す。
+      応募先との交渉の材料であり、先に見えていると交渉の余地がなくなる。
+    %>
+    <% if @candidate_profile.desired_salary_visible? && desired_condition.annual_salary_min.present? %>
+      <dt><%= DesiredCondition.human_attribute_name(:annual_salary_min) %></dt>
+      <dd>
+        <%= t("job_postings.salary_currencies.#{desired_condition.salary_currency}") %>
+        <%= number_with_delimiter(desired_condition.annual_salary_min) %>
+      </dd>
+    <% end %>
+
+    <% if desired_condition.location.present? %>
+      <dt><%= DesiredCondition.human_attribute_name(:location) %></dt>
+      <dd><%= desired_condition.location %></dd>
+    <% end %>
+  </dl>
+<% end %>

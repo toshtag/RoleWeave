@@ -16,6 +16,8 @@ ja:
     attributes:
       candidate_profile:
         display_name: 表示名
+        visibility: 公開範囲
+        desired_salary_visible: 希望年収を企業へ見せる
         introduction: 自己紹介
         location: 所在地
         desired_occupation: 希望職種
@@ -116,6 +118,7 @@ ja:
       desired_condition: 希望条件
       desired_condition_empty: まだ希望条件が登録されていません。
       desired_condition_edit: 希望条件を編集する
+      visibility: 公開範囲を設定する
       completeness: 応募に必要な項目
       completeness_complete: 応募に使う項目がそろっています。
       completeness_missing: 次の項目がまだ書かれていません。書かずに応募することもできます。
@@ -239,6 +242,21 @@ ja:
         title: "%{organization} の運営"
         grant_owner: 管理者にする
         back: すべての組織へ
+  profile_visibilities:
+    edit:
+      title: 公開範囲
+      body: プロフィール・職歴・学歴・スキル・希望条件を、どこまで企業へ見せるかを決めます。
+      visibilities:
+        closed: 誰にも見せない
+        applied_organizations: 応募した企業にだけ見せる
+        all_organizations: 求人を掲載しているすべての企業に見せる
+      visibility_descriptions:
+        closed: 自分だけが見られます。設定を変えるまで、企業からは見えません。
+        applied_organizations: 応募の仕組みはまだありません。この設定にしても、いまはどの企業からも見えません。
+        all_organizations: 求人を掲載している企業の担当者が、あなたのプロフィールを開けるようになります。
+      desired_salary_hint: 希望年収は応募先との交渉の材料です。見せないままにもできます。
+      submit: 保存する
+      back: プロフィールへ戻る
   public:
     job_postings:
       index:

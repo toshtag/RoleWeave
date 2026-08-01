@@ -1,0 +1,37 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<%= form_with model: @candidate_profile,
+              url: profile_visibility_path(locale: I18n.locale),
+              method: :patch,
+              class: "form" do |form| %>
+  <fieldset class="form__field">
+    <legend><%= CandidateProfile.human_attribute_name(:visibility) %></legend>
+
+    <%#
+      それぞれの値が何を意味するかを、選択肢の横に書く。
+      名前だけでは、誰に見えるのかが伝わらない。
+    %>
+    <% CandidateProfile::VISIBILITIES.each do |visibility| %>
+      <div>
+        <%= form.radio_button :visibility, visibility %>
+        <%= form.label "visibility_#{visibility}", t(".visibilities.#{visibility}") %>
+        <p class="form__hint"><%= t(".visibility_descriptions.#{visibility}") %></p>
+      </div>
+    <% end %>
+  </fieldset>
+
+  <div class="form__field">
+    <%= form.check_box :desired_salary_visible %>
+    <%= form.label :desired_salary_visible %>
+    <%# 希望年収は応募先との交渉の材料である。先に見えていると交渉の余地がなくなる。 %>
+    <p class="form__hint"><%= t(".desired_salary_hint") %></p>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>

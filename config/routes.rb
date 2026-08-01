@@ -43,6 +43,9 @@ Rails.application.routes.draw do
     resources :organizations, only: %i[index new create] do
       resources :invitations, only: %i[new create]
       resources :memberships, only: %i[index update]
+      # 求職者のプロフィールの詳細。一覧は持たない。
+      # 一覧があること自体が、公開範囲を「探されてよい」という意味へ変えてしまう。
+      resources :candidate_profiles, only: :show, module: :organizations
       resources :job_postings, only: %i[index new create edit update] do
         # 公開されたときと同じ見え方の確認。公開側の経路とは別に置く。
         get :preview, on: :member
@@ -78,6 +81,9 @@ Rails.application.routes.draw do
       resources :educations, only: %i[index new create edit update destroy]
       resources :skills, only: %i[index new create edit update destroy]
       resource :desired_condition, only: %i[edit update]
+      # 公開範囲は編集の画面と分けて置く。
+      # 同じ画面にすると、書き換えのついでに範囲が変わりうる。
+      resource :visibility, only: %i[edit update], controller: "profile_visibilities"
     end
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
