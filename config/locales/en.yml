@@ -1,7 +1,27 @@
 en:
+  account_deletions:
+    show:
+      title: Delete account
+      body: This cannot be undone. Download your data before you continue.
+      removed_items:
+        profile: Profile, work experience, education, skills and preferences
+        documents: Attached resume and CV
+        sessions: Sign-in sessions
+        memberships: Organization memberships
+      kept: Records kept by organizations (membership history, job posting history, authentication records) remain, but anything identifying you is removed.
+      export: Download my data first
+      submit: Delete my account
+      sole_owner: You are the only owner of these organizations. Make someone else an owner first.
+      organizations: Go to my organizations
+      back: Back to account
+    destroy:
+      invalid_password: That password is not correct.
+      sole_owner: You cannot delete your account while you are the only owner of an organization.
+      deleted: Your account has been deleted.
   accounts:
     show:
       export: Download my data
+      delete: Delete my account
       title: Account
       confirmed_at: Email address confirmed at
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
@@ -133,6 +153,8 @@ en:
       documents: Attach resume and CV
       visibility: Set visibility
       export: Download my data
+      destroy: Delete my profile
+      destroy_confirm: This deletes your profile along with work experience, education, skills, preferences and attachments. Your account stays.
       completeness: Items used when applying
       completeness_complete: Everything used when applying has been filled in.
       completeness_missing: These items have not been filled in. You can still apply without them.

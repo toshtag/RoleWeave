@@ -53,6 +53,19 @@ class CandidateProfilesController < ApplicationController
     end
   end
 
+  # プロフィールだけを消し、アカウントは残す。
+  #
+  # 求職としての情報を引き上げても、組織の一員としては使い続ける場合がある。
+  def destroy
+    candidate_profile = current_user.candidate_profile
+
+    return redirect_to new_profile_path(locale: I18n.locale) if candidate_profile.nil?
+
+    candidate_profile.destroy!
+
+    redirect_to new_profile_path(locale: I18n.locale)
+  end
+
   private
     def candidate_profile_params
       params.expect(candidate_profile: %i[display_name introduction location desired_occupation])

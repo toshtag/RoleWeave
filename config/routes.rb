@@ -76,7 +76,7 @@ Rails.application.routes.draw do
 
     # 応募に使うプロフィール。対象は常に本人のものとし、ID を受け取らない。
     # 詳細は docs/decisions/0026-candidate-profile.md を参照する。
-    resource :profile, only: %i[show new create edit update], controller: "candidate_profiles" do
+    resource :profile, only: %i[show new create edit update destroy], controller: "candidate_profiles" do
       # 職歴はプロフィールへ従属する。プロフィールの外側へ置くと、
       # 「誰の職歴か」を経路ごとに確かめることになる。
       # 詳細は docs/decisions/0027-work-experience.md を参照する。
@@ -103,6 +103,10 @@ Rails.application.routes.draw do
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
+
+    # アカウントの削除。確認の画面を挟み、パスワードの再入力を求める。
+    # 詳細は docs/decisions/0033-account-deletion.md を参照する。
+    resource :account_deletion, only: %i[show destroy]
 
     # パスワード再設定。依頼は token を持たず、再設定は token を持つ。
     # token は URL のパスへ置く。query string へ置くと、Referer やアクセスログへ残りやすい。
