@@ -23,6 +23,13 @@ class PasswordResetsController < ApplicationController
       # 変更の理由が乗っ取りだった場合、残したままでは相手が居座り続ける。
       @user.sessions.destroy_all
 
+      AuthenticationEvent.record(
+        kind: :password_reset_completed,
+        email_address: @user.email_address,
+        user: @user,
+        request: request
+      )
+
       # 自動ではログインしない。新しいパスワードで入れることを、
       # 利用者自身がその場で確かめられる状態にする。
       redirect_to new_session_path(locale: I18n.locale), notice: t(".success")
