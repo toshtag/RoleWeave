@@ -23,6 +23,11 @@ class Organizations::JobApplicationsController < ApplicationController
 
     # 応募時点の写しとは別に、いまプロフィールを見られるかを判定する。
     # 見られる場合だけ、現在のプロフィールへの導線を出す。
+    # 評価とコメントは所属者だけが読む。応募者側からは見えない。
+    @application_reviews = @job_application.application_reviews.includes(:reviewer).recent
+    @application_review = @job_application.application_reviews.build
+    @members = @organization.users.order(:email_address)
+
     @candidate_profile = CandidateProfile.visible_to(@organization)
                                          .find_by(id: @job_application.candidate_profile_id)
   end

@@ -31,6 +31,12 @@ class JobApplication < ApplicationRecord
   belongs_to :candidate_profile
   belongs_to :job_posting
 
+  # 選考の担当者。組織の所属者の中から選ぶ。
+  belongs_to :assignee, class_name: "User", optional: true
+
+  # 評価とコメント。応募を消したら残さない。
+  has_many :application_reviews, dependent: :destroy
+
   # 応募先も応募元も、作成した後で変えられないようにする。
   # 変えられると、応募時点の写しと結び付きが食い違う。
   attr_readonly :candidate_profile_id, :job_posting_id
@@ -42,6 +48,9 @@ class JobApplication < ApplicationRecord
   validates :stage, inclusion: { in: STAGES }
 
   validate :job_posting_is_published, on: :create
+  # 担当者はその組織の所属者に限る。外部の利用者を担当にできると、
+  # 応募が組織の外から扱われる状態になる。
+  validate :assignee_belongs_to_organization
 
   # 応募時点の写しを、作成時に固定する。
   # Controller ではなくモデルへ置く。応募を作る経路が増えても、写し忘れが起こらない。
@@ -149,6 +158,13 @@ class JobApplication < ApplicationRecord
         OrganizationMailer.job_application(self, to: membership.user.email_address,
                                                  locale: I18n.locale).deliver_later
       end
+    end
+
+    def assignee_belongs_to_organization
+      return if assignee.nil? || job_posting.nil?
+      return if job_posting.organization.memberships.exists?(user_id: assignee_id)
+
+      errors.add(:assignee, :not_a_member)
     end
 
     # 応募できるのは公開中の求人だけとする。

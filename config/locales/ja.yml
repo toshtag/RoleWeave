@@ -28,6 +28,7 @@ ja:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      application_review: 評価
       candidate_profile: プロフィール
       job_application: 応募
       job_posting: 求人
@@ -36,6 +37,9 @@ ja:
       membership: 所属
       user: アカウント
     attributes:
+      application_review:
+        rating: 評価
+        comment: コメント
       candidate_profile:
         display_name: 表示名
         visibility: 公開範囲
@@ -93,6 +97,8 @@ ja:
       models:
         job_application:
           attributes:
+            assignee:
+              not_a_member: はこの組織の所属者ではありません
             job_posting:
               not_published: は現在応募を受け付けていません
             candidate_profile_id:
@@ -101,6 +107,10 @@ ja:
           attributes:
             annual_salary_max:
               less_than_minimum: は年収の下限を下回れません
+        application_review:
+          attributes:
+            base:
+              blank_review: 評価かコメントのどちらかを入力してください
         candidate_profile:
           attributes:
             resume:
@@ -346,6 +356,12 @@ ja:
         apply: この求人へ応募する
         back: 求人の一覧へ
   organizations:
+    application_reviews:
+      create:
+        invalid: 評価を記録できませんでした。評価かコメントのどちらかを入力してください。
+    job_application_assignments:
+      update:
+        invalid: 担当者を保存できませんでした。
     job_application_stages:
       update:
         invalid_transition: この操作は現在の状態では行えません。
@@ -365,6 +381,15 @@ ja:
         applied_at: 応募日時
         status: 状態
         stage: 選考の段階
+        reviews: 社内の評価
+        assignee: 担当者
+        no_assignee: 担当者を決めない
+        assign: 担当者を保存する
+        rating_value: "評価 %{rating} / %{max}"
+        no_rating: 評価を入れない
+        no_reviews: まだ評価はありません。
+        submit_review: 評価を記録する
+        removed_account: 削除されたアカウント
         withdrawn_notice: この応募は取り消されています。
         snapshot: 応募時点に送られた内容
         snapshot_notice: 応募の後にプロフィールが変わっても、ここに出る内容は変わりません。
