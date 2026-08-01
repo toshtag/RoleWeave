@@ -1,0 +1,49 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if flash.now[:alert] || flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<%#
+  取り返しがつかない操作である。先に持ち出しへ導く。
+  何が消えるかは名前で示す。「すべてのデータ」では、何を失うかが伝わらない。
+%>
+<p><%= t(".body") %></p>
+
+<ul>
+  <% t(".removed_items").each_value do |item| %>
+    <li><%= item %></li>
+  <% end %>
+</ul>
+
+<p><%= t(".kept") %></p>
+
+<p><%= link_to t(".export"), export_path(locale: I18n.locale) %></p>
+
+<% if @account_deletion.deletable? %>
+  <%= form_with url: account_deletion_path(locale: I18n.locale), method: :delete, class: "form" do |form| %>
+    <div class="form__field">
+      <%= form.label :password, User.human_attribute_name(:password) %>
+      <%# ログイン状態だけで消せるようにすると、席を離れた端末からそのまま実行できる。 %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password" %>
+    </div>
+
+    <%= form.submit t(".submit"), class: "button" %>
+  <% end %>
+<% else %>
+  <%#
+    どの組織が理由かを示す。「削除できません」だけでは、
+    次に何をすればよいかが分からない。
+  %>
+  <p class="form-error" role="alert"><%= t(".sole_owner") %></p>
+  <ul>
+    <% @account_deletion.sole_owner_organizations.each do |organization| %>
+      <li><%= organization.name %></li>
+    <% end %>
+  </ul>
+  <p><%= link_to t(".organizations"), organizations_path(locale: I18n.locale) %></p>
+<% end %>
+
+<p><%= link_to t(".back"), account_path(locale: I18n.locale) %></p>

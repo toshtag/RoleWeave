@@ -1,9 +1,29 @@
 ja:
+  account_deletions:
+    show:
+      title: アカウントの削除
+      body: この操作は取り消せません。実行する前に、自分のデータをダウンロードしておくことをおすすめします。
+      removed_items:
+        profile: プロフィール・職歴・学歴・スキル・希望条件
+        documents: 添付した履歴書・職務経歴書
+        sessions: ログイン状態
+        memberships: 組織への所属
+      kept: 組織側に残る記録（所属の履歴、求人の操作の履歴、認証の記録）は残りますが、あなたを特定できる情報は取り除かれます。
+      export: 先に自分のデータをダウンロードする
+      submit: アカウントを削除する
+      sole_owner: 次の組織で唯一の管理者になっています。先に別の管理者を立ててください。
+      organizations: 所属する組織へ
+      back: アカウント情報へ戻る
+    destroy:
+      invalid_password: パスワードが違います。
+      sole_owner: 組織の唯一の管理者であるため、アカウントを削除できません。
+      deleted: アカウントを削除しました。
   accounts:
     show:
       title: アカウント情報
       confirmed_at: メールアドレスの確認日時
       export: 自分のデータをダウンロードする
+      delete: アカウントを削除する
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
@@ -133,6 +153,8 @@ ja:
       documents: 履歴書・職務経歴書を添付する
       visibility: 公開範囲を設定する
       export: 自分のデータをダウンロードする
+      destroy: プロフィールを削除する
+      destroy_confirm: プロフィールと、職歴・学歴・スキル・希望条件・添付を削除します。アカウントは残ります。
       completeness: 応募に必要な項目
       completeness_complete: 応募に使う項目がそろっています。
       completeness_missing: 次の項目がまだ書かれていません。書かずに応募することもできます。

@@ -1,3 +1,8 @@
+<%# 直前の操作の結果を伝える。伝える先がないと、何が起きたか分からないまま終わる。 %>
+<% if flash[:notice] %>
+  <p role="status"><%= flash[:notice] %></p>
+<% end %>
+
 <h1><%= t("application.name") %></h1>
 <p><%= t(".summary") %></p>
 

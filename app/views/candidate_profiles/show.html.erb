@@ -82,3 +82,10 @@
 <p><%= link_to t(".documents"), edit_profile_documents_path(locale: I18n.locale) %></p>
 <p><%= link_to t(".visibility"), edit_profile_visibility_path(locale: I18n.locale) %></p>
 <p><%= link_to t(".export"), export_path(locale: I18n.locale) %></p>
+
+<%# プロフィールだけを消し、アカウントは残す。 %>
+<%= button_to t(".destroy"),
+              profile_path(locale: I18n.locale),
+              method: :delete,
+              form: { data: { turbo_confirm: t(".destroy_confirm") } },
+              class: "button button--quiet" %>
