@@ -21,14 +21,20 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   # 拡張子なしのファイルを正本とする。404.ja.html は作らない。
   PAGES = {
     "404.html" => :ja,
-    "404.en.html" => :en
+    "404.en.html" => :en,
+    "500.html" => :ja,
+    "500.en.html" => :en
   }.freeze
 
   # 静的ページの文言は辞書を持たないため、期待値をテストへ置く。
   # ここが文言と言語の唯一の対応表になる。文言を変えるときはこのテストも変える。
   HEADINGS = {
-    "404" => { ja: "ページが見つかりません", en: "Page not found" }
+    "404" => { ja: "ページが見つかりません", en: "Page not found" },
+    "500" => { ja: "ページを表示できません", en: "Unable to display this page" }
   }.freeze
+
+  # 例外の詳細が応答へ混ざっていないことを、実際の例外メッセージで確認する。
+  SENSITIVE_DETAIL = "SENSITIVE_TEST_EXCEPTION_DETAIL"
 
   test "エラー画面がページの言語を宣言する" do
     # html lang が実際の文言と食い違うと、読み上げの言語が本文と一致しない。
@@ -190,6 +196,43 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     assert_page "404.html", response
   end
 
+  test "日本語 URL のサーバーエラーで日本語の 500 を返す" do
+    response = exception_response(path: "/ja/failure", exception: server_error, show_exceptions: :all)
+
+    assert_equal 500, response[:status]
+    assert_html response
+    assert_page "500.html", response
+  end
+
+  test "英語 URL のサーバーエラーで英語の 500 を返す" do
+    response = exception_response(path: "/en/failure", exception: server_error, show_exceptions: :all)
+
+    assert_equal 500, response[:status]
+    assert_html response
+    assert_page "500.en.html", response
+  end
+
+  test "ロケールを持たない URL のサーバーエラーで既定の言語の 500 を返す" do
+    response = exception_response(path: "/failure", exception: server_error, show_exceptions: :all)
+
+    assert_equal 500, response[:status]
+    assert_page "500.html", response
+  end
+
+  test "サーバーエラーの画面が例外の内容を閲覧者へ出さない" do
+    # 例外メッセージや backtrace は、内部構造と入力値をそのまま外へ出す。
+    # 静的ページを返す構成では起こり得ないが、動的な描画へ戻したときに検出する。
+    #
+    # 片方の言語だけを見ると、もう片方のページへ混入した内容を見逃す。
+    PAGES.values.uniq.each do |locale|
+      response = exception_response(path: "/#{locale}/failure", exception: server_error, show_exceptions: :all)
+
+      [ SENSITIVE_DETAIL, "RuntimeError", "app/controllers" ].each do |detail|
+        assert_not_includes response[:body], detail, "#{locale} のエラー画面へ #{detail} が出ている"
+      end
+    end
+  end
+
   private
     # 静的ページを 1 つずつ、その言語と解析結果とともに渡す。
     def each_page
@@ -249,6 +292,10 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
 
     def routing_error
       ActionController::RoutingError.new("No route matches")
+    end
+
+    def server_error
+      RuntimeError.new(SENSITIVE_DETAIL)
     end
 
     # 応答が、期待した静的ページそのものであることを確認する。
