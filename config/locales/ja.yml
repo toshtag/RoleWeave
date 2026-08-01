@@ -206,6 +206,11 @@ ja:
       title: このリンクは使用できません
       body: リンクの有効期限が切れているか、すでに使用済みです。もう一度、再設定を依頼してください。
       retry: 再設定を依頼する
+  shared:
+    pagination:
+      label: ページ送り
+      previous: 前のページ
+      next: 次のページ
   sessions:
     new:
       title: ログイン

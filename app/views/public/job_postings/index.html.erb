@@ -3,8 +3,15 @@
   条件を持つ一覧の canonical は、条件を持たない一覧とする。
   同じ求人の集合へ無数の URL から到達できる状態を、検索エンジンへ渡さない。
 %>
-<% content_for :canonical, public_job_postings_url(locale: I18n.locale) %>
-<% if @search.any? { |_key, value| value.present? } %>
+<% filtered = @search.any? { |_key, value| value.present? } %>
+<%
+  # 条件を持たない一覧の canonical は、そのページ自身とする。
+  # 2 ページ目以降を 1 ページ目の複製として扱うと、そこにしかない求人が索引されない。
+  canonical_options = { locale: I18n.locale }
+  canonical_options[:page] = @pagination.current_page if !filtered && @pagination.current_page > 1
+%>
+<% content_for :canonical, public_job_postings_url(canonical_options) %>
+<% if filtered %>
   <%# 条件つきの結果は索引させない。リンクはたどらせる。 %>
   <% content_for :robots, "noindex, follow" %>
 <% end %>
@@ -67,5 +74,9 @@
     <% end %>
   </ul>
 <% else %>
-  <p><%= @search.any? { |_key, value| value.present? } ? t(".no_results") : t(".empty") %></p>
+  <p><%= filtered ? t(".no_results") : t(".empty") %></p>
 <% end %>
+
+<%= render "shared/pagination",
+           pagination: @pagination,
+           permitted: Public::JobPostingsController::PERMITTED_KEYS %>

@@ -1,0 +1,20 @@
+<%#
+  前後のページへの導線。
+  ページ番号の一覧は出さない。件数が増えるほど番号が並び、
+  どれを押せばよいかの手がかりにならない。
+%>
+<% if pagination.previous_page || pagination.next_page %>
+  <nav class="pagination" aria-label="<%= t("shared.pagination.label") %>">
+    <% if pagination.previous_page %>
+      <%= link_to t("shared.pagination.previous"),
+                  url_for(params.permit(*permitted).merge(page: pagination.previous_page)),
+                  rel: "prev" %>
+    <% end %>
+
+    <% if pagination.next_page %>
+      <%= link_to t("shared.pagination.next"),
+                  url_for(params.permit(*permitted).merge(page: pagination.next_page)),
+                  rel: "next" %>
+    <% end %>
+  </nav>
+<% end %>
