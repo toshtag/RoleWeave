@@ -7,6 +7,16 @@ ja:
     attributes:
       user:
         email_address: メールアドレス
+        password: パスワード
+        password_confirmation: パスワード（確認用）
+    # bcrypt が切り捨てる長さは文字数ではなくバイト数で決まる。
+    # 既定の文言は文字数を前提にしているため、この検証専用の文言を持つ。
+    errors:
+      models:
+        user:
+          attributes:
+            password:
+              too_long_in_bytes: は %{count} バイト以内で入力してください
   application:
     name: RoleWeave
     skip_to_content: 本文へ移動
