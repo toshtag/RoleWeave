@@ -19,6 +19,12 @@ ja:
         introduction: 自己紹介
         location: 所在地
         desired_occupation: 希望職種
+      work_experience:
+        organization_name: 会社・団体名
+        position: 役職
+        description: 業務内容
+        started_on: 開始日
+        ended_on: 終了日
       job_posting:
         title: 題名
         description: 仕事内容
@@ -46,6 +52,12 @@ ja:
           attributes:
             annual_salary_max:
               less_than_minimum: は年収の下限を下回れません
+        work_experience:
+          attributes:
+            ended_on:
+              before_start: は開始日より前にできません
+            started_on:
+              in_the_future: に未来の日付は指定できません
         membership:
           attributes:
             role:
@@ -74,12 +86,31 @@ ja:
     show:
       title: プロフィール
       edit: プロフィールを編集する
+      work_experiences: 職歴を管理する
     new:
       title: プロフィールの作成
       body: 応募のときに企業へ伝える情報です。表示名だけが必須で、ほかは後から追加できます。
       submit: プロフィールを作成する
     edit:
       title: プロフィールの編集
+      submit: 保存する
+  work_experiences:
+    form:
+      ended_on_hint: 現在も在籍している場合は空欄のままにしてください。
+    index:
+      title: 職歴
+      new: 職歴を追加する
+      period: "%{started_on} 〜 %{ended_on}"
+      period_current: "%{started_on} 〜 在籍中"
+      edit: 編集する
+      destroy: 削除する
+      empty: まだ職歴が登録されていません。
+      back: プロフィールへ戻る
+    new:
+      title: 職歴の追加
+      submit: 職歴を追加する
+    edit:
+      title: 職歴の編集
       submit: 保存する
   confirmations:
     pending:

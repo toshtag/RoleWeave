@@ -1,0 +1,9 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%= render "form",
+           work_experience: @work_experience,
+           url: profile_work_experience_path(locale: I18n.locale, id: @work_experience),
+           method: :patch,
+           submit_label: t(".submit") %>
