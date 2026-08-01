@@ -1,5 +1,13 @@
 require "test_helper"
 
+# ActionController::InvalidAuthenticityToken を定義するファイル。
+#
+# この定数そのものは autoload の対象になっておらず、同じファイルにある
+# ActionController::RequestForgeryProtection が読み込まれたときに付随して定義される。
+# 明示的に読み込まないと、このテストだけを実行したときに解決できず、
+# 実行するファイルの組み合わせで結果が変わる。
+require "action_controller/metal/request_forgery_protection"
+
 # エラー画面の契約を検証する。
 #
 # 検証対象は 2 つある。
