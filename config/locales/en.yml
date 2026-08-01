@@ -149,6 +149,27 @@ en:
         en: English
     footer:
       description: An open-source project building a self-hostable recruiting platform.
+  candidate_job_applications:
+    index:
+      title: My applications
+      statuses:
+        submitted: Submitted
+        withdrawn: Withdrawn
+      empty: You have not applied to anything yet.
+      back: Back to profile
+    show:
+      organization: Applied to
+      applied_at: Applied at
+      status: Status
+      current_job_posting: Current state of this job posting
+      still_published: Still published (view the job posting)
+      no_longer_published: No longer published
+      job_posting_snapshot: The job posting as it was
+      candidate_profile_snapshot: What you sent
+      withdraw_notice: Once withdrawn, you cannot apply to this job posting again.
+      withdraw: Withdraw this application
+      withdraw_confirm: This withdraws your application. You cannot apply to this job posting again.
+      back: Back to my applications
   candidate_profiles:
     show:
       title: Profile
@@ -159,6 +180,7 @@ en:
       desired_condition_edit: Edit preferences
       documents: Attach resume and CV
       visibility: Set visibility
+      applications: View my applications
       export: Download my data
       destroy: Delete my profile
       destroy_confirm: This deletes your profile along with work experience, education, skills, preferences and attachments. Your account stays.

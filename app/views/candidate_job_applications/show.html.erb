@@ -1,0 +1,71 @@
+<% content_for :title, "#{@job_application.job_posting_snapshot["title"]} | #{t("application.name")}" %>
+
+<%# 応募の画面は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<% snapshot = @job_application.job_posting_snapshot %>
+
+<h1><%= snapshot["title"] %></h1>
+
+<dl>
+  <dt><%= t(".organization") %></dt>
+  <dd><%= snapshot["organization_name"] %></dd>
+
+  <dt><%= t(".applied_at") %></dt>
+  <dd><%= l(@job_application.created_at, format: :long) %></dd>
+
+  <dt><%= t(".status") %></dt>
+  <dd><%= t("candidate_job_applications.index.statuses.#{@job_application.status}") %></dd>
+
+  <%#
+    応募先の求人がいまどうなっているかを示す。
+    分からないと、すでに募集が終わっている求人を待ち続けることになる。
+  %>
+  <dt><%= t(".current_job_posting") %></dt>
+  <dd>
+    <% if @job_application.job_posting.status == "published" %>
+      <%= link_to t(".still_published"),
+                  public_job_posting_path(locale: I18n.locale, id: @job_application.job_posting) %>
+    <% else %>
+      <%= t(".no_longer_published") %>
+    <% end %>
+  </dd>
+</dl>
+
+<h2><%= t(".job_posting_snapshot") %></h2>
+
+<div class="job-posting__body"><%= simple_format(snapshot["description"]) %></div>
+
+<% { location: snapshot["location"], occupation: snapshot["occupation"] }.each do |attribute, value| %>
+  <% next if value.blank? %>
+  <p><%= JobPosting.human_attribute_name(attribute) %>: <%= value %></p>
+<% end %>
+
+<h2><%= t(".candidate_profile_snapshot") %></h2>
+
+<% profile_snapshot = @job_application.candidate_profile_snapshot %>
+
+<dl>
+  <dt><%= CandidateProfile.human_attribute_name(:display_name) %></dt>
+  <dd><%= profile_snapshot["display_name"] %></dd>
+
+  <dt><%= t("work_experiences.index.title") %></dt>
+  <dd><%= profile_snapshot["work_experiences"].size %></dd>
+
+  <dt><%= t("skills.index.title") %></dt>
+  <dd><%= profile_snapshot["skills"].size %></dd>
+</dl>
+
+<% if @job_application.submitted? %>
+  <%#
+    取り消すと同じ求人へは応募し直せない。押す前に伝える。
+  %>
+  <p><%= t(".withdraw_notice") %></p>
+  <%= button_to t(".withdraw"),
+                profile_application_path(locale: I18n.locale, id: @job_application),
+                method: :delete,
+                form: { data: { turbo_confirm: t(".withdraw_confirm") } },
+                class: "button button--quiet" %>
+<% end %>
+
+<p><%= link_to t(".back"), profile_applications_path(locale: I18n.locale) %></p>

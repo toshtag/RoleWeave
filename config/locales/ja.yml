@@ -149,6 +149,27 @@ ja:
         en: English
     footer:
       description: 自己ホスト可能な採用プラットフォームを開発するオープンソースプロジェクトです。
+  candidate_job_applications:
+    index:
+      title: 応募の一覧
+      statuses:
+        submitted: 応募済み
+        withdrawn: 取り消し済み
+      empty: まだ応募していません。
+      back: プロフィールへ戻る
+    show:
+      organization: 応募先
+      applied_at: 応募日時
+      status: 状態
+      current_job_posting: この求人のいまの状態
+      still_published: 公開中（求人を見る）
+      no_longer_published: 現在は公開されていません
+      job_posting_snapshot: 応募時点の求人の内容
+      candidate_profile_snapshot: 応募時点に送った内容
+      withdraw_notice: 取り消すと、この求人へは応募し直せません。
+      withdraw: 応募を取り消す
+      withdraw_confirm: この応募を取り消します。同じ求人へは応募し直せません。
+      back: 応募の一覧へ戻る
   candidate_profiles:
     show:
       title: プロフィール
@@ -159,6 +180,7 @@ ja:
       desired_condition_edit: 希望条件を編集する
       documents: 履歴書・職務経歴書を添付する
       visibility: 公開範囲を設定する
+      applications: 応募の一覧を見る
       export: 自分のデータをダウンロードする
       destroy: プロフィールを削除する
       destroy_confirm: プロフィールと、職歴・学歴・スキル・希望条件・添付を削除します。アカウントは残ります。
