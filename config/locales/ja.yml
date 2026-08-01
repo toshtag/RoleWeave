@@ -19,6 +19,15 @@ ja:
         introduction: 自己紹介
         location: 所在地
         desired_occupation: 希望職種
+      education:
+        school_name: 学校名
+        field_of_study: 専攻
+        degree: 学位
+        started_on: 入学日
+        ended_on: 卒業日
+      skill:
+        name: スキル名
+        years_of_experience: 経験年数
       work_experience:
         organization_name: 会社・団体名
         position: 役職
@@ -52,6 +61,12 @@ ja:
           attributes:
             annual_salary_max:
               less_than_minimum: は年収の下限を下回れません
+        education:
+          attributes:
+            ended_on:
+              before_start: は入学日より前にできません
+            started_on:
+              in_the_future: に未来の日付は指定できません
         work_experience:
           attributes:
             ended_on:
@@ -87,12 +102,50 @@ ja:
       title: プロフィール
       edit: プロフィールを編集する
       work_experiences: 職歴を管理する
+      educations: 学歴を管理する
+      skills: スキルを管理する
     new:
       title: プロフィールの作成
       body: 応募のときに企業へ伝える情報です。表示名だけが必須で、ほかは後から追加できます。
       submit: プロフィールを作成する
     edit:
       title: プロフィールの編集
+      submit: 保存する
+  educations:
+    form:
+      ended_on_hint: 現在も在学している場合は空欄のままにしてください。
+    index:
+      title: 学歴
+      new: 学歴を追加する
+      period: "%{started_on} 〜 %{ended_on}"
+      period_current: "%{started_on} 〜 在学中"
+      edit: 編集する
+      destroy: 削除する
+      empty: まだ学歴が登録されていません。
+      back: プロフィールへ戻る
+    new:
+      title: 学歴の追加
+      submit: 学歴を追加する
+    edit:
+      title: 学歴の編集
+      submit: 保存する
+  skills:
+    form:
+      years_of_experience_hint: 年単位の整数で入力してください。未入力のままにもできます。
+    index:
+      title: スキル
+      new: スキルを追加する
+      years:
+        other: 経験 %{count} 年
+      edit: 編集する
+      destroy: 削除する
+      empty: まだスキルが登録されていません。
+      back: プロフィールへ戻る
+    new:
+      title: スキルの追加
+      submit: スキルを追加する
+    edit:
+      title: スキルの編集
       submit: 保存する
   work_experiences:
     form:

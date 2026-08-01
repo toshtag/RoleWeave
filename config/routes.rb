@@ -75,6 +75,8 @@ Rails.application.routes.draw do
       # 「誰の職歴か」を経路ごとに確かめることになる。
       # 詳細は docs/decisions/0027-work-experience.md を参照する。
       resources :work_experiences, only: %i[index new create edit update destroy]
+      resources :educations, only: %i[index new create edit update destroy]
+      resources :skills, only: %i[index new create edit update destroy]
     end
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。

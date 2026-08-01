@@ -1,0 +1,30 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= link_to t(".new"), new_profile_skill_path(locale: I18n.locale) %></p>
+
+<% if @skills.any? %>
+  <ul>
+    <% @skills.each do |skill| %>
+      <li>
+        <%= skill.name %>
+
+        <%# 経験年数は任意とする。未入力の行に 0 年と出すと、事実と違う。 %>
+        <% if skill.years_of_experience.present? %>
+          <%= t(".years", count: skill.years_of_experience) %>
+        <% end %>
+
+        <%= link_to t(".edit"), edit_profile_skill_path(locale: I18n.locale, id: skill) %>
+        <%= button_to t(".destroy"),
+                      profile_skill_path(locale: I18n.locale, id: skill),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>
