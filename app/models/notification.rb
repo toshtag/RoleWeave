@@ -27,23 +27,23 @@ class Notification < ApplicationRecord
     read_at.present?
   end
 
-# 送信に成功した。
-def record_email_delivered!
+  # 送信に成功した。
+  def record_email_delivered!
   update_columns(email_status: "delivered", email_delivered_at: Time.current, email_error: nil)
-end
+  end
 
-# 送信に失敗した。内容をそのまま残す。運営者が原因を追えるようにする。
-def record_email_failure!(error)
+  # 送信に失敗した。内容をそのまま残す。運営者が原因を追えるようにする。
+  def record_email_failure!(error)
   update_columns(
     email_status: "failed",
     email_attempts: email_attempts + 1,
     email_error: "#{error.class}: #{error.message}"
   )
-end
+  end
 
-def email_failed?
+  def email_failed?
   email_status == "failed"
-end
+  end
 
   # 一覧を開いた時点で既読にする。
   def self.mark_all_read(user)
