@@ -50,13 +50,13 @@ Rails.application.routes.draw do
         # 公開されたときと同じ見え方の確認。公開側の経路とは別に置く。
         get :preview, on: :member
 
-              # 公開状態を変える経路は、編集とは別に置く。
-              # 同じ経路にすると、編集の権限がそのまま公開の権限になる。
-              patch :submit, to: "job_posting_reviews#submit"
-              patch :approve, to: "job_posting_reviews#approve"
-              patch :reject, to: "job_posting_reviews#reject"
-          patch :suspend, to: "job_posting_reviews#suspend"
-            end
+        # 公開状態を変える経路は、編集とは別に置く。
+        # 同じ経路にすると、編集の権限がそのまま公開の権限になる。
+        patch :submit, to: "job_posting_reviews#submit"
+        patch :approve, to: "job_posting_reviews#approve"
+        patch :reject, to: "job_posting_reviews#reject"
+        patch :suspend, to: "job_posting_reviews#suspend"
+      end
     end
 
     # 運営者専用の経路。通常の組織の画面とは分けて置く。
