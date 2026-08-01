@@ -32,3 +32,5 @@
 
   <%= form.submit t(".submit"), class: "button" %>
 <% end %>
+
+<p><%= link_to t(".sign_up"), new_registration_path(locale: I18n.locale) %></p>

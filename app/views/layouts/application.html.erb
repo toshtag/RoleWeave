@@ -49,6 +49,8 @@
           <% else %>
             <%= link_to t("application.account.sign_in"),
                         new_session_path(locale: I18n.locale) %>
+            <%= link_to t("application.account.sign_up"),
+                        new_registration_path(locale: I18n.locale) %>
           <% end %>
         </nav>
 

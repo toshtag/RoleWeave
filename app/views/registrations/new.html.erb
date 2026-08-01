@@ -1,0 +1,45 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%= form_with model: @user, url: registration_path(locale: I18n.locale), class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :email_address %>
+    <%#
+      誤りの説明は入力欄と aria-describedby で結ぶ。
+      近くに置くだけでは、読み上げでどの欄の説明かが分からない。
+    %>
+    <%= form.email_field :email_address,
+                         required: true,
+                         autocomplete: "username",
+                         autofocus: true,
+                         aria: { describedby: field_error_id(@user, :email_address) } %>
+    <%= render "field_errors", record: @user, attribute: :email_address %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :password %>
+    <p class="form__hint" id="password_hint">
+      <%= t(".password_hint", count: User::PASSWORD_MIN_LENGTH) %>
+    </p>
+    <%# 入力されたパスワードは画面へ書き戻さない。 %>
+    <%= form.password_field :password,
+                            required: true,
+                            autocomplete: "new-password",
+                            aria: { describedby: [ "password_hint", field_error_id(@user, :password) ].compact.join(" ") } %>
+    <%= render "field_errors", record: @user, attribute: :password %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :password_confirmation %>
+    <%= form.password_field :password_confirmation,
+                            required: true,
+                            autocomplete: "new-password",
+                            aria: { describedby: field_error_id(@user, :password_confirmation) } %>
+    <%= render "field_errors", record: @user, attribute: :password_confirmation %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p><%= link_to t(".sign_in"), new_session_path(locale: I18n.locale) %></p>
