@@ -1,0 +1,15 @@
+<%#
+  本文はテキストだけとする。装飾を持たせると、表示できる形式が受信環境に依存する。
+  平文のパスワードは書かない。メールは保存も転送もされる。
+%><%= t(".greeting") %>
+
+<%= t(".body") %>
+
+<%= @confirmation_url %>
+
+<%= t(".expiration", count: @expires_in_hours) %>
+
+<%= t(".ignore") %>
+
+--
+<%= t("application.name") %>
