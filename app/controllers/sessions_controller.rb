@@ -11,7 +11,9 @@ class SessionsController < ApplicationController
     if user
       start_new_session_for(user)
 
-      redirect_to localized_root_path(locale: I18n.locale)
+      # 要求していた画面があれば、そこへ戻す。
+      # 毎回トップページへ送ると、たどり着きたかった場所を利用者が探し直すことになる。
+      redirect_to return_to_after_authentication || localized_root_path(locale: I18n.locale)
     else
       # 失敗の理由を区別しない。「登録がない」と「パスワードが違う」を分けて伝えると、
       # ログイン画面がメールアドレスの登録有無を調べる道具になる。
