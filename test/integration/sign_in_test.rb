@@ -161,7 +161,60 @@ class SignInTest < ActionDispatch::IntegrationTest
     assert_select "input[name=password][autocomplete=?]", "current-password"
   end
 
-  private
+test "無操作の上限を超えたセッションでログイン状態にならない" do
+  sign_in
+  expire_session(last_active_at: Session::IDLE_TIMEOUT.ago - 1.second)
+
+  get localized_root_path(locale: :ja)
+
+  assert_select "header .site-header__account-name", count: 0
+end
+
+test "発行からの上限を超えたセッションでログイン状態にならない" do
+  sign_in
+  expire_session(created_at: Session::ABSOLUTE_TIMEOUT.ago - 1.second)
+
+  get localized_root_path(locale: :ja)
+
+  assert_select "header .site-header__account-name", count: 0
+end
+
+test "期限切れのセッションをその場で削除する" do
+  # 残しておくと、判定する場所が増えるたびに期限を見ているかを確認して回ることになる。
+  sign_in
+  expire_session(last_active_at: Session::IDLE_TIMEOUT.ago - 1.second)
+
+  assert_difference -> { Session.count }, -1 do
+    get localized_root_path(locale: :ja)
+  end
+end
+
+test "利用のたびに最終利用時刻を進める" do
+  sign_in
+  session = @user.sessions.first
+  session.update_column(:last_active_at, Session::ACTIVITY_UPDATE_INTERVAL.ago - 1.minute)
+
+  get localized_root_path(locale: :ja)
+
+  assert_operator session.reload.last_active_at, :>, Session::ACTIVITY_UPDATE_INTERVAL.ago
+end
+
+test "ログインのたびに Cookie の値が変わる" do
+  # 既存の Cookie をそのまま使い続けると、ログイン前に仕込まれた値で
+  # ログイン後の状態を乗っ取られる。
+  sign_in
+  first_cookie = cookies[:session_id]
+
+  delete session_path(locale: :ja)
+  sign_in
+
+  assert_not_equal first_cookie, cookies[:session_id]
+end
+
+private
+  def expire_session(attributes)
+    @user.sessions.first.update_columns(attributes)
+  end
     def sign_in(locale: :ja, email_address: EMAIL_ADDRESS, password: PASSWORD)
       post session_path(locale: locale), params: { email_address: email_address, password: password }
     end
