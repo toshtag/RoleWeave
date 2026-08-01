@@ -74,6 +74,18 @@ class AccountDeletionRequestTest < ActionDispatch::IntegrationTest
     assert_redirected_to new_session_path(locale: :ja)
   end
 
+  test "削除すると手元の Cookie も残さない" do
+    # セッションの記録は消えるが、Cookie を残すと
+    # 使えない値を持ったまま次の利用者がその端末を使うことになる。
+    sign_in_as(@user)
+
+    assert_not_empty cookies[Authentication::SESSION_COOKIE]
+
+    delete account_deletion_path(locale: :ja), params: { password: PASSWORD }
+
+    assert_empty cookies[Authentication::SESSION_COOKIE].to_s
+  end
+
   test "削除の完了が遷移先の画面に伝わる" do
     sign_in_as(@user)
 
