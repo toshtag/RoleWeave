@@ -56,6 +56,23 @@ class NotificationTest < ActionDispatch::IntegrationTest
     assert_equal @candidate, Notification.find_by(kind: "stage_changed").user
   end
 
+  test "選考の状況の通知も、受け取りを無効にするとメールが送られない" do
+    # 通知そのものは作られる。止まるのはメールだけである。
+    @candidate.update!(email_notifications: false)
+
+    assert_no_enqueued_emails do
+      assert_difference -> { Notification.where(kind: "stage_changed").count }, 1 do
+        @job_application.move_to("interviewing", changed_by: @owner)
+      end
+    end
+  end
+
+  test "選考の状況の通知は、受け取りが有効ならメールが積まれる" do
+    assert_enqueued_emails 1 do
+      @job_application.move_to("interviewing", changed_by: @owner)
+    end
+  end
+
   test "メールの受け取りが既定で有効である" do
     assert_predicate @candidate, :email_notifications?
   end
