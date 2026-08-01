@@ -13,7 +13,32 @@
 
   <dt><%= t(".status") %></dt>
   <dd><%= t("candidate_job_applications.index.statuses.#{@job_application.status}") %></dd>
+
+  <dt><%= t(".stage") %></dt>
+  <dd><%= t("job_applications.stages.#{@job_application.stage}") %></dd>
 </dl>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<%#
+  いま行える操作だけを出す。
+  確定（内定・採用・不採用・辞退）は管理者だけへ出す。
+  画面から消しても経路は残るため、制限は Controller 側が持つ。
+%>
+<% JobApplication::STAGE_TRANSITIONS.fetch(@job_application.stage, []).each do |next_stage| %>
+  <% next unless @job_application.can_move_to?(next_stage) %>
+  <% next if JobApplication.owner_only_stage?(next_stage) && !current_membership&.owner? %>
+  <%= button_to t("job_applications.stage_actions.#{next_stage}"),
+                organization_job_posting_application_stage_path(
+                  locale: I18n.locale, organization_id: @organization,
+                  job_posting_id: @job_posting, application_id: @job_application,
+                  stage: next_stage
+                ),
+                method: :patch,
+                class: "button button--quiet" %>
+<% end %>
 
 <%# 取り消された応募であることを隠さない。選考を進める判断に関わる。 %>
 <% if @job_application.withdrawn? %>

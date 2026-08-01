@@ -20,6 +20,7 @@
                     ) %>
         <%= l(job_application.created_at, format: :long) %>
         <%= t("candidate_job_applications.index.statuses.#{job_application.status}") %>
+        <%= t("job_applications.stages.#{job_application.stage}") %>
       </li>
     <% end %>
   </ul>
@@ -38,7 +39,14 @@
         <%= l(event.created_at, format: :long) %>
         <%= event.candidate_display_name %>
         <%= event.job_posting_title %>
-        <%= t(".kinds.#{event.kind}") %>
+<% if event.stage_changed? %>
+  <%= t(".stage_changed",
+        from: t("job_applications.stages.#{event.from_stage}"),
+        to: t("job_applications.stages.#{event.to_stage}")) %>
+  <%= t(".changed_by", email_address: event.changed_by&.email_address || t(".removed_account")) %>
+<% else %>
+  <%= t(".kinds.#{event.kind}") %>
+<% end %>
       </li>
     <% end %>
   </ul>

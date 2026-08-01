@@ -67,7 +67,11 @@ Rails.application.routes.draw do
         # 届いた応募。求人の下へ置く。
         # 詳細は docs/decisions/0036-organization-application-access.md を参照する。
         resources :applications, only: %i[index show], module: :organizations,
-                                 controller: "job_applications"
+                                 controller: "job_applications" do
+          # 選考ステージを進める経路。見る経路とは分けて置く。
+          # 詳細は docs/decisions/0038-selection-stage.md を参照する。
+          patch "stage/:stage", to: "job_application_stages#update", as: :stage
+        end
       end
     end
 
