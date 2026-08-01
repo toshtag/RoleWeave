@@ -1,0 +1,12 @@
+<%#
+  本文はテキストだけとする。装飾を持たせると、表示できる形式が受信環境に依存する。
+  応募者の経歴は書かない。メールは転送も保存もされる経路であり、
+  公開範囲の設定が効かない場所へ個人情報を写すことになる。
+%><%= t(".greeting", organization: @organization.name) %>
+
+<%= t(".body", title: @job_posting_title) %>
+
+<%= @applications_url %>
+
+--
+<%= t("application.name") %>

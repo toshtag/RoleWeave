@@ -27,6 +27,23 @@
   <p><%= t(".empty") %></p>
 <% end %>
 
+<%#
+  応募と取消の記録。応募そのものが消えても、何があったかを追える。
+%>
+<% if @job_application_events.any? %>
+  <h2><%= t(".history") %></h2>
+  <ul>
+    <% @job_application_events.each do |event| %>
+      <li>
+        <%= l(event.created_at, format: :long) %>
+        <%= event.candidate_display_name %>
+        <%= event.job_posting_title %>
+        <%= t(".kinds.#{event.kind}") %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
 <p>
   <%= link_to t(".back"),
               organization_job_postings_path(locale: I18n.locale, organization_id: @organization) %>

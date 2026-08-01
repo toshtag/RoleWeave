@@ -351,6 +351,10 @@ ja:
         title: "%{title} への応募"
         empty: まだ応募はありません。
         back: 求人の一覧へ戻る
+        history: 応募の記録
+        kinds:
+          submitted: 応募
+          withdrawn: 取り消し
       show:
         applied_at: 応募日時
         status: 状態
@@ -489,6 +493,10 @@ ja:
       expiration: この URL の有効期限は %{count} 分です。
       ignore: 心当たりがない場合は、このメールを破棄してください。パスワードは変更されません。
   organization_mailer:
+    job_application:
+      subject: "「%{title}」へ応募がありました"
+      greeting: "%{organization} のご担当者さま"
+      body: "求人「%{title}」へ応募が届きました。内容は次の画面から確認できます。"
     invitation:
       subject: "%{organization} への招待"
       greeting: "%{organization} からメンバーとして招待されています。"
