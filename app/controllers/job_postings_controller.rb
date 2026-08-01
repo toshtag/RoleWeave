@@ -4,7 +4,7 @@ class JobPostingsController < ApplicationController
   before_action :require_authentication
   before_action :require_confirmed_email
   before_action :set_organization
-  before_action :set_job_posting, only: %i[edit update]
+  before_action :set_job_posting, only: %i[edit update preview]
   # 編集できるのは下書きと差し戻しだけとする。
   # 申請中と公開中の内容が、審査や公開の後で勝手に変わらないようにする。
   before_action :require_editable, only: %i[edit update]
@@ -35,6 +35,10 @@ class JobPostingsController < ApplicationController
   end
 
   def edit
+  end
+
+  # 公開されたときと同じ見え方で確認する。どの状態でも見られる。
+  def preview
   end
 
   def update

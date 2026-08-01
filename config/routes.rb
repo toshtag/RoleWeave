@@ -33,6 +33,9 @@ Rails.application.routes.draw do
       resources :invitations, only: %i[new create]
       resources :memberships, only: %i[index update]
       resources :job_postings, only: %i[index new create edit update] do
+        # 公開されたときと同じ見え方の確認。公開側の経路とは別に置く。
+        get :preview, on: :member
+
               # 公開状態を変える経路は、編集とは別に置く。
               # 同じ経路にすると、編集の権限がそのまま公開の権限になる。
               patch :submit, to: "job_posting_reviews#submit"
