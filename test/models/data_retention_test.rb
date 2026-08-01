@@ -34,7 +34,18 @@ class DataRetentionTest < ActiveSupport::TestCase
     end
   end
 
-  test "期限を過ぎたセッションを削除する" do
+  test "期間と扱いの値を固定する" do
+  # 値そのものを書く。定数を参照するだけのテストは、
+  # 期間を縮めたり伸ばしたりしても一緒に動いてしまう。
+  assert_equal 90.days, DataRetention::POLICIES.fetch("sessions").fetch(:period)
+  assert_equal :delete, DataRetention::POLICIES.fetch("sessions").fetch(:strategy)
+  assert_equal 180.days, DataRetention::POLICIES.fetch("notifications").fetch(:period)
+  assert_equal :delete, DataRetention::POLICIES.fetch("notifications").fetch(:strategy)
+  assert_equal 1.year, DataRetention::POLICIES.fetch("authentication_events").fetch(:period)
+  assert_equal :anonymize, DataRetention::POLICIES.fetch("authentication_events").fetch(:strategy)
+end
+
+test "期限を過ぎたセッションを削除する" do
     old_session = @user.sessions.create!
     old_session.update_column(:created_at, 91.days.ago)
     fresh_session = @user.sessions.create!
