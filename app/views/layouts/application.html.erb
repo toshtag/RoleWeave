@@ -35,6 +35,24 @@
                     class: "site-header__brand" %>
 
         <%#
+          ログイン状態は、画面から読み取れる形で示す。
+          示さないと、共有端末で前の利用者のまま操作を続ける事故が起こる。
+          ログアウトは DELETE で送る。リンクにすると、先読みだけでログアウトが起こる。
+        %>
+        <nav class="site-header__account" aria-label="<%= t("application.account.label") %>">
+          <% if signed_in? %>
+            <span class="site-header__account-name"><%= current_user.email_address %></span>
+            <%= button_to t("application.account.sign_out"),
+                          session_path(locale: I18n.locale),
+                          method: :delete,
+                          class: "button button--quiet" %>
+          <% else %>
+            <%= link_to t("application.account.sign_in"),
+                        new_session_path(locale: I18n.locale) %>
+          <% end %>
+        </nav>
+
+        <%#
           表示言語の正本は URL とする。Cookie や Accept-Language で切り替えると、
           閲覧者が見ている URL と表示言語が一致しない状態が生まれる。
           選択肢は I18n.available_locales から導く。ここへ言語を書き並べると、

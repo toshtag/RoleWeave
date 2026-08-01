@@ -26,6 +26,10 @@
   --color-text: #182230;
   --color-link: #175cd3;
   --color-focus-ring: #175cd3;
+  /* 入力欄やボタンなど、背景から浮かせたい面。 */
+  --color-surface: #ffffff;
+  /* 誤りの表示。背景に対して 4.5:1 以上を満たす値を選ぶ。 */
+  --color-error: #b42318;
   /* 区切り線は文字ではないが、背景に対して 3:1 以上を満たす値を選ぶ。 */
   --color-border: #7e8a9e;
 
@@ -37,6 +41,9 @@
   --page-gutter: clamp(1rem, 4vw, 2rem);
   --page-block-padding: clamp(2rem, 8vw, 5rem);
   --content-gap: 1rem;
+  /* 入力欄の幅。読みやすい行長に合わせ、画面幅いっぱいまでは広げない。 */
+  --form-max-width: 28rem;
+  --control-radius: 0.25rem;
 
   --font-size-heading-1: clamp(2rem, 8vw, 3.5rem);
   --line-height-body: 1.6;
@@ -173,6 +180,81 @@ body {
 .language-switcher__current {
   /* 現在の言語はリンクではないため、リンクとの色の違いだけでは区別の根拠にならない。 */
   font-weight: 700;
+}
+
+/*
+ * ヘッダーのアカウント欄。
+ * ログイン中のメールアドレスと導線を横に並べ、狭い画面では折り返す。
+ */
+.site-header__account {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--content-gap);
+}
+
+/*
+ * 入力フォーム。
+ *
+ * 項目は縦に積む。ラベルと入力欄を横に並べると、狭い画面で入力欄の幅が足りなくなる。
+ * 入力欄の幅は読みやすい行長に合わせ、画面幅いっぱいまでは広げない。
+ */
+.form {
+  display: flex;
+  max-width: var(--form-max-width);
+  flex-direction: column;
+  gap: var(--content-gap);
+}
+
+.form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form__field label {
+  font-weight: 700;
+}
+
+.form input {
+  width: 100%;
+  padding: 0.5rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/*
+ * 送信ボタン。
+ * 色だけで押せることを示さず、枠と余白を持たせる。
+ */
+.button {
+  padding: 0.5rem 1rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--color-text);
+  color: var(--color-surface);
+  cursor: pointer;
+}
+
+/* ヘッダーのように、本文の操作より控えめに見せたい場所で使う。 */
+.button--quiet {
+  background: var(--color-surface);
+  color: var(--color-text);
+}
+
+/*
+ * 入力の誤りを伝える文。
+ * 色だけで伝えると、色を区別しにくい閲覧者へ何も伝わらない。枠でも示す。
+ */
+.form-error {
+  max-width: var(--form-max-width);
+  margin-block-end: var(--content-gap);
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--color-error);
+  border-radius: var(--control-radius);
+  color: var(--color-error);
 }
 
 main {
