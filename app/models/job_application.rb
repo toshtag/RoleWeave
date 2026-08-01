@@ -37,6 +37,9 @@ class JobApplication < ApplicationRecord
   # 評価とコメント。応募を消したら残さない。
   has_many :application_reviews, dependent: :destroy
 
+  # 面接の予定。応募を消したら残さない。
+  has_many :interview_schedules, dependent: :destroy
+
   # 応募先も応募元も、作成した後で変えられないようにする。
   # 変えられると、応募時点の写しと結び付きが食い違う。
   attr_readonly :candidate_profile_id, :job_posting_id
@@ -51,6 +54,8 @@ class JobApplication < ApplicationRecord
   # 担当者はその組織の所属者に限る。外部の利用者を担当にできると、
   # 応募が組織の外から扱われる状態になる。
   validate :assignee_belongs_to_organization
+  # 期限は、これから決めるためのものである。過ぎた日付は期限にならない。
+  validate :decide_by_is_not_in_the_past, if: :will_save_change_to_decide_by?
 
   # 応募時点の写しを、作成時に固定する。
   # Controller ではなくモデルへ置く。応募を作る経路が増えても、写し忘れが起こらない。
@@ -71,9 +76,16 @@ class JobApplication < ApplicationRecord
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
   scope :submitted, -> { where(status: "submitted") }
+  # 期限を過ぎた応募。放置に気付けるようにする。
+  scope :overdue, -> { submitted.where(decide_by: ...Date.current) }
 
   def submitted?
     status == "submitted"
+  end
+
+  # 期限を過ぎているか。画面で印を付けるために使う。
+  def overdue?
+    submitted? && decide_by.present? && decide_by < Date.current
   end
 
   def withdrawn?
@@ -113,6 +125,12 @@ class JobApplication < ApplicationRecord
 
   # 記録のためだけに使い、保存はしない。
   attr_accessor :stage_changed_by
+
+# 面接の予定の記録。予定の側から呼ぶ。
+# 記録の作り方を 1 か所に保つため、応募が受け持つ。
+def record_interview_event(kind, changed_by:)
+  record_event(kind, changed_by: changed_by)
+end
 
   private
     def capture_snapshots
@@ -158,6 +176,13 @@ class JobApplication < ApplicationRecord
         OrganizationMailer.job_application(self, to: membership.user.email_address,
                                                  locale: I18n.locale).deliver_later
       end
+    end
+
+    def decide_by_is_not_in_the_past
+      return if decide_by.nil?
+      return if decide_by >= Date.current
+
+      errors.add(:decide_by, :in_the_past)
     end
 
     def assignee_belongs_to_organization

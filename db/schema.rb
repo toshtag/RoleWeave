@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_191103) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_192441) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -108,6 +108,21 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_191103) do
     t.index ["candidate_profile_id"], name: "index_educations_on_candidate_profile_id"
   end
 
+  create_table "interview_schedules", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "created_by_id"
+    t.integer "duration_minutes"
+    t.bigint "job_application_id", null: false
+    t.string "location"
+    t.text "note"
+    t.datetime "starts_at", null: false
+    t.string "status", default: "scheduled", null: false
+    t.datetime "updated_at", null: false
+    t.index ["created_by_id"], name: "index_interview_schedules_on_created_by_id"
+    t.index ["job_application_id", "starts_at"], name: "index_interview_schedules_on_job_application_id_and_starts_at"
+    t.index ["job_application_id"], name: "index_interview_schedules_on_job_application_id"
+  end
+
   create_table "invitations", force: :cascade do |t|
     t.datetime "accepted_at"
     t.datetime "created_at", null: false
@@ -145,6 +160,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_191103) do
     t.bigint "candidate_profile_id", null: false
     t.jsonb "candidate_profile_snapshot", default: {}, null: false
     t.datetime "created_at", null: false
+    t.date "decide_by"
     t.bigint "job_posting_id", null: false
     t.jsonb "job_posting_snapshot", default: {}, null: false
     t.string "stage", default: "screening", null: false
@@ -273,6 +289,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_191103) do
   add_foreign_key "candidate_profiles", "users"
   add_foreign_key "desired_conditions", "candidate_profiles"
   add_foreign_key "educations", "candidate_profiles"
+  add_foreign_key "interview_schedules", "job_applications"
+  add_foreign_key "interview_schedules", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "users", column: "invited_by_id", on_delete: :nullify
   add_foreign_key "job_application_events", "job_applications", on_delete: :nullify
