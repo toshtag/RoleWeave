@@ -15,6 +15,17 @@ class NotificationMailer < ApplicationMailer
     end
   end
 
+# 新着の求人。件数だけを伝え、求人の中身は書かない。
+def new_job_postings(notification, locale:)
+  @saved_search = notification.saved_search
+  @count = notification.new_job_postings_count
+  @jobs_url = public_job_postings_url(locale: locale, **(@saved_search&.conditions || {}).symbolize_keys)
+
+  I18n.with_locale(locale) do
+    mail to: notification.user.email_address, subject: t(".subject", count: @count)
+  end
+end
+
   def stage_changed(notification, locale:)
     @job_application = notification.job_application
     @application_url = profile_application_url(locale: locale, id: @job_application)

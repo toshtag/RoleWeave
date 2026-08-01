@@ -24,6 +24,7 @@ class NotificationEmailJob < ApplicationJob
       case notification.kind
       when "message_received" then NotificationMailer.message_received(notification, locale: locale)
       when "stage_changed" then NotificationMailer.stage_changed(notification, locale: locale)
+      when "new_job_postings" then NotificationMailer.new_job_postings(notification, locale: locale)
       else raise ArgumentError, "未知の通知の種類: #{notification.kind}"
       end
     end
