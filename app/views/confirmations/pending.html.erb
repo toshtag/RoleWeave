@@ -1,0 +1,11 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%#
+  ログイン自体は拒まない。拒むと、確認メールが届かなかった利用者が
+  再送を依頼する手段まで失う。
+%>
+<p><%= t(".body", email_address: current_user.email_address) %></p>
+
+<p><%= link_to t(".back"), localized_root_path(locale: I18n.locale) %></p>

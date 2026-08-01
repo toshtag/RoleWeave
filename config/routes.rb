@@ -28,6 +28,9 @@ Rails.application.routes.draw do
     # アカウントは自分の 1 件だけを扱うため、単数形の resource とする。
     resource :registration, only: %i[new create]
 
+    # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
+    resource :account, only: :show
+
     # メールアドレスの確認。token は URL のパスへ置く。
     # query string へ置くと、Referer やアクセスログへ残りやすい。
     get "confirmation/:token" => "confirmations#show", as: :confirmation

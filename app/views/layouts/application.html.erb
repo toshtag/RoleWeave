@@ -41,7 +41,9 @@
         %>
         <nav class="site-header__account" aria-label="<%= t("application.account.label") %>">
           <% if signed_in? %>
-            <span class="site-header__account-name"><%= current_user.email_address %></span>
+            <%= link_to current_user.email_address,
+                        account_path(locale: I18n.locale),
+                        class: "site-header__account-name" %>
             <%= button_to t("application.account.sign_out"),
                           session_path(locale: I18n.locale),
                           method: :delete,
