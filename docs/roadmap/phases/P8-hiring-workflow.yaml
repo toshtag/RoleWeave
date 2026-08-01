@@ -3,7 +3,7 @@ name: Hiring Workflow
 weight: 9
 confidence: medium
 risk: medium
-status: in_progress
+status: done
 depends_on:
   - P7
 objective: |-
