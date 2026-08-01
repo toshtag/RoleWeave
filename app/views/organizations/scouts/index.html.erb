@@ -1,0 +1,30 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<%# 残りの送信可能数を出す。上限に当たってから知るのでは遅い。 %>
+<p><%= t(".remaining", count: [ @remaining, 0 ].max, limit: Scout::DAILY_LIMIT_PER_ORGANIZATION) %></p>
+
+<% if @scouts.any? %>
+  <ul>
+    <% @scouts.each do |scout| %>
+      <li>
+        <%= scout.candidate_profile.display_name %>
+        <%= l(scout.created_at, format: :long) %>
+        <%= scout.sent_by&.email_address || t(".removed_account") %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p>
+  <%= link_to t(".search"),
+              organization_candidate_searches_path(locale: I18n.locale, organization_id: @organization) %>
+</p>
+<p>
+  <%= link_to t(".templates"),
+              organization_scout_templates_path(locale: I18n.locale, organization_id: @organization) %>
+</p>

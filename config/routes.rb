@@ -52,6 +52,10 @@ Rails.application.routes.draw do
       # 受信を許可した候補者の検索とタレントプール。
       # 詳細は docs/decisions/0055-candidate-search.md を参照する。
       resources :candidate_searches, only: :index, module: :organizations
+      # スカウトとテンプレート。
+      # 詳細は docs/decisions/0056-scouting.md を参照する。
+      resources :scouts, only: %i[index new create], module: :organizations
+      resources :scout_templates, only: %i[index create destroy], module: :organizations
       resources :talent_pools, only: %i[index show create destroy], module: :organizations do
         resources :members, only: %i[create destroy], controller: "talent_pool_members"
       end
@@ -135,6 +139,10 @@ Rails.application.routes.draw do
       # 詳細は docs/decisions/0054-saved-searches.md を参照する。
       resources :saved_jobs, only: %i[index create destroy], controller: "saved_job_postings"
       resources :saved_searches, only: %i[index create update destroy]
+
+      # 受け取ったスカウトと、組織ごとの配信停止。
+      resources :scouts, only: :index, controller: "candidate_scouts"
+      resources :scout_blocks, only: %i[create destroy]
     end
 
     # 添付そのものの経路。種類をパスへ置く。

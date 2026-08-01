@@ -124,6 +124,13 @@ ja:
           attributes:
             starts_at:
               in_the_past: に過ぎた日時は指定できません
+        scout:
+          attributes:
+            candidate_profile:
+              not_searchable: はスカウトを受け取らない設定です
+              blocked: からこの組織の受信が止められています
+            base:
+              daily_limit_reached: 本日の送信の上限に達しました
         candidate_profile:
           attributes:
             resume:
@@ -208,6 +215,7 @@ ja:
       applications: 応募の一覧を見る
       saved_jobs: 保存した求人を見る
       saved_searches: 保存した検索条件を見る
+      scouts: 受け取ったスカウトを見る
       export: 自分のデータをダウンロードする
       destroy: プロフィールを削除する
       destroy_confirm: プロフィールと、職歴・学歴・スキル・希望条件・添付を削除します。アカウントは残ります。
@@ -229,6 +237,14 @@ ja:
     edit:
       title: プロフィールの編集
       submit: 保存する
+  candidate_scouts:
+    index:
+      title: 受け取ったスカウト
+      block: この会社からの受信を止める
+      blocked: 受信を止めています
+      empty: まだスカウトはありません。
+      visibility: 公開範囲の設定へ
+      back: プロフィールへ戻る
   conversations:
     show:
       title: やり取り
@@ -344,6 +360,7 @@ ja:
         message_received: 新しいメッセージがあります
         stage_changed: 選考の状況が変わりました
       new_job_postings: 新しい求人があります
+      scout_received: 企業からのスカウトが届いています
       open: 開く
       empty: まだ通知はありません。
   notification_settings:
@@ -355,6 +372,9 @@ ja:
       submit: 保存する
       back: アカウント情報へ戻る
   notification_mailer:
+    scout_received:
+      subject: 企業からのスカウトが届いています
+      body: "%{organization} からスカウトが届きました。内容は次の画面で確認できます。"
     new_job_postings:
       subject:
         one: 新しい求人が %{count} 件あります
@@ -379,6 +399,7 @@ ja:
           candidate_document_downloaded: 添付を取得
           personal_data_exported: 本人がデータを持ち出し
           candidate_search_performed: 候補者を検索
+          scout_sent: スカウトを送信
         removed_account: 削除されたアカウント
         empty: 記録はありません。
         organizations: 組織の一覧へ
@@ -445,6 +466,32 @@ ja:
         save: この求人を保存する
         back: 求人の一覧へ
   organizations:
+    scouts:
+      index:
+        title: 送ったスカウト
+        remaining: 本日あと %{count} 通送れます（1 日あたり %{limit} 通）。
+        removed_account: 削除されたアカウント
+        empty: まだスカウトを送っていません。
+        search: 候補者を探す
+        templates: テンプレートを管理する
+      new:
+        title: "%{name} へスカウトを送る"
+        notice: 同じ候補者へ送れるのは 1 通だけです。送った後に取り消すことはできません。
+        templates: テンプレート
+        body: 本文
+        submit: 送る
+        back: 候補者を探すへ戻る
+    scout_templates:
+      index:
+        title: スカウトのテンプレート
+        name: テンプレートの名前
+        body: 本文
+        create: 作る
+        destroy: 削除する
+        empty: まだテンプレートはありません。
+        back: 送ったスカウトへ戻る
+      create:
+        invalid: 作れませんでした。同じ名前があるか、作れる数を超えています。
     candidate_searches:
       index:
         title: 候補者を探す
@@ -452,6 +499,7 @@ ja:
         skill: スキル
         submit: 絞り込む
         show: プロフィールを見る
+        scout: スカウトを送る
         add_to: "%{name} へ追加"
         empty: 条件に一致する候補者はいません。
     talent_pools:
@@ -542,6 +590,7 @@ ja:
       members: メンバーを見る
       candidate_searches: 候補者を探す
       talent_pools: タレントプール
+      scouts: スカウト
       job_postings: 求人を見る
     new:
       title: 組織の作成

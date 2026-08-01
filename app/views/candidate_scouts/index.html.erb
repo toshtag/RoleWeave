@@ -1,0 +1,35 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if @scouts.any? %>
+  <ul>
+    <% @scouts.each do |scout| %>
+      <li>
+        <strong><%= scout.organization.name %></strong>
+        <%= l(scout.created_at, format: :long) %>
+        <div class="job-posting__body"><%= simple_format(scout.body) %></div>
+
+        <%#
+          この組織からの受信を止める。
+          「探されてよい」と「この会社からは受け取りたくない」は別である。
+        %>
+        <% if @blocked_organization_ids.include?(scout.organization_id) %>
+          <%= t(".blocked") %>
+        <% else %>
+          <%= button_to t(".block"),
+                        profile_scout_blocks_path(locale: I18n.locale,
+                                                  organization_id: scout.organization_id),
+                        method: :post,
+                        class: "button button--quiet" %>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".visibility"), edit_profile_visibility_path(locale: I18n.locale) %></p>
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>

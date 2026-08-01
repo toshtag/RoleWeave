@@ -1,0 +1,45 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<%= form_with model: @scout_template,
+              url: organization_scout_templates_path(locale: I18n.locale, organization_id: @organization),
+              class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :name, t(".name") %>
+    <%= form.text_field :name, required: true %>
+  </div>
+  <div class="form__field">
+    <%= form.label :body, t(".body") %>
+    <%= form.text_area :body, rows: 6, required: true %>
+  </div>
+  <%= form.submit t(".create"), class: "button" %>
+<% end %>
+
+<% if @scout_templates.any? %>
+  <ul>
+    <% @scout_templates.each do |template| %>
+      <li>
+        <strong><%= template.name %></strong>
+        <div class="job-posting__body"><%= simple_format(template.body) %></div>
+        <%= button_to t(".destroy"),
+                      organization_scout_template_path(locale: I18n.locale,
+                                                       organization_id: @organization, id: template),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p>
+  <%= link_to t(".back"),
+              organization_scouts_path(locale: I18n.locale, organization_id: @organization) %>
+</p>
