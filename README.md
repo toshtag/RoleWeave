@@ -156,6 +156,23 @@ docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com
 運営者は、すべての組織の一覧と、組織の管理者を立て直す操作だけを行えます。
 詳細は [`docs/decisions/0015-operator-role.md`](docs/decisions/0015-operator-role.md) を参照してください。
 
+### デモデータを投入する
+
+評価のための架空データを入れます。development でのみ実行できます。
+
+```bash
+docker compose run --rm app bin/rails roleweave:demo:seed
+```
+
+投入したアカウントとパスワードが出力されます。
+メールアドレスはすべて `@example.invalid`（実在しない領域）です。
+
+消すときは次を実行します。
+
+```bash
+docker compose run --rm app bin/rails roleweave:demo:clean
+```
+
 ### 負荷試験を実行する
 
 データを作ってから測ります。外部の負荷ツールは要りません。
