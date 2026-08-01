@@ -1,0 +1,48 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<%# 個人のやり取りは検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".about", title: @job_application.job_posting_snapshot["title"]) %></p>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<% if @messages.any? %>
+  <ul>
+    <% @messages.each do |message| %>
+      <li>
+        <%#
+          送信者を削除してもメッセージは残す。誰が書いたかは失われる。
+        %>
+        <%= message.sender&.email_address || t(".removed_account") %>
+        <%= l(message.created_at, format: :long) %>
+        <div class="job-posting__body"><%= simple_format(message.body) %></div>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<%#
+  取り消された応募では新しいメッセージを送れない。
+  読むことはできる。やり取りは選考の記録である。
+%>
+<% if @job_application.submitted? %>
+  <%= form_with model: @message,
+                url: application_conversation_path(locale: I18n.locale, application_id: @job_application),
+                class: "form" do |form| %>
+    <div class="form__field">
+      <%= form.label :body, t(".body") %>
+      <%= form.text_area :body, rows: 4, required: true %>
+    </div>
+
+    <%= form.submit t(".submit"), class: "button" %>
+  <% end %>
+<% else %>
+  <p><%= t(".closed") %></p>
+<% end %>

@@ -187,6 +187,7 @@ en:
       no_longer_published: No longer published
       job_posting_snapshot: The job posting as it was
       candidate_profile_snapshot: What you sent
+      conversation: View messages
       withdraw_notice: Once withdrawn, you cannot apply to this job posting again.
       withdraw: Withdraw this application
       withdraw_confirm: This withdraws your application. You cannot apply to this job posting again.
@@ -223,6 +224,18 @@ en:
     edit:
       title: Edit profile
       submit: Save
+  conversations:
+    show:
+      title: Messages
+      about: Messages about the application to %{title}.
+      empty: No messages yet.
+      removed_account: deleted account
+      body: Message
+      submit: Send
+      closed: This application has been withdrawn, so no new messages can be sent.
+    create:
+      closed: This application has been withdrawn, so no new messages can be sent.
+      invalid: The message could not be sent. Check its contents.
   desired_conditions:
     edit:
       title: Preferences
@@ -396,6 +409,7 @@ en:
         applied_at: Applied at
         status: Status
         stage: Stage
+        conversation: View messages
         reviews: Internal reviews
         interviews: Interviews
         decide_by: Decide by

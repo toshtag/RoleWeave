@@ -40,6 +40,9 @@ class JobApplication < ApplicationRecord
   # 面接の予定。応募を消したら残さない。
   has_many :interview_schedules, dependent: :destroy
 
+  # 会話。応募を消したら、やり取りも残さない。
+  has_one :conversation, dependent: :destroy
+
   # 応募先も応募元も、作成した後で変えられないようにする。
   # 変えられると、応募時点の写しと結び付きが食い違う。
   attr_readonly :candidate_profile_id, :job_posting_id

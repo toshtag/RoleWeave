@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_192441) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_194436) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -80,6 +80,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_192441) do
     t.string "visibility", default: "closed", null: false
     t.index ["user_id"], name: "index_candidate_profiles_on_user_id", unique: true
     t.index ["visibility"], name: "index_candidate_profiles_on_visibility"
+  end
+
+  create_table "conversations", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "job_application_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["job_application_id"], name: "index_conversations_on_job_application_id", unique: true
   end
 
   create_table "desired_conditions", force: :cascade do |t|
@@ -234,6 +241,27 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_192441) do
     t.index ["user_id"], name: "index_memberships_on_user_id"
   end
 
+  create_table "message_reads", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.bigint "message_id", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["message_id", "user_id"], name: "index_message_reads_on_message_id_and_user_id", unique: true
+    t.index ["message_id"], name: "index_message_reads_on_message_id"
+    t.index ["user_id"], name: "index_message_reads_on_user_id"
+  end
+
+  create_table "messages", force: :cascade do |t|
+    t.text "body", null: false
+    t.bigint "conversation_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "sender_id"
+    t.datetime "updated_at", null: false
+    t.index ["conversation_id", "created_at"], name: "index_messages_on_conversation_id_and_created_at"
+    t.index ["conversation_id"], name: "index_messages_on_conversation_id"
+    t.index ["sender_id"], name: "index_messages_on_sender_id"
+  end
+
   create_table "organizations", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -287,6 +315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_192441) do
   add_foreign_key "application_reviews", "users", column: "reviewer_id", on_delete: :nullify
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "candidate_profiles", "users"
+  add_foreign_key "conversations", "job_applications"
   add_foreign_key "desired_conditions", "candidate_profiles"
   add_foreign_key "educations", "candidate_profiles"
   add_foreign_key "interview_schedules", "job_applications"
@@ -309,6 +338,10 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_192441) do
   add_foreign_key "membership_events", "users", on_delete: :nullify
   add_foreign_key "memberships", "organizations"
   add_foreign_key "memberships", "users"
+  add_foreign_key "message_reads", "messages"
+  add_foreign_key "message_reads", "users"
+  add_foreign_key "messages", "conversations"
+  add_foreign_key "messages", "users", column: "sender_id", on_delete: :nullify
   add_foreign_key "sessions", "users"
   add_foreign_key "skills", "candidate_profiles"
   add_foreign_key "work_experiences", "candidate_profiles"

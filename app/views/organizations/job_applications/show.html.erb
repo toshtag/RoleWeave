@@ -237,6 +237,12 @@
   <%= form.submit t(".submit_review"), class: "button" %>
 <% end %>
 
+<%# 応募に紐づく会話。相手は応募によって決まる。 %>
+<p>
+  <%= link_to t(".conversation"),
+              application_conversation_path(locale: I18n.locale, application_id: @job_application) %>
+</p>
+
 <p>
   <%= link_to t(".back"),
               organization_job_posting_applications_path(
