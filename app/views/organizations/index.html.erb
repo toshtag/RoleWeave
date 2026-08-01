@@ -9,6 +9,8 @@
         <%= organization.name %>
         <%= link_to t(".members"),
                     organization_memberships_path(locale: I18n.locale, organization_id: organization) %>
+        <%= link_to t(".job_postings"),
+                    organization_job_postings_path(locale: I18n.locale, organization_id: organization) %>
       </li>
     <% end %>
   </ul>

@@ -7,11 +7,20 @@ en:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      job_posting: Job posting
       invitation: Invitation
       organization: Organization
       membership: Membership
       user: Account
     attributes:
+      job_posting:
+        title: Title
+        description: Job description
+        location: Location
+        occupation: Occupation
+        employment_type: Employment type
+        salary: Salary
+        requirements: Requirements
       invitation:
         email_address: Email address to invite
         role: Role
@@ -93,9 +102,31 @@ en:
       empty: You do not belong to any organization yet.
       new: Create an organization
       members: View members
+      job_postings: View job postings
     new:
       title: Create an organization
       submit: Create organization
+  job_postings:
+    index:
+      title: "Job postings of %{organization}"
+      new: Create a job posting
+      edit: Edit
+      empty: There are no job postings yet.
+    new:
+      title: "Create a job posting for %{organization}"
+      submit: Save as draft
+    edit:
+      title: Edit job posting
+      submit: Save
+    form:
+      unspecified: Not specified
+    statuses:
+      draft: Draft
+    employment_types:
+      full_time: Full-time
+      part_time: Part-time
+      contract: Contract
+      internship: Internship
   memberships:
     index:
       title: "Members of %{organization}"

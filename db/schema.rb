@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_121732) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_124111) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -38,6 +38,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_121732) do
     t.index ["invited_by_id"], name: "index_invitations_on_invited_by_id"
     t.index ["organization_id", "email_address"], name: "index_pending_invitations_on_organization_and_email", unique: true, where: "(accepted_at IS NULL)"
     t.index ["organization_id"], name: "index_invitations_on_organization_id"
+  end
+
+  create_table "job_postings", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.text "description", null: false
+    t.string "employment_type"
+    t.string "location"
+    t.string "occupation"
+    t.bigint "organization_id", null: false
+    t.text "requirements"
+    t.string "salary"
+    t.string "status", null: false
+    t.string "title", null: false
+    t.datetime "updated_at", null: false
+    t.index ["organization_id", "status", "created_at"], name: "idx_on_organization_id_status_created_at_dbef991872"
+    t.index ["organization_id"], name: "index_job_postings_on_organization_id"
   end
 
   create_table "membership_events", force: :cascade do |t|
@@ -93,6 +109,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_121732) do
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "users", column: "invited_by_id", on_delete: :nullify
+  add_foreign_key "job_postings", "organizations"
   add_foreign_key "membership_events", "organizations", on_delete: :nullify
   add_foreign_key "membership_events", "users", column: "changed_by_id", on_delete: :nullify
   add_foreign_key "membership_events", "users", on_delete: :nullify
