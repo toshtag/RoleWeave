@@ -5,19 +5,37 @@
 # 方針は docs/decisions/0037-job-application-events-and-notification.md を正本とする。
 class JobApplicationEvent < ApplicationRecord
   # 取り得る出来事。値をここで閉じる。
-  KINDS = %w[submitted withdrawn].freeze
+  KINDS = %w[submitted withdrawn stage_changed].freeze
 
   belongs_to :job_application, optional: true
   belongs_to :organization
   belongs_to :job_posting, optional: true
+  # 変更した利用者。アカウントを削除しても記録は残す。
+  belongs_to :changed_by, class_name: "User", optional: true
 
   # 記録した内容は後から変えない。書き換えられると、履歴が別の応募の話になる。
   attr_readonly :job_application_id, :organization_id, :job_posting_id, :kind,
-                :job_posting_title, :candidate_display_name
+                :job_posting_title, :candidate_display_name, :from_stage, :to_stage,
+                :changed_by_id
 
   validates :kind, inclusion: { in: KINDS }
   validates :job_posting_title, presence: true
   validates :candidate_display_name, presence: true
+  # ステージの変更では、変更前後を必ず持つ。
+  validates :from_stage, :to_stage, inclusion: { in: JobApplication::STAGES }, allow_nil: true
+  validate :stage_change_has_stages
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
+
+  def stage_changed?
+    kind == "stage_changed"
+  end
+
+  private
+    def stage_change_has_stages
+      return unless stage_changed?
+      return if from_stage.present? && to_stage.present?
+
+      errors.add(:to_stage, :blank)
+    end
 end

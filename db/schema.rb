@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_183622) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -111,13 +111,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_183622) do
 
   create_table "job_application_events", force: :cascade do |t|
     t.string "candidate_display_name", null: false
+    t.bigint "changed_by_id"
     t.datetime "created_at", null: false
+    t.string "from_stage"
     t.bigint "job_application_id"
     t.bigint "job_posting_id"
     t.string "job_posting_title", null: false
     t.string "kind", null: false
     t.bigint "organization_id", null: false
+    t.string "to_stage"
     t.datetime "updated_at", null: false
+    t.index ["changed_by_id"], name: "index_job_application_events_on_changed_by_id"
     t.index ["job_application_id"], name: "index_job_application_events_on_job_application_id"
     t.index ["job_posting_id"], name: "index_job_application_events_on_job_posting_id"
     t.index ["organization_id", "created_at"], name: "index_job_application_events_on_organization_id_and_created_at"
@@ -130,10 +134,12 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_183622) do
     t.datetime "created_at", null: false
     t.bigint "job_posting_id", null: false
     t.jsonb "job_posting_snapshot", default: {}, null: false
+    t.string "stage", default: "screening", null: false
     t.string "status", default: "submitted", null: false
     t.datetime "updated_at", null: false
     t.index ["candidate_profile_id", "job_posting_id"], name: "idx_on_candidate_profile_id_job_posting_id_7e5ce60919", unique: true
     t.index ["candidate_profile_id"], name: "index_job_applications_on_candidate_profile_id"
+    t.index ["job_posting_id", "stage"], name: "index_job_applications_on_job_posting_id_and_stage"
     t.index ["job_posting_id"], name: "index_job_applications_on_job_posting_id"
   end
 
@@ -256,6 +262,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_183622) do
   add_foreign_key "job_application_events", "job_applications", on_delete: :nullify
   add_foreign_key "job_application_events", "job_postings", on_delete: :nullify
   add_foreign_key "job_application_events", "organizations"
+  add_foreign_key "job_application_events", "users", column: "changed_by_id", on_delete: :nullify
   add_foreign_key "job_applications", "candidate_profiles"
   add_foreign_key "job_applications", "job_postings"
   add_foreign_key "job_posting_events", "job_postings", on_delete: :nullify
