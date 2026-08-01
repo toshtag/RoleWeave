@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_211421) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_230409) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -287,12 +287,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_211421) do
     t.bigint "job_application_id"
     t.string "kind", null: false
     t.bigint "message_id"
+    t.integer "new_job_postings_count"
     t.datetime "read_at"
+    t.bigint "saved_search_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["email_status"], name: "index_notifications_on_email_status"
     t.index ["job_application_id"], name: "index_notifications_on_job_application_id"
     t.index ["message_id"], name: "index_notifications_on_message_id"
+    t.index ["saved_search_id"], name: "index_notifications_on_saved_search_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_notifications_on_user_id"
   end
@@ -301,6 +304,28 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_211421) do
     t.datetime "created_at", null: false
     t.string "name", null: false
     t.datetime "updated_at", null: false
+  end
+
+  create_table "saved_job_postings", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "job_posting_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id", "job_posting_id"], name: "idx_on_candidate_profile_id_job_posting_id_4f15337258", unique: true
+    t.index ["candidate_profile_id"], name: "index_saved_job_postings_on_candidate_profile_id"
+    t.index ["job_posting_id"], name: "index_saved_job_postings_on_job_posting_id"
+  end
+
+  create_table "saved_searches", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.jsonb "conditions", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "notified_at"
+    t.boolean "notify", default: true, null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id", "created_at"], name: "index_saved_searches_on_candidate_profile_id_and_created_at"
+    t.index ["candidate_profile_id"], name: "index_saved_searches_on_candidate_profile_id"
   end
 
   create_table "sessions", force: :cascade do |t|
@@ -382,7 +407,11 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_211421) do
   add_foreign_key "messages", "users", column: "sender_id", on_delete: :nullify
   add_foreign_key "notifications", "job_applications", on_delete: :cascade
   add_foreign_key "notifications", "messages", on_delete: :cascade
+  add_foreign_key "notifications", "saved_searches", on_delete: :cascade
   add_foreign_key "notifications", "users"
+  add_foreign_key "saved_job_postings", "candidate_profiles"
+  add_foreign_key "saved_job_postings", "job_postings"
+  add_foreign_key "saved_searches", "candidate_profiles"
   add_foreign_key "sessions", "users"
   add_foreign_key "skills", "candidate_profiles"
   add_foreign_key "work_experiences", "candidate_profiles"

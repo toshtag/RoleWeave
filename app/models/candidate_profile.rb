@@ -32,6 +32,10 @@ class CandidateProfile < ApplicationRecord
   # 企業側に残る記録は、応募の写しではなく応募イベントが持つ（P7-T4）。
   has_many :job_applications, dependent: :destroy
 
+  # 保存した求人と検索条件。プロフィールを消したら残さない。
+  has_many :saved_job_postings, dependent: :destroy
+  has_many :saved_searches, dependent: :destroy
+
   # 履歴書と職務経歴書。1 つずつだけ持つ。差し替えたら古いファイルは残さない。
   has_one_attached :resume
   has_one_attached :curriculum_vitae
