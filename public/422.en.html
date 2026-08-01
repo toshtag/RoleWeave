@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="ja">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- 存在しない URL やエラー状態の画面を検索結果へ載せない。 -->
     <meta name="robots" content="noindex, nofollow">
-    <title>リクエストを処理できません | RoleWeave</title>
+    <title>Unable to accept this submission | RoleWeave</title>
     <style>
       /*
        * エラー画面のスタイル。
@@ -182,28 +182,28 @@
     </style>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">本文へ移動</a>
+    <a class="skip-link" href="#main-content">Skip to main content</a>
 
     <header class="site-header">
       <div class="site-header__inner">
-        <a class="site-header__brand" href="/ja">RoleWeave</a>
+        <a class="site-header__brand" href="/en">RoleWeave</a>
 
         <!--
           別言語の導線は、その言語の入口へ向ける。
           エラーが起きた URL を機械的に変換しても、その先も存在しない。
         -->
-        <nav class="language-switcher" aria-label="表示言語">
-          <span class="language-switcher__current" lang="ja" aria-current="page">日本語</span>
-          <a href="/en" lang="en" hreflang="en">English</a>
+        <nav class="language-switcher" aria-label="Display language">
+          <a href="/ja" lang="ja" hreflang="ja">日本語</a>
+          <span class="language-switcher__current" lang="en" aria-current="page">English</span>
         </nav>
       </div>
     </header>
 
     <main id="main-content" tabindex="-1">
-      <p class="error-page__status">400</p>
-      <h1>リクエストを処理できません</h1>
-      <p>URL または送信された内容に、サーバーが解釈できない部分があります。URL を確認するか、リンクをたどり直してください。</p>
-      <p><a href="/ja">トップページへ戻る</a></p>
+      <p class="error-page__status">422</p>
+      <h1>Unable to accept this submission</h1>
+      <p>The submitted data could not be verified, or the previous page may be out of date. Reload the page and try again.</p>
+      <p><a href="/en">Return to the home page</a></p>
     </main>
   </body>
 </html>

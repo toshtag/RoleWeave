@@ -1,5 +1,13 @@
 require "test_helper"
 
+# ActionController::InvalidAuthenticityToken を定義するファイル。
+#
+# この定数そのものは autoload の対象になっておらず、同じファイルにある
+# ActionController::RequestForgeryProtection が読み込まれたときに付随して定義される。
+# 明示的に読み込まないと、このテストだけを実行したときに解決できず、
+# 実行するファイルの組み合わせで結果が変わる。
+require "action_controller/metal/request_forgery_protection"
+
 # エラー画面の契約を検証する。
 #
 # 検証対象は 2 つある。
@@ -20,8 +28,12 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   # 日本語は既定ロケールであり、PublicExceptions のフォールバック先である
   # 拡張子なしのファイルを正本とする。404.ja.html は作らない。
   PAGES = {
+    "400.html" => :ja,
+    "400.en.html" => :en,
     "404.html" => :ja,
     "404.en.html" => :en,
+    "422.html" => :ja,
+    "422.en.html" => :en,
     "500.html" => :ja,
     "500.en.html" => :en
   }.freeze
@@ -29,12 +41,23 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   # 静的ページの文言は辞書を持たないため、期待値をテストへ置く。
   # ここが文言と言語の唯一の対応表になる。文言を変えるときはこのテストも変える。
   HEADINGS = {
+    "400" => { ja: "リクエストを処理できません", en: "Unable to process this request" },
     "404" => { ja: "ページが見つかりません", en: "Page not found" },
+    "422" => { ja: "送信内容を受け付けられません", en: "Unable to accept this submission" },
     "500" => { ja: "ページを表示できません", en: "Unable to display this page" }
   }.freeze
 
   # 例外の詳細が応答へ混ざっていないことを、実際の例外メッセージで確認する。
   SENSITIVE_DETAIL = "SENSITIVE_TEST_EXCEPTION_DETAIL"
+
+  # 各 status へ対応する例外。すべて機密情報に相当する文字列を持たせて発生させる。
+  # 例外は 1 回の応答で使い切るため、生成する手続きを持つ。
+  SENSITIVE_EXCEPTIONS = {
+    400 => -> { ActionDispatch::Http::Parameters::ParseError.new(SENSITIVE_DETAIL) },
+    404 => -> { ActionController::RoutingError.new(SENSITIVE_DETAIL) },
+    422 => -> { ActionController::InvalidAuthenticityToken.new(SENSITIVE_DETAIL) },
+    500 => -> { RuntimeError.new(SENSITIVE_DETAIL) }
+  }.freeze
 
   test "エラー画面がページの言語を宣言する" do
     # html lang が実際の文言と食い違うと、読み上げの言語が本文と一致しない。
@@ -165,6 +188,40 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     assert_equal 1, styles.uniq.size, "エラー画面のスタイルが一致しない"
   end
 
+  test "解釈できない日本語 URL で日本語の 400 を返す" do
+    response = exception_response(path: "/ja/broken", exception: parse_error, show_exceptions: :rescuable)
+
+    assert_equal 400, response[:status]
+    assert_html response
+    assert_page "400.html", response
+  end
+
+  test "解釈できない英語 URL で英語の 400 を返す" do
+    response = exception_response(path: "/en/broken", exception: parse_error, show_exceptions: :rescuable)
+
+    assert_equal 400, response[:status]
+    assert_html response
+    assert_page "400.en.html", response
+  end
+
+  test "日本語 URL の送信内容を受け付けられないときに日本語の 422 を返す" do
+    # 422 へ到達する経路（非 GET の route）はまだない。
+    # 経路を追加するタスクでページを用意し忘れないよう、機構だけを先に固定する。
+    response = exception_response(path: "/ja/rejected", exception: rejected_submission, show_exceptions: :rescuable)
+
+    assert_equal 422, response[:status]
+    assert_html response
+    assert_page "422.html", response
+  end
+
+  test "英語 URL の送信内容を受け付けられないときに英語の 422 を返す" do
+    response = exception_response(path: "/en/rejected", exception: rejected_submission, show_exceptions: :rescuable)
+
+    assert_equal 422, response[:status]
+    assert_html response
+    assert_page "422.en.html", response
+  end
+
   test "存在しない日本語 URL で日本語の 404 を返す" do
     response = exception_response(path: "/ja/missing", exception: routing_error, show_exceptions: :rescuable)
 
@@ -219,16 +276,21 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     assert_page "500.html", response
   end
 
-  test "サーバーエラーの画面が例外の内容を閲覧者へ出さない" do
+  test "エラー画面が例外の内容を閲覧者へ出さない" do
     # 例外メッセージや backtrace は、内部構造と入力値をそのまま外へ出す。
     # 静的ページを返す構成では起こり得ないが、動的な描画へ戻したときに検出する。
     #
+    # 500 だけを見ると、他の status の画面へ混入した内容を見逃す。
     # 片方の言語だけを見ると、もう片方のページへ混入した内容を見逃す。
-    PAGES.values.uniq.each do |locale|
-      response = exception_response(path: "/#{locale}/failure", exception: server_error, show_exceptions: :all)
+    SENSITIVE_EXCEPTIONS.each do |status, build_exception|
+      PAGES.values.uniq.each do |locale|
+        response = exception_response(path: "/#{locale}/failure", exception: build_exception.call, show_exceptions: :all)
 
-      [ SENSITIVE_DETAIL, "RuntimeError", "app/controllers" ].each do |detail|
-        assert_not_includes response[:body], detail, "#{locale} のエラー画面へ #{detail} が出ている"
+        assert_equal status, response[:status]
+
+        [ SENSITIVE_DETAIL, build_exception.call.class.name, "app/controllers" ].each do |detail|
+          assert_not_includes response[:body], detail, "#{locale} の #{status} の画面へ #{detail} が出ている"
+        end
       end
     end
   end
@@ -292,6 +354,16 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
 
     def routing_error
       ActionController::RoutingError.new("No route matches")
+    end
+
+    # query string や本文を解釈できないときに起こる例外。rescue_responses で 400 へ対応する。
+    def parse_error
+      ActionDispatch::Http::Parameters::ParseError.new("invalid byte sequence")
+    end
+
+    # 送信内容を受け付けられないときに起こる例外。rescue_responses で 422 へ対応する。
+    def rejected_submission
+      ActionController::InvalidAuthenticityToken.new("Can't verify CSRF token authenticity")
     end
 
     def server_error

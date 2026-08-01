@@ -17,8 +17,12 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
   # 動的画面は I18n の設定から導く。ここへ言語を書き並べると、
   # 対応言語が増えたときに検証対象から漏れる画面ができる。
   STATIC_PAGES = {
+    "400.html" => :ja,
+    "400.en.html" => :en,
     "404.html" => :ja,
     "404.en.html" => :en,
+    "422.html" => :ja,
+    "422.en.html" => :en,
     "500.html" => :ja,
     "500.en.html" => :en
   }.freeze
