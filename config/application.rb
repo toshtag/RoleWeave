@@ -10,6 +10,10 @@ Bundler.require(*Rails.groups)
 # また middleware が保持する定数を reload の対象にしない。
 require_relative "../lib/localized_public_exceptions"
 
+# 構造化ログは初期化の早い段階で購読する。autoload では購読の登録が遅れる。
+require_relative "../lib/structured_log"
+require_relative "../lib/structured_log_subscriber"
+
 module RoleWeave
   class Application < Rails::Application
     # Initialize configuration defaults for originally generated Rails version.
@@ -20,7 +24,8 @@ module RoleWeave
     # Common ones are `templates`, `generators`, or `middleware`, for example.
     # localized_public_exceptions.rb は上で明示的に読み込む。autoload の対象から外し、
     # 読み込み方が 2 通りある状態を残さない。
-    config.autoload_lib(ignore: %w[assets tasks localized_public_exceptions.rb])
+    config.autoload_lib(ignore: %w[assets tasks localized_public_exceptions.rb
+                              structured_log.rb structured_log_subscriber.rb])
 
     # Configuration for the application, engines, and railties goes here.
     #
@@ -57,5 +62,10 @@ module RoleWeave
       available_locales: config.i18n.available_locales,
       default_locale: config.i18n.default_locale
     )
+    # 要求とジョブの完了を、1 行の JSON として出す。
+    # 詳細は docs/decisions/0048-structured-logging.md を参照する。
+    config.after_initialize do
+      StructuredLogSubscriber.subscribe(logger: Rails.logger)
+    end
   end
 end

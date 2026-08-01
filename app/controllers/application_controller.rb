@@ -31,16 +31,24 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-private
-  # 上限を超えたときの応答。
-  #
-  # 例外ではないため exceptions_app を通らない。静的な画面を直接返す。
-  # 描画経路を通さないのは、ほかのエラー画面と同じ理由による（ADR 0003）。
-  def render_rate_limited
-    page = I18n.locale == I18n.default_locale ? "429.html" : "429.#{I18n.locale}.html"
+  # 構造化ログへ利用者の id を載せる。メールアドレスは載せない。
+  # 詳細は docs/decisions/0048-structured-logging.md を参照する。
+  def append_info_to_payload(payload)
+    super
 
-    render file: Rails.public_path.join(page), status: :too_many_requests, layout: false
+    payload[:user_id] = Current.session&.user_id
   end
+
+  private
+    # 上限を超えたときの応答。
+    #
+    # 例外ではないため exceptions_app を通らない。静的な画面を直接返す。
+    # 描画経路を通さないのは、ほかのエラー画面と同じ理由による（ADR 0003）。
+    def render_rate_limited
+      page = I18n.locale == I18n.default_locale ? "429.html" : "429.#{I18n.locale}.html"
+
+      render file: Rails.public_path.join(page), status: :too_many_requests, layout: false
+    end
 
     # URL のロケールを、そのリクエストの間だけ適用する。
     #
