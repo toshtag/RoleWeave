@@ -139,6 +139,23 @@ http://127.0.0.1:3000/up
 APP_PORT=3001 docker compose up
 ```
 
+### 運営者権限を与える
+
+このサーバーを運用する担当者へ運営者権限を与えます。画面からは付与できません。
+
+```bash
+docker compose run --rm app bin/rails "roleweave:operator:grant[you@example.com]"
+```
+
+取り上げる場合は `revoke` を使います。
+
+```bash
+docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com]"
+```
+
+運営者は、すべての組織の一覧と、組織の管理者を立て直す操作だけを行えます。
+詳細は [`docs/decisions/0015-operator-role.md`](docs/decisions/0015-operator-role.md) を参照してください。
+
 ### 標準検証
 
 ```bash

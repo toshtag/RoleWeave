@@ -143,6 +143,23 @@ To change the host port, specify `APP_PORT`.
 APP_PORT=3001 docker compose up
 ```
 
+### Granting operator privileges
+
+Grant operator privileges to the person running this server. There is no screen for this.
+
+```bash
+docker compose run --rm app bin/rails "roleweave:operator:grant[you@example.com]"
+```
+
+Use `revoke` to take them away.
+
+```bash
+docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com]"
+```
+
+Operators can only list every organization and restore an organization's administrator.
+See [`docs/decisions/0015-operator-role.md`](docs/decisions/0015-operator-role.md) for details.
+
 ### Standard verification
 
 ```bash
