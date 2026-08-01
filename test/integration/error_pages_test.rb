@@ -50,6 +50,15 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   # 例外の詳細が応答へ混ざっていないことを、実際の例外メッセージで確認する。
   SENSITIVE_DETAIL = "SENSITIVE_TEST_EXCEPTION_DETAIL"
 
+  # 各 status へ対応する例外。すべて機密情報に相当する文字列を持たせて発生させる。
+  # 例外は 1 回の応答で使い切るため、生成する手続きを持つ。
+  SENSITIVE_EXCEPTIONS = {
+    400 => -> { ActionDispatch::Http::Parameters::ParseError.new(SENSITIVE_DETAIL) },
+    404 => -> { ActionController::RoutingError.new(SENSITIVE_DETAIL) },
+    422 => -> { ActionController::InvalidAuthenticityToken.new(SENSITIVE_DETAIL) },
+    500 => -> { RuntimeError.new(SENSITIVE_DETAIL) }
+  }.freeze
+
   test "エラー画面がページの言語を宣言する" do
     # html lang が実際の文言と食い違うと、読み上げの言語が本文と一致しない。
     each_page do |page, locale, document|
@@ -267,16 +276,21 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     assert_page "500.html", response
   end
 
-  test "サーバーエラーの画面が例外の内容を閲覧者へ出さない" do
+  test "エラー画面が例外の内容を閲覧者へ出さない" do
     # 例外メッセージや backtrace は、内部構造と入力値をそのまま外へ出す。
     # 静的ページを返す構成では起こり得ないが、動的な描画へ戻したときに検出する。
     #
+    # 500 だけを見ると、他の status の画面へ混入した内容を見逃す。
     # 片方の言語だけを見ると、もう片方のページへ混入した内容を見逃す。
-    PAGES.values.uniq.each do |locale|
-      response = exception_response(path: "/#{locale}/failure", exception: server_error, show_exceptions: :all)
+    SENSITIVE_EXCEPTIONS.each do |status, build_exception|
+      PAGES.values.uniq.each do |locale|
+        response = exception_response(path: "/#{locale}/failure", exception: build_exception.call, show_exceptions: :all)
 
-      [ SENSITIVE_DETAIL, "RuntimeError", "app/controllers" ].each do |detail|
-        assert_not_includes response[:body], detail, "#{locale} のエラー画面へ #{detail} が出ている"
+        assert_equal status, response[:status]
+
+        [ SENSITIVE_DETAIL, build_exception.call.class.name, "app/controllers" ].each do |detail|
+          assert_not_includes response[:body], detail, "#{locale} の #{status} の画面へ #{detail} が出ている"
+        end
       end
     end
   end
