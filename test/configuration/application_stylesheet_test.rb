@@ -21,6 +21,7 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     --color-text
     --color-link
     --color-focus-ring
+    --color-border
     --content-max-width
     --page-gutter
     --page-block-padding
@@ -36,11 +37,30 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
 
   DECLARATION = /(?:\A|;)\s*([-\w]+)\s*:\s*([^;]+)/
 
+  # border 系 shorthand と longhand をまとめて取り出す。
+  # どの辺へ線を引くかは見た目の調整に委ね、色の正本だけを固定するために使う。
+  BORDER_DECLARATION = /(?:\A|;)\s*border[-\w]*\s*:\s*([^;]+)/
+
   LENGTH = /-?\d*\.?\d+[a-z%]*/
 
   # CSS のキーワードは大文字小文字を区別しない。
   # 検査もそれに合わせないと、表記を変えるだけで契約を迂回できる。
   NON_DRAWING_OUTLINE_STYLE = /\b(?:none|hidden)\b/i
+  UNRENDERED_DISPLAY = /\Anone\z/i
+  UNRENDERED_VISIBILITY = /\A(?:hidden|collapse)\z/i
+  NO_TRANSFORM = /\Anone\z/i
+
+  # CSS の数値表記。同じ値でも書き方は一通りではない。
+  # ゼロの文字列表現を列挙すると、`.0` や `-0` のような表記で契約を迂回できる。
+  #
+  # Ruby の数値変換だけでは、CSS として妥当かどうかを判定できない。
+  # String#to_f は先頭の変換できる部分だけを読み、残りを黙って捨てる（"1.invalid" が 1.0）。
+  # Kernel.Float は CSS が数値として認めない表記まで受理する（"0x10" が 16.0）。
+  # そのため、CSS の数値構文をここで判定してから数値へ変換する。
+  #
+  # 小数点は直後に数字がある場合だけ数値の一部になる。`1.` や `1.e2` は CSS の
+  # <number> にならず、opacity の宣言としては無効である。
+  CSS_NUMBER = /\A[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?\z/i
   TRANSPARENT_COLOR = /\btransparent\b/i
   DISABLED_OUTLINE = /outline(?:-style)?:\s*(?:none|hidden)\b/i
   IMPORTANT_DECLARATION = /!\s*important\b/i
@@ -167,6 +187,121 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
     assert_nil main["min-inline-size"], "main に固定の最小幅がある"
   end
 
+  test "ページ全体を縦方向へ積む" do
+    # 内容が短いページでフッターが本文の直後へ浮くと、
+    # 画面下部の余白が「まだ続きがある」ように見える。
+    body = properties_for("body")
+
+    assert_equal "flex", body["display"]
+    assert_equal "column", body["flex-direction"]
+    assert_match(/100vh|100dvh/, body["min-height"].to_s, "body が画面の高さを満たさない")
+  end
+
+  test "本文領域が余った高さを引き受ける" do
+    # 伸びるのを main へ限定する。ヘッダーとフッターが伸びると内容が中央から離れる。
+    grow = properties_for("main").values_at("flex", "flex-grow").compact.first
+
+    assert grow, "main が余った高さを引き受けない"
+    assert_operator grow[LENGTH].to_f, :>, 0, "main の伸長係数が 0 である: #{grow}"
+  end
+
+  test "ヘッダーとフッターの内側が本文と同じ幅と左右余白を使う" do
+    # 本文と基準が分かれると、画面幅を変えたときに三者の左端が揃わなくなる。
+    %w[.site-header__inner .site-footer__inner].each do |selector|
+      inner = properties_for(selector)
+
+      assert_equal "100%", inner["width"], "#{selector} の幅が親に追従しない"
+      assert_equal "var(--content-max-width)", inner["max-width"], "#{selector} の最大幅が本文と異なる"
+      assert_equal "auto", inner["margin-inline"], "#{selector} が中央へ寄らない"
+      assert_includes inner["padding-inline"].to_s, "var(--page-gutter)"
+      assert_nil inner["min-width"], "#{selector} に固定の最小幅がある"
+    end
+  end
+
+  test "ヘッダーとフッターの境界線の色をデザイン変数から設定する" do
+    # 線を引く辺と太さは見た目の調整に委ね、色の正本だけを固定する。
+    %w[.site-header .site-footer].each do |selector|
+      borders = declarations_for(selector).scan(BORDER_DECLARATION).flatten
+
+      assert_not_empty borders, "#{selector} に境界線の指定がない"
+      borders.each do |value|
+        assert_includes value, "var(--color-border)", "#{selector} の境界線が変数を使っていない: #{value}"
+      end
+    end
+  end
+
+  test "スキップリンクをフォーカスしたときに画面外への退避を解除する" do
+    # 規則が存在するだけでは、フォーカス時に見えることを保証しない。
+    # 同じ退避をフォーカス規則へ書き写しても、宣言は空にならず通過してしまう。
+    resting = properties_for(".skip-link")
+    focused = properties_for(".skip-link:focus-visible")
+
+    assert resting["transform"], "通常時に画面外へ退避する指定がない"
+    assert_no_match(NO_TRANSFORM, resting["transform"], "通常時に退避していない")
+    assert_match(NO_TRANSFORM, focused["transform"].to_s, "フォーカスしても画面外のままである")
+  end
+
+  test "透明度のゼロ表現を数値として正規化する" do
+    # 判定の根拠そのものを固定する。表記を変えるだけで契約を迂回できないようにする。
+    %w[0 0.0 .0 -0 +0 00 0% 0.0% 0e0].each do |value|
+      assert_predicate numeric_opacity(value), :zero?, "#{value} をゼロとして扱っていない"
+    end
+
+    assert_in_delta 0.5, numeric_opacity(".5")
+    assert_in_delta 0.5, numeric_opacity("50%")
+    assert_in_delta 1.0, numeric_opacity("1")
+    assert_in_delta 1.0, numeric_opacity("1.0")
+    assert_in_delta 1.0, numeric_opacity("100%")
+    assert_in_delta 100.0, numeric_opacity("1e2")
+    assert_in_delta 0.15, numeric_opacity("1.5e-1")
+    assert_in_delta 0.005, numeric_opacity(".5%")
+
+    # CSS の数値にならない表記と、静的に値を確定できない指定は数値として扱わない。
+    # 小数点の直後に数字がない `1.` は <number> にならず、宣言そのものが無効になる。
+    %w[. +. 1. 1.% 1.e2 0x10 1invalid calc(0) var(--skip-link-opacity)].each do |value|
+      assert_nil numeric_opacity(value), "#{value} を CSS の数値として受理している"
+    end
+  end
+
+  test "スキップリンクを透明なまま表示しない" do
+    # 現在の実装は opacity を使っていない。使う形へ変えた場合に、
+    # フォーカス時の戻し忘れだけを拒否する。
+    resting_value = properties_for(".skip-link")["opacity"]
+
+    return unless resting_value
+
+    # 通常時が確実に見えている場合だけ、フォーカス時の指定を求めない。
+    # ゼロ、負数、静的に確定できない値は、いずれも安全側で扱う。
+    resting_opacity = numeric_opacity(resting_value)
+
+    return if resting_opacity&.positive?
+
+    focused_value = properties_for(".skip-link:focus-visible")["opacity"]
+
+    assert focused_value, "フォーカス時に透明度を戻していない"
+
+    focused_opacity = numeric_opacity(focused_value)
+
+    assert focused_opacity, "フォーカス時の透明度を数値として検証できない: #{focused_value}"
+    assert_operator focused_opacity, :>, 0, "フォーカス後もスキップリンクが透明である"
+  end
+
+  test "スキップリンクをフォーカスできない形で隠さない" do
+    # display: none と visibility: hidden はフォーカス自体を受け取れなくする。
+    # 画面外へ退避させる方法を指定はしないが、この 2 つによる非表示だけは拒否する。
+    resting = properties_for(".skip-link")
+
+    assert_no_match(UNRENDERED_DISPLAY, resting["display"].to_s, "スキップリンクが描画対象から外れている")
+    assert_no_match(UNRENDERED_VISIBILITY, resting["visibility"].to_s, "スキップリンクが描画対象から外れている")
+  end
+
+  test "スキップリンクのフォーカス表示を打ち消さない" do
+    focused = declarations_for(".skip-link:focus-visible")
+
+    assert_no_match(DISABLED_OUTLINE, focused)
+    assert_no_match(UNRENDERED_DISPLAY, properties_of(focused)["display"].to_s)
+  end
+
   test "見出しの寸法と余白をデザイン変数から設定する" do
     heading = declarations_for("h1")
 
@@ -253,6 +388,21 @@ class ApplicationStylesheetTest < ActiveSupport::TestCase
   end
 
   private
+    # opacity の数値と百分率を、比べられる 1 つの尺度へそろえる。
+    # 百分率は同じ意味の別表記であり、100 で割って数値と同じ土俵へ載せる。
+    # 範囲外の値はここで clamp しない。可視性の判定に使うのは正負だけである。
+    # CSS の数値構文を満たさない値（calc、var、`1.` など）は nil を返し、
+    # 呼び出し側で安全側へ倒す。
+    def numeric_opacity(value)
+      source = value.to_s.strip
+      percentage = source.end_with?("%")
+      number = percentage ? source.delete_suffix("%") : source
+
+      return nil unless number.match?(CSS_NUMBER)
+
+      percentage ? number.to_f / 100.0 : number.to_f
+    end
+
     def assert_positive_length(value, label)
       length = value[LENGTH]
 

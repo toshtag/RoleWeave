@@ -24,6 +24,32 @@
   </head>
 
   <body>
-    <%= yield %>
+    <%# キーボード操作で、ヘッダーを読み飛ばして本文の先頭へ移動できるようにする。 %>
+    <%= link_to t("application.skip_to_content"), "#main-content", class: "skip-link" %>
+
+    <header class="site-header">
+      <div class="site-header__inner">
+        <%# ブランドは表示中のロケールの入口へ戻す。ここで言語が変わると、遷移が予測できない。 %>
+        <%= link_to t("application.name"),
+                    localized_root_path(locale: I18n.locale),
+                    class: "site-header__brand" %>
+      </div>
+    </header>
+
+    <%# 本文領域はレイアウトが持つ。各画面が main を作ると、入れ子や重複が起こり得る。 %>
+    <%#
+      tabindex="-1" はスキップリンクの移動先をフォーカス可能にするために置く。
+      これがないと、画面はスクロールしてもフォーカスはリンクに残り、
+      次の Tab がヘッダーへ戻る。通常の Tab 順序へは入れないため 0 ではなく -1 とする。
+    %>
+    <main id="main-content" tabindex="-1">
+      <%= yield %>
+    </main>
+
+    <footer class="site-footer">
+      <div class="site-footer__inner">
+        <p><%= t("application.footer.description") %></p>
+      </div>
+    </footer>
   </body>
 </html>
