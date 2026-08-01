@@ -41,17 +41,17 @@ class JobPosting < ApplicationRecord
   validates :description, presence: true
   validates :employment_type, inclusion: { in: EMPLOYMENT_TYPES }, allow_blank: true
 
-# 公開状態の変更を記録する。
-#
-# Controller ではなくモデルへ置く。状態を変える経路が増えても、
-# 記録の書き忘れが起こらない。
-after_create :record_created
-after_update :record_status_change, if: :saved_change_to_status?
+  # 公開状態の変更を記録する。
+  #
+  # Controller ではなくモデルへ置く。状態を変える経路が増えても、
+  # 記録の書き忘れが起こらない。
+  after_create :record_created
+  after_update :record_status_change, if: :saved_change_to_status?
 
-# 状態を変える主体。検証と記録のためだけに使い、保存はしない。
-attr_accessor :changed_by
+  # 状態を変える主体。検証と記録のためだけに使い、保存はしない。
+  attr_accessor :changed_by
 
-scope :recent, -> { order(created_at: :desc, id: :desc) }
+  scope :recent, -> { order(created_at: :desc, id: :desc) }
 
   def draft?
     status == "draft"
