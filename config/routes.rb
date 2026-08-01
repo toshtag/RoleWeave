@@ -31,6 +31,12 @@ Rails.application.routes.draw do
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
 
+    # パスワード再設定。依頼は token を持たず、再設定は token を持つ。
+    # token は URL のパスへ置く。query string へ置くと、Referer やアクセスログへ残りやすい。
+    resource :password_reset, only: %i[new create]
+    get "password_reset/edit/:token" => "password_resets#edit", as: :edit_password_reset
+    patch "password_reset/:token" => "password_resets#update", as: :update_password_reset
+
     # メールアドレスの確認。token は URL のパスへ置く。
     # query string へ置くと、Referer やアクセスログへ残りやすい。
     get "confirmation/:token" => "confirmations#show", as: :confirmation

@@ -1,0 +1,29 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%= form_with model: @user, url: update_password_reset_path(locale: I18n.locale, token: params[:token]), method: :patch, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :password %>
+    <p class="form__hint" id="password_hint">
+      <%= t("registrations.new.password_hint", count: User::PASSWORD_MIN_LENGTH) %>
+    </p>
+    <%= form.password_field :password,
+                            required: true,
+                            autofocus: true,
+                            autocomplete: "new-password",
+                            aria: { describedby: [ "password_hint", field_error_id(@user, :password) ].compact.join(" ") } %>
+    <%= render "registrations/field_errors", record: @user, attribute: :password %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :password_confirmation %>
+    <%= form.password_field :password_confirmation,
+                            required: true,
+                            autocomplete: "new-password",
+                            aria: { describedby: field_error_id(@user, :password_confirmation) } %>
+    <%= render "registrations/field_errors", record: @user, attribute: :password_confirmation %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>

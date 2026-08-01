@@ -1,0 +1,11 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<%#
+  登録の有無で画面を変えない。区別すると、この画面が
+  登録済みのメールアドレスを調べる道具になる。
+%>
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<p><%= link_to t(".sign_in"), new_session_path(locale: I18n.locale) %></p>

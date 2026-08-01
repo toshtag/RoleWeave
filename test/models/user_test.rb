@@ -208,4 +208,14 @@ class UserTest < ActiveSupport::TestCase
 
       "#{'a' * (length - domain.length)}#{domain}"
     end
+  test "再設定リンクの有効期限を 30 分とする" do
+    # 定数を基準に書いた境界のテストは、定数ごと条件を緩める変更を検出できない。
+    # 値そのものと、実際に設定された期限の両方を固定する。根拠は ADR 0009 にある。
+    assert_equal 30.minutes, User::PASSWORD_RESET_EXPIRES_IN
+    assert_equal User::PASSWORD_RESET_EXPIRES_IN, User.new.password_reset_token_expires_in
+  end
+
+  test "確認リンクの有効期限を 24 時間とする" do
+    assert_equal 24.hours, User::EMAIL_CONFIRMATION_EXPIRES_IN
+  end
 end

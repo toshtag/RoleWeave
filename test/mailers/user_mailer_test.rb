@@ -55,4 +55,26 @@ class UserMailerTest < ActionMailer::TestCase
 
     assert_equal I18n.default_locale, I18n.locale
   end
+  test "再設定メールをそのロケールの言語と URL で送る" do
+    I18n.available_locales.each do |locale|
+      mail = UserMailer.password_reset(@user, locale: locale)
+
+      assert_equal [ @user.email_address ], mail.to
+      assert_equal I18n.t("user_mailer.password_reset.subject", locale: locale), mail.subject
+      assert_match %r{/#{locale}/password_reset/edit/}, mail.body.to_s
+    end
+  end
+
+  test "再設定メールの URL で再設定できる" do
+    mail = UserMailer.password_reset(@user, locale: :ja)
+    token = mail.body.to_s[%r{/ja/password_reset/edit/(\S+)}, 1]
+
+    assert_equal @user, User.find_by_token_for(:password_reset, token)
+  end
+
+  test "再設定メールに平文のパスワードを含めない" do
+    mail = UserMailer.password_reset(@user, locale: :ja)
+
+    assert_not_includes mail.body.to_s, PASSWORD
+  end
 end
