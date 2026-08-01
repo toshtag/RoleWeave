@@ -35,10 +35,13 @@ class JobPostingReviewsController < ApplicationController
     end
 
     def change_status_to(next_status)
-      # 許されていない遷移は、その求人の一覧へ戻して知らせる。
-      unless @job_posting.transition_to(next_status)
+    # 許されていない遷移は、その求人の一覧へ戻して知らせる。
+    # 誰が変えたかを記録へ残す。
+    @job_posting.changed_by = current_user
+
+    unless @job_posting.transition_to(next_status)
         flash[:alert] = t("job_postings.review.rejected_transition")
-      end
+    end
 
       redirect_to organization_job_postings_path(locale: I18n.locale, organization_id: @organization)
     end
