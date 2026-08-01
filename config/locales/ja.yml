@@ -358,6 +358,18 @@ ja:
       subject: 選考の状況が変わりました
       body: 応募の選考の状況が変わりました。内容は次の画面で確認できます。
   operator:
+    access_events:
+      index:
+        title: 個人情報を読んだ操作
+        body: 誰がいつ、どの個人情報を読んだかの記録です。
+        actions:
+          candidate_profile_viewed: プロフィールを閲覧
+          job_application_viewed: 応募の詳細を閲覧
+          candidate_document_downloaded: 添付を取得
+          personal_data_exported: 本人がデータを持ち出し
+        removed_account: 削除されたアカウント
+        empty: 記録はありません。
+        organizations: 組織の一覧へ
     notification_deliveries:
       index:
         title: 配信に失敗した通知
@@ -372,6 +384,7 @@ ja:
       index:
         title: すべての組織
         notification_deliveries: 配信に失敗した通知を見る
+        access_events: 個人情報を読んだ操作を見る
         owner_count: "管理者 %{count} 人"
       show:
         title: "%{organization} の運営"

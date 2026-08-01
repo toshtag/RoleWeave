@@ -17,3 +17,6 @@
 
 <%# 配信に失敗した通知。運営の側でしか気付けない。 %>
 <p><%= link_to t(".notification_deliveries"), operator_notification_deliveries_path(locale: I18n.locale) %></p>
+
+<%# 個人情報を読んだ操作の記録。 %>
+<p><%= link_to t(".access_events"), operator_access_events_path(locale: I18n.locale) %></p>

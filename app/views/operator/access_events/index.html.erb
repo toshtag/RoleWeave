@@ -1,0 +1,30 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<%# 運営の画面は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<% if @access_events.any? %>
+  <ul>
+    <% @access_events.each do |event| %>
+      <li>
+        <%= l(event.created_at, format: :long) %>
+        <%= event.actor&.email_address || t(".removed_account") %>
+        <%= event.organization&.name %>
+        <%= t(".actions.#{event.action}") %>
+        <%#
+          対象は表示名を写して持つ。対象が消えても、何に対する操作かが読める。
+        %>
+        <%= event.subject_label %>
+        <%= event.ip_address %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".organizations"), operator_organizations_path(locale: I18n.locale) %></p>

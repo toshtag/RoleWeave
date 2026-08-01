@@ -8,6 +8,7 @@
 # 方針は docs/decisions/0030-profile-visibility.md を正本とする。
 class Organizations::CandidateProfilesController < ApplicationController
   include OrganizationScope
+  include AccessLogging
 
   before_action :require_authentication
   before_action :require_confirmed_email
@@ -19,5 +20,11 @@ class Organizations::CandidateProfilesController < ApplicationController
     @candidate_profile = CandidateProfile.visible_to(@organization)
                                          .includes(:work_experiences, :educations, :skills, :desired_condition)
                                          .find(params[:id])
+
+    # 見えたときだけ記録する。404 になった試みは「読んだ」ではない。
+    record_access("candidate_profile_viewed",
+                  subject: @candidate_profile,
+                  subject_label: @candidate_profile.display_name,
+                  organization: @organization)
   end
 end

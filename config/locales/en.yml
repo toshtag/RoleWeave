@@ -356,6 +356,18 @@ en:
       subject: The status of your application changed
       body: "The status of your application changed. You can see it here:"
   operator:
+    access_events:
+      index:
+        title: Access to personal data
+        body: A record of who read which personal data, and when.
+        actions:
+          candidate_profile_viewed: Viewed a profile
+          job_application_viewed: Viewed an application
+          candidate_document_downloaded: Downloaded an attachment
+          personal_data_exported: Exported their own data
+        removed_account: deleted account
+        empty: No records yet.
+        organizations: Back to organizations
     notification_deliveries:
       index:
         title: Failed notification emails
@@ -370,6 +382,7 @@ en:
       index:
         title: All organizations
         notification_deliveries: View failed notification emails
+        access_events: View access to personal data
         owner_count: "%{count} administrator(s)"
       show:
         title: "Operating %{organization}"
