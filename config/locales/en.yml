@@ -50,11 +50,30 @@ en:
       submit: Create account
       password_hint: "Use at least %{count} characters. Any characters are allowed."
       sign_in: Already have an account? Sign in
+  password_resets:
+    new:
+      title: Reset your password
+      body: Enter your registered email address. We will send you a link to reset your password.
+      submit: Send the reset link
+    create:
+      title: Reset link sent
+      body: If the email address you entered is registered, an email with a reset link will arrive shortly. If it does not, check the address you entered and your spam folder.
+      sign_in: Go to sign in
+    edit:
+      title: Set a new password
+      submit: Set password
+    update:
+      success: Your password has been reset. Sign in with your new password.
+    invalid:
+      title: This link cannot be used
+      body: The link has expired or has already been used. Please request a new reset link.
+      retry: Request a reset link
   sessions:
     new:
       title: Sign in
       submit: Sign in
       sign_up: Create an account
+      password_reset: Forgot your password?
     create:
       failure: The email address or password is incorrect.
   home:
@@ -67,3 +86,9 @@ en:
       body: Open the following URL to confirm your email address.
       expiration: This URL is valid for %{count} hours.
       ignore: If you did not request this, please discard this email.
+    password_reset:
+      subject: Reset your password
+      greeting: We received a request to reset your password.
+      body: Open the following URL to set a new password.
+      expiration: This URL is valid for %{count} minutes.
+      ignore: If you did not request this, discard this email. Your password will not change.

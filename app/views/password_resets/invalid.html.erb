@@ -1,0 +1,7 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<p><%= link_to t(".retry"), new_password_reset_path(locale: I18n.locale) %></p>
