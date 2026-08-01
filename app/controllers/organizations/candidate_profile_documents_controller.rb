@@ -6,6 +6,7 @@
 class Organizations::CandidateProfileDocumentsController < ApplicationController
   include OrganizationScope
   include DocumentDownload
+  include AccessLogging
 
   before_action :require_authentication
   before_action :require_confirmed_email
@@ -17,6 +18,14 @@ class Organizations::CandidateProfileDocumentsController < ApplicationController
     # 見せない設定の添付は、存在しない添付と同じ 404 とする。
     raise ActiveRecord::RecordNotFound unless candidate_profile.documents_visible_to?(@organization)
 
-    send_document(candidate_profile.public_send(document_kind))
+    kind = document_kind
+
+    # 取れたときだけ記録する。誰がどの添付を取ったかは、漏えいの調査に要る。
+    record_access("candidate_document_downloaded",
+                  subject: candidate_profile,
+                  subject_label: "#{candidate_profile.display_name} / #{kind}",
+                  organization: @organization)
+
+    send_document(candidate_profile.public_send(kind))
   end
 end

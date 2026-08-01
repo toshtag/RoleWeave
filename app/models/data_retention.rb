@@ -21,6 +21,12 @@ class DataRetention
       strategy: :delete,
       reason: "読んだ後の通知を残す理由がない。中身は元の記録が持つ"
     },
+    "access_events" => {
+      model: -> { AccessEvent },
+      period: 1.year,
+      strategy: :delete,
+      reason: "読んだ操作の記録。漏えいの調査に使う期間を過ぎたら残さない"
+    },
     "authentication_events" => {
       model: -> { AuthenticationEvent },
       period: 1.year,

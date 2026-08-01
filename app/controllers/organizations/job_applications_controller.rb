@@ -5,6 +5,7 @@
 # 方針は docs/decisions/0036-organization-application-access.md を正本とする。
 class Organizations::JobApplicationsController < ApplicationController
   include OrganizationScope
+  include AccessLogging
 
   before_action :require_authentication
   before_action :require_confirmed_email
@@ -20,6 +21,12 @@ class Organizations::JobApplicationsController < ApplicationController
 
   def show
     @job_application = @job_posting.job_applications.find(params[:id])
+
+    # 応募の詳細は応募時点の写し（個人情報）である。開いたことを記録する。
+    record_access("job_application_viewed",
+                  subject: @job_application,
+                  subject_label: @job_application.candidate_profile_snapshot["display_name"],
+                  organization: @organization)
 
     # 応募時点の写しとは別に、いまプロフィールを見られるかを判定する。
     # 見られる場合だけ、現在のプロフィールへの導線を出す。

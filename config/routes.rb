@@ -93,6 +93,10 @@ Rails.application.routes.draw do
       # 配信に失敗した通知の一覧と再送。
       # 詳細は docs/decisions/0043-notification-delivery-failures.md を参照する。
       resources :notification_deliveries, only: %i[index update]
+
+      # 個人情報を読んだ操作の一覧。
+      # 詳細は docs/decisions/0047-access-audit-log.md を参照する。
+      resources :access_events, only: :index
     end
 
     # 招待の受諾。token は URL のパスへ置く。
