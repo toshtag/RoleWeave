@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_191103) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -40,6 +40,18 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
     t.bigint "blob_id", null: false
     t.string "variation_digest", null: false
     t.index ["blob_id", "variation_digest"], name: "index_active_storage_variant_records_uniqueness", unique: true
+  end
+
+  create_table "application_reviews", force: :cascade do |t|
+    t.text "comment"
+    t.datetime "created_at", null: false
+    t.bigint "job_application_id", null: false
+    t.integer "rating"
+    t.bigint "reviewer_id"
+    t.datetime "updated_at", null: false
+    t.index ["job_application_id", "created_at"], name: "index_application_reviews_on_job_application_id_and_created_at"
+    t.index ["job_application_id"], name: "index_application_reviews_on_job_application_id"
+    t.index ["reviewer_id"], name: "index_application_reviews_on_reviewer_id"
   end
 
   create_table "authentication_events", force: :cascade do |t|
@@ -129,6 +141,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
   end
 
   create_table "job_applications", force: :cascade do |t|
+    t.bigint "assignee_id"
     t.bigint "candidate_profile_id", null: false
     t.jsonb "candidate_profile_snapshot", default: {}, null: false
     t.datetime "created_at", null: false
@@ -137,6 +150,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
     t.string "stage", default: "screening", null: false
     t.string "status", default: "submitted", null: false
     t.datetime "updated_at", null: false
+    t.index ["assignee_id"], name: "index_job_applications_on_assignee_id"
     t.index ["candidate_profile_id", "job_posting_id"], name: "idx_on_candidate_profile_id_job_posting_id_7e5ce60919", unique: true
     t.index ["candidate_profile_id"], name: "index_job_applications_on_candidate_profile_id"
     t.index ["job_posting_id", "stage"], name: "index_job_applications_on_job_posting_id_and_stage"
@@ -253,6 +267,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
 
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
+  add_foreign_key "application_reviews", "job_applications"
+  add_foreign_key "application_reviews", "users", column: "reviewer_id", on_delete: :nullify
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "candidate_profiles", "users"
   add_foreign_key "desired_conditions", "candidate_profiles"
@@ -265,6 +281,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_185712) do
   add_foreign_key "job_application_events", "users", column: "changed_by_id", on_delete: :nullify
   add_foreign_key "job_applications", "candidate_profiles"
   add_foreign_key "job_applications", "job_postings"
+  add_foreign_key "job_applications", "users", column: "assignee_id", on_delete: :nullify
   add_foreign_key "job_posting_events", "job_postings", on_delete: :nullify
   add_foreign_key "job_posting_events", "organizations", on_delete: :nullify
   add_foreign_key "job_posting_events", "users", column: "changed_by_id", on_delete: :nullify
