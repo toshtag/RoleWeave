@@ -2,6 +2,13 @@ en:
   application:
     name: RoleWeave
     skip_to_content: Skip to main content
+    language_switcher:
+      label: Display language
+      # 言語名は訳さず、その言語自身の表記で書く。
+      # 訳すと、その言語しか読めない閲覧者が自分の言語を見つけられない。
+      languages:
+        ja: 日本語
+        en: English
     footer:
       description: An open-source project building a self-hostable recruiting platform.
   home:
