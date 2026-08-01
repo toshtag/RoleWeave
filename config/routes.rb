@@ -68,6 +68,10 @@ Rails.application.routes.draw do
     # query string へ置くと、Referer やアクセスログへ残りやすい。
     get "invitation/:token" => "invitations#show", as: :invitation
 
+    # 応募に使うプロフィール。対象は常に本人のものとし、ID を受け取らない。
+    # 詳細は docs/decisions/0026-candidate-profile.md を参照する。
+    resource :profile, only: %i[show new create edit update], controller: "candidate_profiles"
+
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
 

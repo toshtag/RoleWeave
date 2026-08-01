@@ -7,12 +7,18 @@ ja:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      candidate_profile: プロフィール
       job_posting: 求人
       invitation: 招待
       organization: 組織
       membership: 所属
       user: アカウント
     attributes:
+      candidate_profile:
+        display_name: 表示名
+        introduction: 自己紹介
+        location: 所在地
+        desired_occupation: 希望職種
       job_posting:
         title: 題名
         description: 仕事内容
@@ -54,6 +60,7 @@ ja:
       sign_up: アカウント作成
       sign_out: ログアウト
       organizations: 組織
+      profile: プロフィール
     language_switcher:
       label: 表示言語
       # 言語名は訳さず、その言語自身の表記で書く。
@@ -63,6 +70,17 @@ ja:
         en: English
     footer:
       description: 自己ホスト可能な採用プラットフォームを開発するオープンソースプロジェクトです。
+  candidate_profiles:
+    show:
+      title: プロフィール
+      edit: プロフィールを編集する
+    new:
+      title: プロフィールの作成
+      body: 応募のときに企業へ伝える情報です。表示名だけが必須で、ほかは後から追加できます。
+      submit: プロフィールを作成する
+    edit:
+      title: プロフィールの編集
+      submit: 保存する
   confirmations:
     pending:
       title: メールアドレスの確認が必要です

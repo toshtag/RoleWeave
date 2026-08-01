@@ -3,7 +3,7 @@ name: Candidate Profiles
 weight: 8
 confidence: medium
 risk: high
-status: planned
+status: in_progress
 depends_on:
   - P2
 objective: |-
