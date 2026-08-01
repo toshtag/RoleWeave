@@ -24,5 +24,8 @@ Rails.application.routes.draw do
     # ログアウトは DELETE で行う。GET で状態を変えると、
     # 先読みやリンクの巡回だけでログアウトが起こる。
     resource :session, only: %i[new create destroy]
+
+    # アカウントは自分の 1 件だけを扱うため、単数形の resource とする。
+    resource :registration, only: %i[new create]
   end
 end
