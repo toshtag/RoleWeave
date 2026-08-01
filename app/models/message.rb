@@ -17,10 +17,10 @@ class Message < ApplicationRecord
 
   scope :chronological, -> { order(:created_at, :id) }
 
-# 通知はトランザクションが閉じた後に積む。
-# 同じトランザクションの中で送ると、メールが送れないだけでメッセージが失敗する。
-# 詳細は docs/decisions/0042-notifications.md を参照する。
-after_commit :notify_recipients, on: :create
+  # 通知はトランザクションが閉じた後に積む。
+  # 同じトランザクションの中で送ると、メールが送れないだけでメッセージが失敗する。
+  # 詳細は docs/decisions/0042-notifications.md を参照する。
+  after_commit :notify_recipients, on: :create
 
   def read_by?(user)
     message_reads.exists?(user_id: user.id)
