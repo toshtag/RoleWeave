@@ -3,6 +3,7 @@ ja:
     show:
       title: アカウント情報
       confirmed_at: メールアドレスの確認日時
+      export: 自分のデータをダウンロードする
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
@@ -131,6 +132,7 @@ ja:
       desired_condition_edit: 希望条件を編集する
       documents: 履歴書・職務経歴書を添付する
       visibility: 公開範囲を設定する
+      export: 自分のデータをダウンロードする
       completeness: 応募に必要な項目
       completeness_complete: 応募に使う項目がそろっています。
       completeness_missing: 次の項目がまだ書かれていません。書かずに応募することもできます。

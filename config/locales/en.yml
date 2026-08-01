@@ -1,6 +1,7 @@
 en:
   accounts:
     show:
+      export: Download my data
       title: Account
       confirmed_at: Email address confirmed at
   # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
@@ -131,6 +132,7 @@ en:
       desired_condition_edit: Edit preferences
       documents: Attach resume and CV
       visibility: Set visibility
+      export: Download my data
       completeness: Items used when applying
       completeness_complete: Everything used when applying has been filled in.
       completeness_missing: These items have not been filled in. You can still apply without them.

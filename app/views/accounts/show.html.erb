@@ -10,3 +10,6 @@
   <dt><%= t(".confirmed_at") %></dt>
   <dd><%= l(@user.confirmed_at, format: :long) %></dd>
 </dl>
+
+<%# 自分のデータは、いつでも手元へ持ち出せるようにしておく。 %>
+<p><%= link_to t(".export"), export_path(locale: I18n.locale) %></p>
