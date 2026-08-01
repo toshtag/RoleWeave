@@ -1,0 +1,33 @@
+<% content_for :title, "#{t(".title", title: @job_posting.title)} | #{t("application.name")}" %>
+
+<%# 応募者の情報は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title", title: @job_posting.title) %></h1>
+
+<% if @job_applications.any? %>
+  <ul>
+    <% @job_applications.each do |job_application| %>
+      <li>
+        <%#
+          名前は応募時点の写しから出す。
+          応募の後に表示名が変わっても、応募時に見た名前で追える。
+        %>
+        <%= link_to job_application.candidate_profile_snapshot["display_name"],
+                    organization_job_posting_application_path(
+                      locale: I18n.locale, organization_id: @organization,
+                      job_posting_id: @job_posting, id: job_application
+                    ) %>
+        <%= l(job_application.created_at, format: :long) %>
+        <%= t("candidate_job_applications.index.statuses.#{job_application.status}") %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p>
+  <%= link_to t(".back"),
+              organization_job_postings_path(locale: I18n.locale, organization_id: @organization) %>
+</p>

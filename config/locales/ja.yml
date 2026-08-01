@@ -346,6 +346,19 @@ ja:
         apply: この求人へ応募する
         back: 求人の一覧へ
   organizations:
+    job_applications:
+      index:
+        title: "%{title} への応募"
+        empty: まだ応募はありません。
+        back: 求人の一覧へ戻る
+      show:
+        applied_at: 応募日時
+        status: 状態
+        withdrawn_notice: この応募は取り消されています。
+        snapshot: 応募時点に送られた内容
+        snapshot_notice: 応募の後にプロフィールが変わっても、ここに出る内容は変わりません。
+        current_profile: 現在のプロフィールを見る
+        back: 応募の一覧へ戻る
     index:
       title: 所属する組織
       empty: まだどの組織にも所属していません。
@@ -376,6 +389,7 @@ ja:
       suspend: 公開を停止する
       empty: まだ求人がありません。
       preview: 公開時の表示を見る
+      applications: 応募を見る
       history: 公開状態の履歴
       created: を作成しました
       status_changed: の状態が %{from} から %{to} へ変わりました

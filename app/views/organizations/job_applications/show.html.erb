@@ -1,0 +1,81 @@
+<% snapshot = @job_application.candidate_profile_snapshot %>
+
+<% content_for :title, "#{snapshot["display_name"]} | #{t("application.name")}" %>
+
+<%# 応募者の情報は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= snapshot["display_name"] %></h1>
+
+<dl>
+  <dt><%= t(".applied_at") %></dt>
+  <dd><%= l(@job_application.created_at, format: :long) %></dd>
+
+  <dt><%= t(".status") %></dt>
+  <dd><%= t("candidate_job_applications.index.statuses.#{@job_application.status}") %></dd>
+</dl>
+
+<%# 取り消された応募であることを隠さない。選考を進める判断に関わる。 %>
+<% if @job_application.withdrawn? %>
+  <p class="form-error" role="status"><%= t(".withdrawn_notice") %></p>
+<% end %>
+
+<h2><%= t(".snapshot") %></h2>
+
+<p><%= t(".snapshot_notice") %></p>
+
+<% if snapshot["introduction"].present? %>
+  <div class="job-posting__body"><%= simple_format(snapshot["introduction"]) %></div>
+<% end %>
+
+<% if snapshot["work_experiences"].any? %>
+  <h3><%= t("work_experiences.index.title") %></h3>
+  <ul>
+    <% snapshot["work_experiences"].each do |work_experience| %>
+      <li>
+        <%= work_experience["organization_name"] %>
+        <%= work_experience["position"] %>
+        <%= work_experience["started_on"] %>
+        <%= work_experience["ended_on"] %>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if snapshot["educations"].any? %>
+  <h3><%= t("educations.index.title") %></h3>
+  <ul>
+    <% snapshot["educations"].each do |education| %>
+      <li><%= education["school_name"] %> <%= education["field_of_study"] %> <%= education["degree"] %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<% if snapshot["skills"].any? %>
+  <h3><%= t("skills.index.title") %></h3>
+  <ul>
+    <% snapshot["skills"].each do |skill| %>
+      <li><%= skill["name"] %> <%= skill["years_of_experience"] %></li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%#
+  いまのプロフィールは、公開範囲が許すときだけ辿れる。
+  応募時点の写しは常に見えるが、それは「応募のときに渡されたもの」である。
+%>
+<% if @candidate_profile.present? %>
+  <p>
+    <%= link_to t(".current_profile"),
+                organization_candidate_profile_path(locale: I18n.locale,
+                                                    organization_id: @organization,
+                                                    id: @candidate_profile) %>
+  </p>
+<% end %>
+
+<p>
+  <%= link_to t(".back"),
+              organization_job_posting_applications_path(
+                locale: I18n.locale, organization_id: @organization, job_posting_id: @job_posting
+              ) %>
+</p>

@@ -98,7 +98,7 @@
   添付は、本人が見せると決めているときだけ出す。
   履歴書は、このアプリケーションが持たないと決めた項目を含みうる。
 %>
-<% if @candidate_profile.documents_visible_to_organizations? %>
+<% if @candidate_profile.documents_visible_to?(@organization) %>
   <% attached_kinds = CandidateProfile::DOCUMENT_KINDS.select { |kind| @candidate_profile.public_send(kind).attached? } %>
   <% if attached_kinds.any? %>
     <h2><%= t("profile_documents.edit.title") %></h2>

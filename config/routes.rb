@@ -63,6 +63,11 @@ Rails.application.routes.draw do
         patch :approve, to: "job_posting_reviews#approve"
         patch :reject, to: "job_posting_reviews#reject"
         patch :suspend, to: "job_posting_reviews#suspend"
+
+        # 届いた応募。求人の下へ置く。
+        # 詳細は docs/decisions/0036-organization-application-access.md を参照する。
+        resources :applications, only: %i[index show], module: :organizations,
+                                 controller: "job_applications"
       end
     end
 

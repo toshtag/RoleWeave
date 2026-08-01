@@ -344,6 +344,19 @@ en:
         apply: Apply to this job posting
         back: Back to job postings
   organizations:
+    job_applications:
+      index:
+        title: Applications to %{title}
+        empty: No applications yet.
+        back: Back to job postings
+      show:
+        applied_at: Applied at
+        status: Status
+        withdrawn_notice: This application has been withdrawn.
+        snapshot: What was sent with this application
+        snapshot_notice: This does not change when the applicant edits their profile later.
+        current_profile: View the current profile
+        back: Back to applications
     index:
       title: Your organizations
       empty: You do not belong to any organization yet.
@@ -374,6 +387,7 @@ en:
       suspend: Suspend
       empty: There are no job postings yet.
       preview: View public presentation
+      applications: View applications
       history: Status history
       created: was created
       status_changed: changed from %{from} to %{to}
