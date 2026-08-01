@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_170836) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_175706) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -107,6 +107,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_170836) do
     t.index ["invited_by_id"], name: "index_invitations_on_invited_by_id"
     t.index ["organization_id", "email_address"], name: "index_pending_invitations_on_organization_and_email", unique: true, where: "(accepted_at IS NULL)"
     t.index ["organization_id"], name: "index_invitations_on_organization_id"
+  end
+
+  create_table "job_applications", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.jsonb "candidate_profile_snapshot", default: {}, null: false
+    t.datetime "created_at", null: false
+    t.bigint "job_posting_id", null: false
+    t.jsonb "job_posting_snapshot", default: {}, null: false
+    t.string "status", default: "submitted", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id", "job_posting_id"], name: "idx_on_candidate_profile_id_job_posting_id_7e5ce60919", unique: true
+    t.index ["candidate_profile_id"], name: "index_job_applications_on_candidate_profile_id"
+    t.index ["job_posting_id"], name: "index_job_applications_on_job_posting_id"
   end
 
   create_table "job_posting_events", force: :cascade do |t|
@@ -225,6 +238,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_170836) do
   add_foreign_key "educations", "candidate_profiles"
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "users", column: "invited_by_id", on_delete: :nullify
+  add_foreign_key "job_applications", "candidate_profiles"
+  add_foreign_key "job_applications", "job_postings"
   add_foreign_key "job_posting_events", "job_postings", on_delete: :nullify
   add_foreign_key "job_posting_events", "organizations", on_delete: :nullify
   add_foreign_key "job_posting_events", "users", column: "changed_by_id", on_delete: :nullify

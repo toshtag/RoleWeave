@@ -38,6 +38,9 @@ class JobPosting < ApplicationRecord
 
   belongs_to :organization
 
+  # 応募。求人を消す経路は現時点でない。
+  has_many :job_applications, dependent: :restrict_with_error
+
   # 所属先の組織は、作成した後で変えられないようにする。
   # 変えられると、自分の組織の求人を他組織へ付け替えられる。
   attr_readonly :organization_id
