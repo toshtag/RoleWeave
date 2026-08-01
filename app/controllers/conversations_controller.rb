@@ -18,7 +18,9 @@ class ConversationsController < ApplicationController
   end
 
   def create
-    @conversation = @job_application.conversation || @job_application.create_conversation!
+    # 関連を通した作成は、保存の後に外部キーを書き直すため、
+    # 変更できない属性（attr_readonly）と衝突する。直接作る。
+    @conversation = @job_application.conversation || Conversation.create!(job_application: @job_application)
 
     # 取り消された応募では新しいメッセージを送れない。読むことはできる。
     unless @conversation.open?
