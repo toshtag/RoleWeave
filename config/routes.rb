@@ -31,6 +31,7 @@ Rails.application.routes.draw do
     # 所属する組織。作成と一覧だけを持つ。
     resources :organizations, only: %i[index new create] do
       resources :invitations, only: %i[new create]
+      resources :memberships, only: %i[index update]
     end
 
     # 招待の受諾。token は URL のパスへ置く。

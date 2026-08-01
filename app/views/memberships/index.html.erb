@@ -1,0 +1,40 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title", organization: @organization.name) %></h1>
+
+<% if current_membership&.owner? %>
+  <p>
+    <%= link_to t(".invite"),
+                new_organization_invitation_path(locale: I18n.locale, organization_id: @organization) %>
+  </p>
+<% end %>
+
+<% if @errors&.any? %>
+  <p class="form-error" role="alert"><%= @errors.full_messages.to_sentence %></p>
+<% end %>
+
+<ul>
+  <% @memberships.each do |membership| %>
+    <li>
+      <%= membership.user.email_address %>
+      <%= t("memberships.roles.#{membership.role}") %>
+
+      <%#
+        役割を変えられるのは管理者だけとする。
+        画面から消しても経路は残るため、制限は Controller 側が持つ。
+      %>
+      <% if current_membership&.owner? && membership.user != current_user %>
+        <%= form_with model: membership,
+                      url: organization_membership_path(locale: I18n.locale, organization_id: @organization, id: membership),
+                      method: :patch do |form| %>
+          <%= form.label :role, t(".change_role"), for: "role_#{membership.id}" %>
+          <%= form.select :role,
+                          Membership::ROLES.map { |role| [ t("memberships.roles.#{role}"), role ] },
+                          {},
+                          id: "role_#{membership.id}" %>
+          <%= form.submit t(".submit"), class: "button" %>
+        <% end %>
+      <% end %>
+    </li>
+  <% end %>
+</ul>

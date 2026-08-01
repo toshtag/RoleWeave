@@ -1,7 +1,12 @@
 class InvitationsController < ApplicationController
+  include OrganizationScope
+
   before_action :require_authentication
   before_action :require_confirmed_email
   before_action :set_organization, only: %i[new create]
+  # 招待できるのは管理者だけとする。入ったばかりのメンバーが
+  # 誰でも他の人を招待できる状態にしない。
+  before_action :require_organization_owner, only: %i[new create]
 
   def new
     @invitation = @organization.invitations.new
@@ -37,12 +42,6 @@ class InvitationsController < ApplicationController
   end
 
   private
-    def set_organization
-      # 自分が所属する組織からしか招待できない。
-      # Organization.find だと、所属していない組織の存在を確かめられる。
-      @organization = current_user.organizations.find(params[:organization_id])
-    end
-
     def invitation_params
       params.expect(invitation: %i[email_address role])
     end

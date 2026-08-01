@@ -21,6 +21,13 @@ en:
         email_address: Email address
         password: Password
         password_confirmation: Password confirmation
+    errors:
+      models:
+        membership:
+          attributes:
+            role:
+              self_change: cannot be changed by yourself
+              last_owner: cannot be changed for the last administrator
   application:
     name: RoleWeave
     skip_to_content: Skip to main content
@@ -76,11 +83,16 @@ en:
       title: Your organizations
       empty: You do not belong to any organization yet.
       new: Create an organization
-      invite: Invite a member
+      members: View members
     new:
       title: Create an organization
       submit: Create organization
   memberships:
+    index:
+      title: "Members of %{organization}"
+      change_role: Change role
+      submit: Change
+      invite: Invite a member
     roles:
       owner: Administrator
       member: Member
