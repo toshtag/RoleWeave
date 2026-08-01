@@ -5,7 +5,7 @@
 # 方針は docs/decisions/0037-job-application-events-and-notification.md を正本とする。
 class JobApplicationEvent < ApplicationRecord
   # 取り得る出来事。値をここで閉じる。
-  KINDS = %w[submitted withdrawn stage_changed].freeze
+  KINDS = %w[submitted withdrawn stage_changed interview_scheduled interview_cancelled].freeze
 
   belongs_to :job_application, optional: true
   belongs_to :organization

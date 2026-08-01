@@ -40,6 +40,11 @@ en:
       application_review:
         rating: Rating
         comment: Comment
+      interview_schedule:
+        starts_at: Starts at
+        duration_minutes: Duration (minutes)
+        location: Location
+        note: Notes
       candidate_profile:
         visibility: Visibility
         resume: Resume
@@ -97,6 +102,8 @@ en:
       models:
         job_application:
           attributes:
+            decide_by:
+              in_the_past: cannot be in the past
             assignee:
               not_a_member: is not a member of this organization
             job_posting:
@@ -111,6 +118,10 @@ en:
           attributes:
             base:
               blank_review: needs a rating or a comment
+        interview_schedule:
+          attributes:
+            starts_at:
+              in_the_past: cannot be in the past
         candidate_profile:
           attributes:
             resume:
@@ -360,6 +371,12 @@ en:
     job_application_assignments:
       update:
         invalid: The assignee could not be saved.
+    interview_schedules:
+      create:
+        invalid: The interview could not be saved. Check the start time.
+    job_application_deadlines:
+      update:
+        invalid: The deadline could not be saved.
     job_application_stages:
       update:
         invalid_transition: That change is not possible from the current stage.
@@ -380,6 +397,17 @@ en:
         status: Status
         stage: Stage
         reviews: Internal reviews
+        interviews: Interviews
+        decide_by: Decide by
+        overdue: This is past the deadline.
+        save_deadline: Save deadline
+        duration:
+          one: "%{count} minute"
+          other: "%{count} minutes"
+        cancel_interview: Cancel
+        cancelled: Cancelled
+        no_interviews: No interviews scheduled yet.
+        add_interview: Add interview
         assignee: Assignee
         no_assignee: No assignee
         assign: Save assignee

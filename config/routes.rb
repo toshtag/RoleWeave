@@ -75,6 +75,10 @@ Rails.application.routes.draw do
           # 詳細は docs/decisions/0039-application-review-and-assignment.md を参照する。
           resources :reviews, only: :create, controller: "application_reviews"
           resource :assignment, only: :update, controller: "job_application_assignments"
+          # 面接の予定と結論の期限。所属者だけが扱う。
+          # 詳細は docs/decisions/0040-interview-schedule-and-deadline.md を参照する。
+          resources :interviews, only: %i[create destroy], controller: "interview_schedules"
+          resource :deadline, only: :update, controller: "job_application_deadlines"
         end
       end
     end
