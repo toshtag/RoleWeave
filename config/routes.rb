@@ -70,12 +70,12 @@ Rails.application.routes.draw do
 
     # 応募に使うプロフィール。対象は常に本人のものとし、ID を受け取らない。
     # 詳細は docs/decisions/0026-candidate-profile.md を参照する。
-resource :profile, only: %i[show new create edit update], controller: "candidate_profiles" do
-  # 職歴はプロフィールへ従属する。プロフィールの外側へ置くと、
-  # 「誰の職歴か」を経路ごとに確かめることになる。
-  # 詳細は docs/decisions/0027-work-experience.md を参照する。
-  resources :work_experiences, only: %i[index new create edit update destroy]
-end
+    resource :profile, only: %i[show new create edit update], controller: "candidate_profiles" do
+      # 職歴はプロフィールへ従属する。プロフィールの外側へ置くと、
+      # 「誰の職歴か」を経路ごとに確かめることになる。
+      # 詳細は docs/decisions/0027-work-experience.md を参照する。
+      resources :work_experiences, only: %i[index new create edit update destroy]
+    end
 
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
