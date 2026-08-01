@@ -3,7 +3,7 @@ name: Conversations and Notifications
 weight: 8
 confidence: medium
 risk: medium
-status: planned
+status: in_progress
 depends_on:
   - P8
 objective: |-
