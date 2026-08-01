@@ -78,6 +78,39 @@ class JobPostingTest < ActiveSupport::TestCase
     assert_equal [ newer, older ], @organization.job_postings.recent.to_a
   end
 
+  test "構造化された給与を持たない求人を作れる" do
+    # 「経験に応じて相談」のように金額で表せない求人がある。
+    assert_predicate build, :valid?
+    assert_not_predicate build, :structured_salary?
+  end
+
+  test "決められた通貨だけを受け付ける" do
+    JobPosting::SALARY_CURRENCIES.each do |currency|
+      assert_predicate build(salary_currency: currency, annual_salary_min: 5_000_000), :valid?
+    end
+
+    assert_not build(salary_currency: "BTC", annual_salary_min: 5_000_000).valid?
+  end
+
+  test "金額を入力したのに通貨がない求人を拒否する" do
+    assert_not build(annual_salary_min: 5_000_000).valid?
+    assert_not build(annual_salary_max: 7_000_000).valid?
+  end
+
+  test "下限だけ、上限だけの入力を受け付ける" do
+    assert_predicate build(salary_currency: "JPY", annual_salary_min: 5_000_000), :valid?
+    assert_predicate build(salary_currency: "JPY", annual_salary_max: 7_000_000), :valid?
+  end
+
+  test "上限が下限を下回る求人を拒否する" do
+    assert_not build(salary_currency: "JPY", annual_salary_min: 7_000_000, annual_salary_max: 5_000_000).valid?
+    assert_predicate build(salary_currency: "JPY", annual_salary_min: 5_000_000, annual_salary_max: 5_000_000), :valid?
+  end
+
+  test "負の金額を拒否する" do
+    assert_not build(salary_currency: "JPY", annual_salary_min: -1).valid?
+  end
+
   private
     def build(overrides = {})
       @organization.job_postings.new(
