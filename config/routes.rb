@@ -19,5 +19,10 @@ Rails.application.routes.draw do
   # route 側へ言語を書き写すと、対応言語の増減で設定と制約が食い違う。
   scope ":locale", locale: Regexp.union(I18n.available_locales.map(&:to_s)) do
     root "home#show", as: :localized_root
+
+    # ログイン状態は 1 つしか持たないため、単数形の resource とする。
+    # ログアウトは DELETE で行う。GET で状態を変えると、
+    # 先読みやリンクの巡回だけでログアウトが起こる。
+    resource :session, only: %i[new create destroy]
   end
 end

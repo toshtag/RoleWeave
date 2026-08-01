@@ -1,4 +1,6 @@
 class ApplicationController < ActionController::Base
+  include Authentication
+
   # 対応外ブラウザーへ返す案内。日本語は拡張子を持たないファイルを正本とする。
   UNSUPPORTED_BROWSER_PAGE = "406-unsupported-browser".freeze
 
