@@ -28,6 +28,9 @@ Rails.application.routes.draw do
     # アカウントは自分の 1 件だけを扱うため、単数形の resource とする。
     resource :registration, only: %i[new create]
 
+    # 所属する組織。作成と一覧だけを持つ。
+    resources :organizations, only: %i[index new create]
+
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
 

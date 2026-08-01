@@ -215,6 +215,7 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
         new_session_path(locale: locale),
         new_registration_path(locale: locale),
         new_password_reset_path(locale: locale),
+        # 組織の画面はログインと確認を要するため、この一覧には含めない。
         # 確認画面は token を要する。無効な token では 422 を返すため、有効な token を使う。
         confirmation_path(locale: locale, token: confirmation_token)
       ]

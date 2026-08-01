@@ -1,0 +1,16 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%= form_with model: @organization, url: organizations_path(locale: I18n.locale), class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :name %>
+    <%= form.text_field :name,
+                        required: true,
+                        autofocus: true,
+                        aria: { describedby: field_error_id(@organization, :name) } %>
+    <%= render "registrations/field_errors", record: @organization, attribute: :name %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>

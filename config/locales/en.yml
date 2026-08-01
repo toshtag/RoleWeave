@@ -7,8 +7,12 @@ en:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      organization: Organization
+      membership: Membership
       user: Account
     attributes:
+      organization:
+        name: Organization name
       user:
         email_address: Email address
         password: Password
@@ -21,6 +25,7 @@ en:
       sign_in: Sign in
       sign_up: Sign up
       sign_out: Sign out
+      organizations: Organizations
     language_switcher:
       label: Display language
       # 言語名は訳さず、その言語自身の表記で書く。
@@ -50,6 +55,14 @@ en:
       submit: Create account
       password_hint: "Use at least %{count} characters. Any characters are allowed."
       sign_in: Already have an account? Sign in
+  organizations:
+    index:
+      title: Your organizations
+      empty: You do not belong to any organization yet.
+      new: Create an organization
+    new:
+      title: Create an organization
+      submit: Create organization
   password_resets:
     new:
       title: Reset your password

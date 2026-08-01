@@ -7,8 +7,12 @@ ja:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      organization: 組織
+      membership: 所属
       user: アカウント
     attributes:
+      organization:
+        name: 組織名
       user:
         email_address: メールアドレス
         password: パスワード
@@ -21,6 +25,7 @@ ja:
       sign_in: ログイン
       sign_up: アカウント作成
       sign_out: ログアウト
+      organizations: 組織
     language_switcher:
       label: 表示言語
       # 言語名は訳さず、その言語自身の表記で書く。
@@ -50,6 +55,14 @@ ja:
       submit: アカウントを作成する
       password_hint: "%{count} 文字以上で入力してください。文字の種類は問いません。"
       sign_in: すでにアカウントをお持ちの方はこちら
+  organizations:
+    index:
+      title: 所属する組織
+      empty: まだどの組織にも所属していません。
+      new: 組織を作成する
+    new:
+      title: 組織の作成
+      submit: 組織を作成する
   password_resets:
     new:
       title: パスワードの再設定
