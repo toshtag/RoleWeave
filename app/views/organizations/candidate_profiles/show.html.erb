@@ -93,3 +93,25 @@
     <% end %>
   </dl>
 <% end %>
+
+<%#
+  添付は、本人が見せると決めているときだけ出す。
+  履歴書は、このアプリケーションが持たないと決めた項目を含みうる。
+%>
+<% if @candidate_profile.documents_visible_to_organizations? %>
+  <% attached_kinds = CandidateProfile::DOCUMENT_KINDS.select { |kind| @candidate_profile.public_send(kind).attached? } %>
+  <% if attached_kinds.any? %>
+    <h2><%= t("profile_documents.edit.title") %></h2>
+    <ul>
+      <% attached_kinds.each do |kind| %>
+        <li>
+          <%= link_to CandidateProfile.human_attribute_name(kind),
+                      organization_candidate_profile_document_path(locale: I18n.locale,
+                                                                   organization_id: @organization,
+                                                                   candidate_profile_id: @candidate_profile,
+                                                                   kind: kind) %>
+        </li>
+      <% end %>
+    </ul>
+  <% end %>
+<% end %>
