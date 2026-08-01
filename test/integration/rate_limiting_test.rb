@@ -72,12 +72,14 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     end
   end
 
-  test "上限と期間が定数として 1 か所にある" do
-    # 経路ごとに書くと、片方だけ緩めた状態が生まれる。
+  test "上限と期間の値を固定する" do
+    # 値そのものを書く。定数を参照するだけのテストは、
+    # 定数を緩めたときに一緒に緩んでしまう。
     assert_equal 5.minutes, ApplicationController::RATE_LIMIT_PERIOD
-    assert_operator ApplicationController::SIGN_IN_ATTEMPT_LIMIT, :>, 0
-    assert_operator ApplicationController::MESSAGE_ATTEMPT_LIMIT, :>,
-                    ApplicationController::SIGN_UP_ATTEMPT_LIMIT
+    assert_equal 10, ApplicationController::SIGN_IN_ATTEMPT_LIMIT
+    assert_equal 5, ApplicationController::SIGN_UP_ATTEMPT_LIMIT
+    assert_equal 5, ApplicationController::PASSWORD_RESET_ATTEMPT_LIMIT
+    assert_equal 30, ApplicationController::MESSAGE_ATTEMPT_LIMIT
   end
 
   private
