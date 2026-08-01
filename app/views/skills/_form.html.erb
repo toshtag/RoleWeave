@@ -1,0 +1,22 @@
+<%= form_with model: skill, url: url, method: method, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :name %>
+    <%= form.text_field :name,
+                        required: true,
+                        autofocus: true,
+                        aria: { describedby: field_error_id(skill, :name) } %>
+    <%= render "registrations/field_errors", record: skill, attribute: :name %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :years_of_experience %>
+    <%= form.number_field :years_of_experience,
+                          min: 0,
+                          max: Skill::MAX_YEARS_OF_EXPERIENCE,
+                          aria: { describedby: field_error_id(skill, :years_of_experience) } %>
+    <p class="form__hint"><%= t("skills.form.years_of_experience_hint") %></p>
+    <%= render "registrations/field_errors", record: skill, attribute: :years_of_experience %>
+  </div>
+
+  <%= form.submit submit_label, class: "button" %>
+<% end %>

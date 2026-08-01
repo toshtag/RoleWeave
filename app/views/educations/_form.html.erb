@@ -1,0 +1,43 @@
+<%= form_with model: education, url: url, method: method, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :school_name %>
+    <%= form.text_field :school_name,
+                        required: true,
+                        autofocus: true,
+                        aria: { describedby: field_error_id(education, :school_name) } %>
+    <%= render "registrations/field_errors", record: education, attribute: :school_name %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :field_of_study %>
+    <%= form.text_field :field_of_study,
+                        aria: { describedby: field_error_id(education, :field_of_study) } %>
+    <%= render "registrations/field_errors", record: education, attribute: :field_of_study %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :degree %>
+    <%= form.text_field :degree,
+                        aria: { describedby: field_error_id(education, :degree) } %>
+    <%= render "registrations/field_errors", record: education, attribute: :degree %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :started_on %>
+    <%= form.date_field :started_on,
+                        required: true,
+                        aria: { describedby: field_error_id(education, :started_on) } %>
+    <%= render "registrations/field_errors", record: education, attribute: :started_on %>
+  </div>
+
+  <%# 終了日は任意とする。空であれば在学中として扱う。 %>
+  <div class="form__field">
+    <%= form.label :ended_on %>
+    <%= form.date_field :ended_on,
+                        aria: { describedby: field_error_id(education, :ended_on) } %>
+    <p class="form__hint"><%= t("educations.form.ended_on_hint") %></p>
+    <%= render "registrations/field_errors", record: education, attribute: :ended_on %>
+  </div>
+
+  <%= form.submit submit_label, class: "button" %>
+<% end %>

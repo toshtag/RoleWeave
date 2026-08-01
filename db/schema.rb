@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_161325) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_162754) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -36,6 +36,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_161325) do
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
     t.index ["user_id"], name: "index_candidate_profiles_on_user_id", unique: true
+  end
+
+  create_table "educations", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.string "degree"
+    t.date "ended_on"
+    t.string "field_of_study"
+    t.string "school_name", null: false
+    t.date "started_on", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id", "started_on"], name: "index_educations_on_candidate_profile_id_and_started_on"
+    t.index ["candidate_profile_id"], name: "index_educations_on_candidate_profile_id"
   end
 
   create_table "invitations", force: :cascade do |t|
@@ -126,6 +139,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_161325) do
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
+  create_table "skills", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+    t.integer "years_of_experience"
+    t.index ["candidate_profile_id", "name"], name: "index_skills_on_candidate_profile_id_and_name", unique: true
+    t.index ["candidate_profile_id"], name: "index_skills_on_candidate_profile_id"
+  end
+
   create_table "users", force: :cascade do |t|
     t.datetime "confirmed_at"
     t.datetime "created_at", null: false
@@ -151,6 +174,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_161325) do
 
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "candidate_profiles", "users"
+  add_foreign_key "educations", "candidate_profiles"
   add_foreign_key "invitations", "organizations"
   add_foreign_key "invitations", "users", column: "invited_by_id", on_delete: :nullify
   add_foreign_key "job_posting_events", "job_postings", on_delete: :nullify
@@ -163,5 +187,6 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_161325) do
   add_foreign_key "memberships", "organizations"
   add_foreign_key "memberships", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "skills", "candidate_profiles"
   add_foreign_key "work_experiences", "candidate_profiles"
 end

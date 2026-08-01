@@ -1,0 +1,39 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= link_to t(".new"), new_profile_education_path(locale: I18n.locale) %></p>
+
+<% if @educations.any? %>
+  <ul>
+    <% @educations.each do |education| %>
+      <li>
+        <%= education.school_name %>
+        <%= education.field_of_study %>
+        <%= education.degree %>
+
+        <%#
+          在学中は終了日を持たない。空欄のままにすると、
+          「まだ在学している」のか「書き忘れ」なのかが読み手に分からない。
+        %>
+        <% if education.current? %>
+          <%= t(".period_current", started_on: l(education.started_on, format: :long)) %>
+        <% else %>
+          <%= t(".period",
+                started_on: l(education.started_on, format: :long),
+                ended_on: l(education.ended_on, format: :long)) %>
+        <% end %>
+
+        <%= link_to t(".edit"), edit_profile_education_path(locale: I18n.locale, id: education) %>
+        <%= button_to t(".destroy"),
+                      profile_education_path(locale: I18n.locale, id: education),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".back"), profile_path(locale: I18n.locale) %></p>

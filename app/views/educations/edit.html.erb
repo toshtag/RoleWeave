@@ -1,0 +1,9 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%= render "form",
+           education: @education,
+           url: profile_education_path(locale: I18n.locale, id: @education),
+           method: :patch,
+           submit_label: t(".submit") %>

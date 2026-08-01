@@ -19,6 +19,15 @@ en:
         introduction: Introduction
         location: Location
         desired_occupation: Desired occupation
+      education:
+        school_name: School
+        field_of_study: Field of study
+        degree: Degree
+        started_on: Start date
+        ended_on: End date
+      skill:
+        name: Skill
+        years_of_experience: Years of experience
       work_experience:
         organization_name: Organization
         position: Position
@@ -52,6 +61,12 @@ en:
           attributes:
             annual_salary_max:
               less_than_minimum: cannot be lower than the minimum annual salary
+        education:
+          attributes:
+            ended_on:
+              before_start: can't be earlier than the start date
+            started_on:
+              in_the_future: can't be in the future
         work_experience:
           attributes:
             ended_on:
@@ -87,12 +102,51 @@ en:
       title: Profile
       edit: Edit profile
       work_experiences: Manage work experience
+      educations: Manage education
+      skills: Manage skills
     new:
       title: Create your profile
       body: This is what employers see when you apply. Only the display name is required; you can add the rest later.
       submit: Create profile
     edit:
       title: Edit profile
+      submit: Save
+  educations:
+    form:
+      ended_on_hint: Leave blank if you are still enrolled.
+    index:
+      title: Education
+      new: Add education
+      period: "%{started_on} – %{ended_on}"
+      period_current: "%{started_on} – present"
+      edit: Edit
+      destroy: Delete
+      empty: No education has been added yet.
+      back: Back to profile
+    new:
+      title: Add education
+      submit: Add education
+    edit:
+      title: Edit education
+      submit: Save
+  skills:
+    form:
+      years_of_experience_hint: Enter a whole number of years, or leave it blank.
+    index:
+      title: Skills
+      new: Add skill
+      years:
+        one: "%{count} year"
+        other: "%{count} years"
+      edit: Edit
+      destroy: Delete
+      empty: No skills have been added yet.
+      back: Back to profile
+    new:
+      title: Add skill
+      submit: Add skill
+    edit:
+      title: Edit skill
       submit: Save
   work_experiences:
     form:
