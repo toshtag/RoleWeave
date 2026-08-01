@@ -7,6 +7,10 @@ class CandidateProfile < ApplicationRecord
   DISPLAY_NAME_MAX_LENGTH = 100
   INTRODUCTION_MAX_LENGTH = 2_000
 
+  # 公開範囲。既定は closed とし、設定しなければ誰にも見えない。
+  # 詳細は docs/decisions/0030-profile-visibility.md を参照する。
+  VISIBILITIES = %w[closed applied_organizations all_organizations].freeze
+
   belongs_to :user
 
   # プロフィールを消したら、その職歴も残さない。
@@ -26,4 +30,13 @@ class CandidateProfile < ApplicationRecord
   # 1 アカウントに 1 つだけとする。検証だけでは同時の作成を防げないため、
   # データベース側にも一意インデックスを置く。
   validates :user_id, uniqueness: true
+
+  validates :visibility, inclusion: { in: VISIBILITIES }
+
+  # 企業から見えるプロフィールは、ここだけで決める。
+  # 経路ごとに条件を書くと、書き忘れた経路がそのまま個人情報への入口になる。
+  #
+  # applied_organizations は、応募（P7）ができるまで誰にも見えない。
+  # 見えないことは意図であり、実装漏れではない。
+  scope :visible_to_organizations, -> { where(visibility: "all_organizations") }
 end
