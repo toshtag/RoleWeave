@@ -3,7 +3,7 @@ name: Applications
 weight: 8
 confidence: medium
 risk: high
-status: in_progress
+status: done
 depends_on:
   - P5
   - P6
