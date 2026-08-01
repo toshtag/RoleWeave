@@ -114,6 +114,7 @@ en:
       submit: Submit for review
       approve: Approve and publish
       reject: Send back
+      suspend: Suspend
       empty: There are no job postings yet.
     new:
       title: "Create a job posting for %{organization}"
@@ -130,6 +131,7 @@ en:
       pending_review: Under review
       published: Published
       rejected: Sent back
+      suspended: Suspended
     employment_types:
       full_time: Full-time
       part_time: Part-time
