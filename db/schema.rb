@@ -10,9 +10,25 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_201606) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_211421) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "access_events", force: :cascade do |t|
+    t.string "action", null: false
+    t.bigint "actor_id"
+    t.datetime "created_at", null: false
+    t.string "ip_address"
+    t.bigint "organization_id"
+    t.bigint "subject_id"
+    t.string "subject_label", null: false
+    t.string "subject_type", null: false
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_access_events_on_actor_id"
+    t.index ["organization_id", "created_at"], name: "index_access_events_on_organization_id_and_created_at"
+    t.index ["organization_id"], name: "index_access_events_on_organization_id"
+    t.index ["subject_type", "subject_id"], name: "index_access_events_on_subject_type_and_subject_id"
+  end
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.bigint "blob_id", null: false
@@ -329,6 +345,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_201606) do
     t.index ["candidate_profile_id"], name: "index_work_experiences_on_candidate_profile_id"
   end
 
+  add_foreign_key "access_events", "organizations", on_delete: :nullify
+  add_foreign_key "access_events", "users", column: "actor_id", on_delete: :nullify
   add_foreign_key "active_storage_attachments", "active_storage_blobs", column: "blob_id"
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "application_reviews", "job_applications"

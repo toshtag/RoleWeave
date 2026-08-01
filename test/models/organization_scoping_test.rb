@@ -13,7 +13,11 @@ class OrganizationScopingTest < ActiveSupport::TestCase
   # このモデル固有の契約は membership_event_test が持つ。
   # JobPostingEvent も同じ理由で外す。求人の公開状態の記録であり、
   # 組織を削除しても残す。固有の契約は job_posting_event_test が持つ。
-  EXCLUDED = %w[MembershipEvent JobPostingEvent].freeze
+
+  # AccessEvent も外す。個人情報を読んだ操作の記録であり（ADR 0047）、
+  # 組織を伴わない操作（本人によるエクスポート）も記録する。
+  # 組織を削除しても、誰が何を読んだかの記録は残す。
+  EXCLUDED = %w[MembershipEvent JobPostingEvent AccessEvent].freeze
 
   test "組織へ従属するモデルが 1 つ以上ある" do
     # 対象が 0 件のまま「すべて満たしている」と報告しない。
