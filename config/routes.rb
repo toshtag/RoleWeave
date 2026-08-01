@@ -32,6 +32,7 @@ Rails.application.routes.draw do
     resources :organizations, only: %i[index new create] do
       resources :invitations, only: %i[new create]
       resources :memberships, only: %i[index update]
+      resources :job_postings, only: %i[index new create edit update]
     end
 
     # 運営者専用の経路。通常の組織の画面とは分けて置く。

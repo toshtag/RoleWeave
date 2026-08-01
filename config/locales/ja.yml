@@ -7,11 +7,20 @@ ja:
   # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
   activerecord:
     models:
+      job_posting: 求人
       invitation: 招待
       organization: 組織
       membership: 所属
       user: アカウント
     attributes:
+      job_posting:
+        title: 題名
+        description: 仕事内容
+        location: 勤務地
+        occupation: 職種
+        employment_type: 雇用形態
+        salary: 給与
+        requirements: 応募条件
       invitation:
         email_address: 招待するメールアドレス
         role: 役割
@@ -93,9 +102,31 @@ ja:
       empty: まだどの組織にも所属していません。
       new: 組織を作成する
       members: メンバーを見る
+      job_postings: 求人を見る
     new:
       title: 組織の作成
       submit: 組織を作成する
+  job_postings:
+    index:
+      title: "%{organization} の求人"
+      new: 求人を作成する
+      edit: 編集する
+      empty: まだ求人がありません。
+    new:
+      title: "%{organization} の求人を作成する"
+      submit: 下書きとして保存する
+    edit:
+      title: 求人を編集する
+      submit: 保存する
+    form:
+      unspecified: 指定しない
+    statuses:
+      draft: 下書き
+    employment_types:
+      full_time: 正社員
+      part_time: パート・アルバイト
+      contract: 契約
+      internship: インターンシップ
   memberships:
     index:
       title: "%{organization} のメンバー"

@@ -1,0 +1,23 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title", organization: @organization.name) %></h1>
+
+<p>
+  <%= link_to t(".new"),
+              new_organization_job_posting_path(locale: I18n.locale, organization_id: @organization) %>
+</p>
+
+<% if @job_postings.any? %>
+  <ul>
+    <% @job_postings.each do |job_posting| %>
+      <li>
+        <%= job_posting.title %>
+        <%= t("job_postings.statuses.#{job_posting.status}") %>
+        <%= link_to t(".edit"),
+                    edit_organization_job_posting_path(locale: I18n.locale, organization_id: @organization, id: job_posting) %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>

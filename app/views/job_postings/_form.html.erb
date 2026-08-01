@@ -1,0 +1,54 @@
+<%= form_with model: job_posting, url: url, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :title %>
+    <%= form.text_field :title,
+                        required: true,
+                        autofocus: true,
+                        aria: { describedby: field_error_id(job_posting, :title) } %>
+    <%= render "registrations/field_errors", record: job_posting, attribute: :title %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :description %>
+    <%= form.text_area :description,
+                       required: true,
+                       rows: 8,
+                       aria: { describedby: field_error_id(job_posting, :description) } %>
+    <%= render "registrations/field_errors", record: job_posting, attribute: :description %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :location %>
+    <%= form.text_field :location %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :occupation %>
+    <%= form.text_field :occupation %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :employment_type %>
+    <%#
+      選択肢は JobPosting::EMPLOYMENT_TYPES から導く。ここへ値を書き並べると、
+      種類が増えたときに画面へ現れない種類ができる。
+    %>
+    <%= form.select :employment_type,
+                    JobPosting::EMPLOYMENT_TYPES.map { |type| [ t("job_postings.employment_types.#{type}"), type ] },
+                    include_blank: t(".unspecified"),
+                    aria: { describedby: field_error_id(job_posting, :employment_type) } %>
+    <%= render "registrations/field_errors", record: job_posting, attribute: :employment_type %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :salary %>
+    <%= form.text_field :salary %>
+  </div>
+
+  <div class="form__field">
+    <%= form.label :requirements %>
+    <%= form.text_area :requirements, rows: 5 %>
+  </div>
+
+  <%= form.submit submit_label, class: "button" %>
+<% end %>
