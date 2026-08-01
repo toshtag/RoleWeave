@@ -357,3 +357,17 @@ video {
   border: 0.0625rem solid var(--color-border);
   border-radius: var(--control-radius);
 }
+
+/*
+ * 求人の一覧。
+ * 既定の記号と余白は取り除き、項目の区切りは間隔で示す。
+ */
+.job-posting-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.job-posting-list li {
+  margin-block-end: var(--page-block-padding);
+}

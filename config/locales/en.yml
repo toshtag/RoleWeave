@@ -96,6 +96,13 @@ en:
         title: "Operating %{organization}"
         grant_owner: Make administrator
         back: Back to all organizations
+  public:
+    job_postings:
+      index:
+        title: Find a job
+        empty: There are no published job postings right now.
+      show:
+        back: Back to job postings
   organizations:
     index:
       title: Your organizations
@@ -190,6 +197,7 @@ en:
   home:
     show:
       summary: We are building the foundation of a self-hostable recruiting platform.
+      find_jobs: Find a job
   user_mailer:
     email_confirmation:
       subject: Confirm your email address

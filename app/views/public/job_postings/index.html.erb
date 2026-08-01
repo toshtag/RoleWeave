@@ -1,0 +1,21 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :canonical, public_job_postings_url(locale: I18n.locale) %>
+
+<h1><%= t(".title") %></h1>
+
+<% if @job_postings.any? %>
+  <ul class="job-posting-list">
+    <% @job_postings.each do |job_posting| %>
+      <li>
+        <%= link_to job_posting.title,
+                    public_job_posting_path(locale: I18n.locale, id: job_posting) %>
+        <p class="job-posting__organization"><%= job_posting.organization&.name %></p>
+        <% if job_posting.location.present? %>
+          <p><%= job_posting.location %></p>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
