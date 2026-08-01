@@ -22,7 +22,19 @@ module Authentication
     # 参照先が消えている Cookie は、ログイン状態として扱わない。
     # 署名が合っていても、対応するレコードがなければログアウト済みである。
     def resume_session
-      Current.session = Session.find_by(id: cookies.signed[SESSION_COOKIE])
+      session = Session.find_by(id: cookies.signed[SESSION_COOKIE])
+
+      # 期限切れはその場で消す。残しておくと、判定する場所が増えるたびに
+      # 「期限を見ているか」を確認して回ることになる。
+      if session&.expired?
+        session.destroy
+        cookies.delete(SESSION_COOKIE)
+        session = nil
+      end
+
+      session&.touch_activity
+
+      Current.session = session
     end
 
     def signed_in?
@@ -37,12 +49,17 @@ module Authentication
       user.sessions.create!.tap do |session|
         Current.session = session
 
-        cookies.signed.permanent[SESSION_COOKIE] = {
+        cookies.signed[SESSION_COOKIE] = {
           value: session.id,
+          # 発行からの上限に合わせる。permanent（20 年）を使うと、
+          # サーバーがすでに無効とみなす Cookie をブラウザーが持ち続ける。
+          expires: session.cookie_expires_at,
           # JavaScript から読めないようにする。読めると XSS がそのまま乗っ取りになる。
           httponly: true,
           # 別サイトからの遷移で Cookie を送らない。
           same_site: :lax
+          # secure 属性は config.force_ssl に任せる。production で有効であり、
+          # Rails が応答の Cookie を secure へ引き上げる。
         }
       end
     end
