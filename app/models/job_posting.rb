@@ -40,6 +40,8 @@ class JobPosting < ApplicationRecord
 
   # 応募。求人を消す経路は現時点でない。
   has_many :job_applications, dependent: :restrict_with_error
+  # 応募の記録。求人を消す経路は現時点でない。参照は nullify する。
+  has_many :job_application_events, dependent: nil
 
   # 所属先の組織は、作成した後で変えられないようにする。
   # 変えられると、自分の組織の求人を他組織へ付け替えられる。

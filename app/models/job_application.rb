@@ -24,6 +24,18 @@ class JobApplication < ApplicationRecord
   # Controller ではなくモデルへ置く。応募を作る経路が増えても、写し忘れが起こらない。
   before_validation :capture_snapshots, on: :create
 
+  # 応募と取消を記録へ残す。応募そのものはプロフィールの削除で消えるため、
+  # 企業側に残る記録はこの表が持つ。
+  # 詳細は docs/decisions/0037-job-application-events-and-notification.md を参照する。
+  after_create :record_submitted
+  after_update :record_withdrawn, if: :saved_change_to_status?
+
+  # 通知はトランザクションが閉じた後に積む。
+  #
+  # 同じトランザクションの中で送ると、メールが送れないだけで応募が失敗する。
+  # 送るのは外（SMTP）であり、こちらの都合では成功を保証できない。
+  after_commit :notify_organization, on: :create
+
   scope :recent, -> { order(created_at: :desc, id: :desc) }
   scope :submitted, -> { where(status: "submitted") }
 
@@ -51,6 +63,34 @@ class JobApplication < ApplicationRecord
 
       self.job_posting_snapshot = ApplicationSnapshot.of_job_posting(job_posting)
       self.candidate_profile_snapshot = ApplicationSnapshot.of_candidate_profile(candidate_profile)
+    end
+
+    def record_submitted
+      record_event("submitted")
+    end
+
+    def record_withdrawn
+      record_event("withdrawn") if withdrawn?
+    end
+
+    # 参照が消えた後も読めるように、題名と表示名を写して持つ。
+    def record_event(kind)
+      JobApplicationEvent.create!(
+        job_application: self,
+        organization: job_posting.organization,
+        job_posting: job_posting,
+        kind: kind,
+        job_posting_title: job_posting_snapshot["title"],
+        candidate_display_name: candidate_profile_snapshot["display_name"]
+      )
+    end
+
+    # 宛先は組織の管理者とする。一般の所属者へは送らない。
+    def notify_organization
+      job_posting.organization.memberships.where(role: "owner").includes(:user).find_each do |membership|
+        OrganizationMailer.job_application(self, to: membership.user.email_address,
+                                                 locale: I18n.locale).deliver_later
+      end
     end
 
     # 応募できるのは公開中の求人だけとする。
