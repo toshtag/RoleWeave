@@ -27,11 +27,16 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   #
   # 日本語は既定ロケールであり、PublicExceptions のフォールバック先である
   # 拡張子なしのファイルを正本とする。404.ja.html は作らない。
+  # 406 は exceptions_app を通らず、allow_browser の before_action が直接描画する。
+  # 経路は異なるが静的ページとしての契約は同じであるため、ここでまとめて検査する。
+  # 経路そのものは unsupported_browser_test が持つ。
   PAGES = {
     "400.html" => :ja,
     "400.en.html" => :en,
     "404.html" => :ja,
     "404.en.html" => :en,
+    "406-unsupported-browser.html" => :ja,
+    "406-unsupported-browser.en.html" => :en,
     "422.html" => :ja,
     "422.en.html" => :en,
     "500.html" => :ja,
@@ -43,6 +48,7 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   HEADINGS = {
     "400" => { ja: "リクエストを処理できません", en: "Unable to process this request" },
     "404" => { ja: "ページが見つかりません", en: "Page not found" },
+    "406" => { ja: "このブラウザーには対応していません", en: "Your browser is not supported" },
     "422" => { ja: "送信内容を受け付けられません", en: "Unable to accept this submission" },
     "500" => { ja: "ページを表示できません", en: "Unable to display this page" }
   }.freeze
@@ -319,8 +325,10 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
       path.read
     end
 
+    # ファイル名の先頭にある数字を status code とする。
+    # 406-unsupported-browser のように、status の後ろへ語が続くファイル名がある。
     def status_code(page)
-      page.split(".").first
+      page[/\A\d+/]
     end
 
     def heading(page, locale)
