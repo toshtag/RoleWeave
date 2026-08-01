@@ -3,7 +3,7 @@ name: Accounts and Sessions
 weight: 7
 confidence: high
 risk: medium
-status: planned
+status: in_progress
 depends_on:
   - P1
 objective: |-

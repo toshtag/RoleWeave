@@ -1,4 +1,12 @@
 ja:
+  # モデル名と属性名は、検証エラーの文言と画面の項目名の両方から参照される。
+  # 片方だけで訳すと、同じ項目が場所によって違う名前で表示される。
+  activerecord:
+    models:
+      user: アカウント
+    attributes:
+      user:
+        email_address: メールアドレス
   application:
     name: RoleWeave
     skip_to_content: 本文へ移動
