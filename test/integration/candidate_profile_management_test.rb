@@ -3,7 +3,7 @@ require "test_helper"
 # プロフィールの作成と編集の契約を検証する。
 #
 # 検証対象は、誰がどのプロフィールを扱えるかである。
-class CandidateProfileTest < ActionDispatch::IntegrationTest
+class CandidateProfileManagementTest < ActionDispatch::IntegrationTest
   PASSWORD = "correct horse battery".freeze
 
   setup do
