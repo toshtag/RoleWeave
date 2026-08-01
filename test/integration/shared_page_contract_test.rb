@@ -71,6 +71,12 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
   # 拡大を禁止する user-scalable の値。0 と no のどちらも同じ意味になる。
   SCALING_DISABLED = %w[no 0 0.0].freeze
 
+  setup do
+    # 確認画面へ到達するために 1 件だけ用意する。この画面の内容は
+    # email_confirmation_test が検証する。ここでは共通の契約だけを見る。
+    @user = User.create!(email_address: "member@example.com", password: "correct horse battery")
+  end
+
   test "全画面が表示領域の宣言を 1 件だけ持つ" do
     # 2 件あると、どちらが効くかが読み手にも解釈系にも一意に決まらない。
     each_page do |page, _locale, document|
@@ -207,7 +213,9 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
       [
         localized_root_path(locale: locale),
         new_session_path(locale: locale),
-        new_registration_path(locale: locale)
+        new_registration_path(locale: locale),
+        # 確認画面は token を要する。無効な token では 422 を返すため、有効な token を使う。
+        confirmation_path(locale: locale, token: confirmation_token)
       ]
     end
 
@@ -219,6 +227,10 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
       STATIC_PAGES.each_key do |page|
         yield page, inline_style(page)
       end
+    end
+
+    def confirmation_token
+      @user.generate_token_for(:email_confirmation)
     end
 
     def stylesheet_source
