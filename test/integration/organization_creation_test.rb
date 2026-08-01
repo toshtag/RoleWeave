@@ -82,8 +82,9 @@ class OrganizationCreationTest < ActionDispatch::IntegrationTest
 
     get organizations_path(locale: :ja)
 
-    assert_select "main li", text: NAME, count: 1
-    assert_select "main li", text: "Another Inc.", count: 0
+    # 項目には組織名のほかに導線も並ぶため、部分一致で確かめる。
+    assert_select "main li", text: /#{Regexp.escape(NAME)}/, count: 1
+    assert_select "main li", text: /Another Inc\./, count: 0
   end
 
   test "所属がないときは一覧が空であることを伝える" do
