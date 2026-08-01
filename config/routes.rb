@@ -9,6 +9,13 @@ Rails.application.routes.draw do
   # get "manifest" => "rails/pwa#manifest", as: :pwa_manifest
   # get "service-worker" => "rails/pwa#service_worker", as: :pwa_service_worker
 
+  # 検索エンジン向けの配信。ロケールを持たない URL とする。
+  # 静的ファイルにすると、自己ホストの利用者ごとにホスト名の書き換えが要る。
+  # format: false により、拡張子を含む path をそのまま扱う。
+  # 既定の解釈では .xml が format として切り出され、URL helper が拡張子を失う。
+  get "sitemap.xml" => "public/sitemaps#show", as: :sitemap, format: false
+  get "robots.txt" => "public/robots#show", as: :robots, format: false
+
   # 利用者向けページはロケールを明示した URL へ置く。
   # 詳細は docs/decisions/0001-locale-prefixed-routes.md を参照する。
   #

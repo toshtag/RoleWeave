@@ -293,6 +293,56 @@ class PublicJobPostingsTest < ActionDispatch::IntegrationTest
     assert_select "head link[rel=?][href=?]", "canonical", public_job_postings_url(locale: :ja), count: 1
   end
 
+  test "詳細に構造化データが 1 つ出る" do
+    get public_job_posting_path(locale: :ja, id: @published)
+
+    scripts = css_select("script[type='application/ld+json']")
+
+    assert_equal 1, scripts.size
+
+    data = JSON.parse(scripts.first.text)
+
+    assert_equal "JobPosting", data["@type"]
+    assert_equal @published.title, data["title"]
+    assert_equal @published.description, data["description"]
+    assert_equal @organization.name, data.dig("hiringOrganization", "name")
+    assert_equal @published.created_at.to_date.iso8601, data["datePosted"]
+  end
+
+  test "構造化データに入力した項目が入る" do
+    @published.update!(
+      location: "東京", employment_type: "full_time",
+      salary_currency: "JPY", annual_salary_min: 5_000_000, requirements: "実務経験 3 年以上"
+    )
+
+    get public_job_posting_path(locale: :ja, id: @published)
+
+    data = JSON.parse(css_select("script[type='application/ld+json']").first.text)
+
+    assert_equal "東京", data.dig("jobLocation", "address", "addressLocality")
+    assert_equal "FULL_TIME", data["employmentType"]
+    assert_equal "JPY", data.dig("baseSalary", "currency")
+    assert_equal 5_000_000, data.dig("baseSalary", "value", "minValue")
+    assert_equal "実務経験 3 年以上", data["qualifications"]
+  end
+
+  test "未入力の項目が構造化データに現れない" do
+    # 空で書くと、「値がない」ではなく「空という値がある」と解釈されうる。
+    get public_job_posting_path(locale: :ja, id: @published)
+
+    data = JSON.parse(css_select("script[type='application/ld+json']").first.text)
+
+    %w[jobLocation employmentType baseSalary qualifications].each do |key|
+      assert_not data.key?(key), "#{key} が現れている"
+    end
+  end
+
+  test "一覧には構造化データを出さない" do
+    get public_job_postings_path(locale: :ja)
+
+    assert_select "script[type='application/ld+json']", count: 0
+  end
+
   private
     def create_job_posting(status:, title:)
       @organization.job_postings.create!(status: status, title: title, description: "内容")

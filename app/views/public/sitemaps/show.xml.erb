@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemap.org/schemas/sitemap/0.9">
+  <%#
+    ロケールごとの入口と求人一覧を並べる。
+    表示言語の正本は URL とする契約（ADR 0001）を、ここでも保つ。
+  %>
+  <% I18n.available_locales.each do |locale| %>
+    <url>
+      <loc><%= localized_root_url(locale: locale) %></loc>
+    </url>
+    <url>
+      <loc><%= public_job_postings_url(locale: locale) %></loc>
+    </url>
+  <% end %>
+
+  <%# 公開中の求人だけを並べる。 %>
+  <% @job_postings.each do |job_posting| %>
+    <% I18n.available_locales.each do |locale| %>
+      <url>
+        <loc><%= public_job_posting_url(locale: locale, id: job_posting) %></loc>
+        <lastmod><%= job_posting.updated_at.to_date.iso8601 %></lastmod>
+      </url>
+    <% end %>
+  <% end %>
+</urlset>
