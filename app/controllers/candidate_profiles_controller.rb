@@ -12,7 +12,7 @@ class CandidateProfilesController < ApplicationController
 
     # まだ作っていない場合は、作成の画面を出す。
     # 空の詳細を見せても、次に何をすればよいかが伝わらない。
-    return redirect_to new_profile_path(locale: I18n.locale) if @candidate_profile.nil?
+    redirect_to new_profile_path(locale: I18n.locale) if @candidate_profile.nil?
   end
 
   def new
@@ -34,7 +34,7 @@ class CandidateProfilesController < ApplicationController
   def edit
     @candidate_profile = current_user.candidate_profile
 
-    return redirect_to new_profile_path(locale: I18n.locale) if @candidate_profile.nil?
+    redirect_to new_profile_path(locale: I18n.locale) if @candidate_profile.nil?
   end
 
   def update
