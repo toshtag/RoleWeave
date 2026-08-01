@@ -12,6 +12,10 @@ en:
   application:
     name: RoleWeave
     skip_to_content: Skip to main content
+    account:
+      label: Account
+      sign_in: Sign in
+      sign_out: Sign out
     language_switcher:
       label: Display language
       # 言語名は訳さず、その言語自身の表記で書く。
@@ -21,6 +25,12 @@ en:
         en: English
     footer:
       description: An open-source project building a self-hostable recruiting platform.
+  sessions:
+    new:
+      title: Sign in
+      submit: Sign in
+    create:
+      failure: The email address or password is incorrect.
   home:
     show:
       summary: We are building the foundation of a self-hostable recruiting platform.
