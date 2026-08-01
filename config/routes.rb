@@ -97,6 +97,10 @@ Rails.application.routes.draw do
     get "profile/documents/:kind" => "profile_documents#show", as: :profile_document
     delete "profile/documents/:kind" => "profile_documents#destroy"
 
+    # 自分のデータの持ち出し。対象は常にログインしている本人とする。
+    # 詳細は docs/decisions/0032-personal-data-export.md を参照する。
+    resource :export, only: :show, controller: "profile_exports"
+
     # 自分のアカウント情報。ログインとメールアドレスの確認を要する。
     resource :account, only: :show
 
