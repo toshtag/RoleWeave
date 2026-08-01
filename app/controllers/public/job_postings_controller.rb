@@ -5,7 +5,17 @@
 # 方針は docs/decisions/0020-public-job-posting-urls.md を正本とする。
 class Public::JobPostingsController < ApplicationController
   def index
-    @job_postings = JobPosting.published.includes(:organization).recent
+    @search = search_params
+
+    # 絞り込みの条件はモデルの scope が持つ。
+    # Controller は受け取った値を渡すだけとし、条件の組み立てを 2 か所へ置かない。
+    @job_postings = JobPosting.published
+                              .matching_keyword(@search[:keyword])
+                              .matching_location(@search[:location])
+                              .matching_occupation(@search[:occupation])
+                              .matching_employment_type(@search[:employment_type])
+                              .includes(:organization)
+                              .recent
   end
 
   def show
@@ -13,4 +23,12 @@ class Public::JobPostingsController < ApplicationController
     # 分けると、審査中の求人があることだけが分かる。
     @job_posting = JobPosting.published.find(params[:id])
   end
+
+  private
+    def search_params
+      params.permit(:keyword, :location, :occupation, :employment_type)
+            .to_h
+            .symbolize_keys
+            .slice(:keyword, :location, :occupation, :employment_type)
+    end
 end
