@@ -3,7 +3,7 @@ name: OSS Release and Local Demo
 weight: 6
 confidence: medium
 risk: low
-status: in_progress
+status: done
 depends_on:
   - P11
 objective: |-
