@@ -176,17 +176,17 @@ end
       )
     end
 
-def notify_candidate_of_stage_change
-  candidate = candidate_profile.user
+    def notify_candidate_of_stage_change
+      candidate = candidate_profile.user
 
-  notification = Notification.create!(
+      notification = Notification.create!(
     user: candidate, job_application: self, kind: "stage_changed"
-  )
+      )
 
-  return unless candidate.email_notifications?
+      return unless candidate.email_notifications?
 
-  NotificationMailer.stage_changed(notification, locale: I18n.locale).deliver_later
-end
+      NotificationMailer.stage_changed(notification, locale: I18n.locale).deliver_later
+    end
 
     # 宛先は組織の管理者とする。一般の所属者へは送らない。
     def notify_organization
