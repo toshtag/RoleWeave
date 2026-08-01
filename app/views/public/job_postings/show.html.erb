@@ -5,6 +5,14 @@
 %>
 <% content_for :canonical, public_job_posting_url(locale: I18n.locale, id: @job_posting) %>
 
+<%#
+  構造化データ。求人が「求人」として認識されるために要る。
+  題名と本文の区別、勤務地、雇用形態、給与は、HTML の見た目からは判定されない。
+%>
+<% content_for :head do %>
+  <script type="application/ld+json"><%= raw job_posting_structured_data(@job_posting).to_json %></script>
+<% end %>
+
 <%= render "job_postings/public", job_posting: @job_posting %>
 
 <p><%= link_to t(".back"), public_job_postings_path(locale: I18n.locale) %></p>
