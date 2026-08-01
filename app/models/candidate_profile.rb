@@ -55,14 +55,28 @@ class CandidateProfile < ApplicationRecord
   # 企業から見えるプロフィールは、ここだけで決める。
   # 経路ごとに条件を書くと、書き忘れた経路がそのまま個人情報への入口になる。
   #
-  # applied_organizations は、応募（P7）ができるまで誰にも見えない。
-  # 見えないことは意図であり、実装漏れではない。
-  scope :visible_to_organizations, -> { where(visibility: "all_organizations") }
+  # all_organizations は、いずれかの組織に所属する利用者から見える。
+  # applied_organizations は、その組織へ応募中の場合だけ見える。
+  # 取り消した応募では見えない。取り消した相手のプロフィールを
+  # 見続けられるのは筋が通らない。
+  # 詳細は docs/decisions/0036-organization-application-access.md を参照する。
+  scope :visible_to, ->(organization) {
+    where(visibility: "all_organizations")
+      .or(where(visibility: "applied_organizations", id: applied_profile_ids(organization)))
+  }
+
+  # その組織の求人へ応募中のプロフィールの id。
+  def self.applied_profile_ids(organization)
+    JobApplication.submitted
+                  .joins(:job_posting)
+                  .where(job_postings: { organization_id: organization.id })
+                  .select(:candidate_profile_id)
+  end
 
   # 企業側から添付を取れるかどうか。
   # 公開範囲と添付の設定の両方が要る。片方だけでは取れない。
-  def documents_visible_to_organizations?
-    visibility == "all_organizations" && documents_visible?
+  def documents_visible_to?(organization)
+    documents_visible? && CandidateProfile.visible_to(organization).exists?(id)
   end
 
   private
