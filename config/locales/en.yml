@@ -15,6 +15,7 @@ en:
     account:
       label: Account
       sign_in: Sign in
+      sign_up: Sign up
       sign_out: Sign out
     language_switcher:
       label: Display language
@@ -25,10 +26,17 @@ en:
         en: English
     footer:
       description: An open-source project building a self-hostable recruiting platform.
+  registrations:
+    new:
+      title: Create an account
+      submit: Create account
+      password_hint: "Use at least %{count} characters. Any characters are allowed."
+      sign_in: Already have an account? Sign in
   sessions:
     new:
       title: Sign in
       submit: Sign in
+      sign_up: Create an account
     create:
       failure: The email address or password is incorrect.
   home:

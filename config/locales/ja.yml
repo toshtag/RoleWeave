@@ -15,6 +15,7 @@ ja:
     account:
       label: アカウント
       sign_in: ログイン
+      sign_up: アカウント作成
       sign_out: ログアウト
     language_switcher:
       label: 表示言語
@@ -25,10 +26,17 @@ ja:
         en: English
     footer:
       description: 自己ホスト可能な採用プラットフォームを開発するオープンソースプロジェクトです。
+  registrations:
+    new:
+      title: アカウント作成
+      submit: アカウントを作成する
+      password_hint: "%{count} 文字以上で入力してください。文字の種類は問いません。"
+      sign_in: すでにアカウントをお持ちの方はこちら
   sessions:
     new:
       title: ログイン
       submit: ログインする
+      sign_up: アカウントをお持ちでない方はこちら
     create:
       failure: メールアドレスまたはパスワードが正しくありません。
   home:

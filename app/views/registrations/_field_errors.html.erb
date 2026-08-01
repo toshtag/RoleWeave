@@ -1,0 +1,10 @@
+<%#
+  1 つの項目に対する誤りの説明。
+  入力欄から aria-describedby で参照するため、id を持つ要素にまとめる。
+%>
+<% errors = record.errors.full_messages_for(attribute) %>
+<% if errors.any? %>
+  <p class="form__error" id="<%= field_error_id(record, attribute) %>">
+    <%= errors.to_sentence %>
+  </p>
+<% end %>
