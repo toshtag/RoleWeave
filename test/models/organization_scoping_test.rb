@@ -11,7 +11,9 @@ class OrganizationScopingTest < ActiveSupport::TestCase
   # 「いつ何が起きたか」まで消すと、削除の前後の調査ができなくなる。
   # そのため組織を必須にできず、削除時にも消さない。
   # このモデル固有の契約は membership_event_test が持つ。
-  EXCLUDED = %w[MembershipEvent].freeze
+  # JobPostingEvent も同じ理由で外す。求人の公開状態の記録であり、
+  # 組織を削除しても残す。固有の契約は job_posting_event_test が持つ。
+  EXCLUDED = %w[MembershipEvent JobPostingEvent].freeze
 
   test "組織へ従属するモデルが 1 つ以上ある" do
     # 対象が 0 件のまま「すべて満たしている」と報告しない。
