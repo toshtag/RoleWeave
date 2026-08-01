@@ -71,10 +71,16 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
   # 拡大を禁止する user-scalable の値。0 と no のどちらも同じ意味になる。
   SCALING_DISABLED = %w[no 0 0.0].freeze
 
+  PASSWORD = "correct horse battery".freeze
+
   setup do
     # 確認画面へ到達するために 1 件だけ用意する。この画面の内容は
     # email_confirmation_test が検証する。ここでは共通の契約だけを見る。
-    @user = User.create!(email_address: "member@example.com", password: "correct horse battery")
+    @user = User.create!(email_address: "member@example.com", password: PASSWORD)
+
+    # ログインを要する画面のための利用者。プロフィールも 1 件用意する。
+    @confirmed_user = User.create!(email_address: "signed-in@example.com", password: PASSWORD).tap(&:confirm)
+    @confirmed_user.create_candidate_profile!(display_name: "山田 太郎")
   end
 
   test "全画面が表示領域の宣言を 1 件だけ持つ" do
@@ -200,6 +206,20 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
 
           yield path, locale, Nokogiri::HTML5(response.body)
         end
+
+        # ログインを要する画面も同じ契約に従う。
+        # 含めないと、P4 以降に増えた画面が 1 つも検証されない。
+        sign_in
+
+        signed_in_paths(locale).each do |path|
+          get path
+
+          assert_response :success
+
+          yield path, locale, Nokogiri::HTML5(response.body)
+        end
+
+        sign_out
       end
 
       STATIC_PAGES.each do |page, locale|
@@ -216,10 +236,46 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
         new_registration_path(locale: locale),
         new_password_reset_path(locale: locale),
         public_job_postings_path(locale: locale),
-        # 組織の画面はログインと確認を要するため、この一覧には含めない。
         # 確認画面は token を要する。無効な token では 422 を返すため、有効な token を使う。
         confirmation_path(locale: locale, token: confirmation_token)
       ]
+    end
+
+    # ログインと確認を要する画面。
+    # 画面が増えるたびにここへ加える。加え忘れると、その画面だけ契約から外れる。
+    def signed_in_paths(locale)
+      [
+        account_path(locale: locale),
+        profile_path(locale: locale),
+        profile_work_experiences_path(locale: locale),
+        profile_educations_path(locale: locale),
+        profile_skills_path(locale: locale),
+        edit_profile_desired_condition_path(locale: locale),
+        edit_profile_visibility_path(locale: locale),
+        edit_profile_documents_path(locale: locale),
+        profile_applications_path(locale: locale),
+        notifications_path(locale: locale),
+        edit_notification_settings_path(locale: locale),
+        account_deletion_path(locale: locale),
+        organizations_path(locale: locale),
+        new_organization_path(locale: locale),
+        organization_job_postings_path(locale: locale, organization_id: organization),
+        new_organization_job_posting_path(locale: locale, organization_id: organization),
+        organization_memberships_path(locale: locale, organization_id: organization)
+      ]
+    end
+
+    def sign_in
+      post session_path(locale: I18n.default_locale),
+           params: { email_address: @confirmed_user.email_address, password: PASSWORD }
+    end
+
+    def sign_out
+      delete session_path(locale: I18n.default_locale)
+    end
+
+    def organization
+      @organization ||= Organization.create_with_owner!(name: "サンプル株式会社", user: @confirmed_user)
     end
 
     # 各画面へ実際に効いている CSS を渡す。
