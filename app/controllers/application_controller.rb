@@ -1,4 +1,15 @@
 class ApplicationController < ActionController::Base
+# 繰り返しの試行の上限と期間。
+#
+# 総当たり（ログイン）、大量作成（登録）、大量送信（再設定の依頼・メッセージ）を抑える。
+# 値はここ 1 か所に置く。経路ごとに書くと、片方だけ緩めた状態が生まれる。
+# 詳細は docs/decisions/0044-rate-limiting.md を参照する。
+SIGN_IN_ATTEMPT_LIMIT = 10
+SIGN_UP_ATTEMPT_LIMIT = 5
+PASSWORD_RESET_ATTEMPT_LIMIT = 5
+MESSAGE_ATTEMPT_LIMIT = 30
+RATE_LIMIT_PERIOD = 5.minutes
+
   include Authentication
 
   # 対応外ブラウザーへ返す案内。日本語は拡張子を持たないファイルを正本とする。
@@ -20,7 +31,17 @@ class ApplicationController < ActionController::Base
   # Changes to the importmap will invalidate the etag for HTML responses
   stale_when_importmap_changes
 
-  private
+private
+  # 上限を超えたときの応答。
+  #
+  # 例外ではないため exceptions_app を通らない。静的な画面を直接返す。
+  # 描画経路を通さないのは、ほかのエラー画面と同じ理由による（ADR 0003）。
+  def render_rate_limited
+    page = I18n.locale == I18n.default_locale ? "429.html" : "429.#{I18n.locale}.html"
+
+    render file: Rails.public_path.join(page), status: :too_many_requests, layout: false
+  end
+
     # URL のロケールを、そのリクエストの間だけ適用する。
     #
     # I18n.locale への代入はスレッドローカルへ残るため、代入したままにすると

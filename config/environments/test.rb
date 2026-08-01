@@ -20,7 +20,10 @@ Rails.application.configure do
 
   # Show full error reports.
   config.consider_all_requests_local = true
-  config.cache_store = :null_store
+  # レート制限（ApplicationController の rate_limit）は Rails.cache で数える。
+  # :null_store では数えられず、制限そのものを検証できない。
+  # 詳細は docs/decisions/0044-rate-limiting.md を参照する。
+  config.cache_store = :memory_store
 
   # Render exception templates for rescuable exceptions and raise for other exceptions.
   config.action_dispatch.show_exceptions = :rescuable

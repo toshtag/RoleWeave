@@ -4,6 +4,10 @@
 # どちらから来ても、読めるかどうかの判定は 1 か所（Conversation.visible_to）が持つ。
 # 方針は docs/decisions/0041-application-conversation.md を正本とする。
 class ConversationsController < ApplicationController
+  # 繰り返しの試行を抑える。上限と期間は ApplicationController が持つ。
+  rate_limit to: MESSAGE_ATTEMPT_LIMIT, within: RATE_LIMIT_PERIOD, only: :create,
+             with: -> { render_rate_limited }
+
   before_action :require_authentication
   before_action :require_confirmed_email
   before_action :set_job_application
