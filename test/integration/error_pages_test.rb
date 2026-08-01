@@ -20,8 +20,12 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   # 日本語は既定ロケールであり、PublicExceptions のフォールバック先である
   # 拡張子なしのファイルを正本とする。404.ja.html は作らない。
   PAGES = {
+    "400.html" => :ja,
+    "400.en.html" => :en,
     "404.html" => :ja,
     "404.en.html" => :en,
+    "422.html" => :ja,
+    "422.en.html" => :en,
     "500.html" => :ja,
     "500.en.html" => :en
   }.freeze
@@ -29,7 +33,9 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
   # 静的ページの文言は辞書を持たないため、期待値をテストへ置く。
   # ここが文言と言語の唯一の対応表になる。文言を変えるときはこのテストも変える。
   HEADINGS = {
+    "400" => { ja: "リクエストを処理できません", en: "Unable to process this request" },
     "404" => { ja: "ページが見つかりません", en: "Page not found" },
+    "422" => { ja: "送信内容を受け付けられません", en: "Unable to accept this submission" },
     "500" => { ja: "ページを表示できません", en: "Unable to display this page" }
   }.freeze
 
@@ -165,6 +171,40 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     assert_equal 1, styles.uniq.size, "エラー画面のスタイルが一致しない"
   end
 
+  test "解釈できない日本語 URL で日本語の 400 を返す" do
+    response = exception_response(path: "/ja/broken", exception: parse_error, show_exceptions: :rescuable)
+
+    assert_equal 400, response[:status]
+    assert_html response
+    assert_page "400.html", response
+  end
+
+  test "解釈できない英語 URL で英語の 400 を返す" do
+    response = exception_response(path: "/en/broken", exception: parse_error, show_exceptions: :rescuable)
+
+    assert_equal 400, response[:status]
+    assert_html response
+    assert_page "400.en.html", response
+  end
+
+  test "日本語 URL の送信内容を受け付けられないときに日本語の 422 を返す" do
+    # 422 へ到達する経路（非 GET の route）はまだない。
+    # 経路を追加するタスクでページを用意し忘れないよう、機構だけを先に固定する。
+    response = exception_response(path: "/ja/rejected", exception: rejected_submission, show_exceptions: :rescuable)
+
+    assert_equal 422, response[:status]
+    assert_html response
+    assert_page "422.html", response
+  end
+
+  test "英語 URL の送信内容を受け付けられないときに英語の 422 を返す" do
+    response = exception_response(path: "/en/rejected", exception: rejected_submission, show_exceptions: :rescuable)
+
+    assert_equal 422, response[:status]
+    assert_html response
+    assert_page "422.en.html", response
+  end
+
   test "存在しない日本語 URL で日本語の 404 を返す" do
     response = exception_response(path: "/ja/missing", exception: routing_error, show_exceptions: :rescuable)
 
@@ -292,6 +332,16 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
 
     def routing_error
       ActionController::RoutingError.new("No route matches")
+    end
+
+    # query string や本文を解釈できないときに起こる例外。rescue_responses で 400 へ対応する。
+    def parse_error
+      ActionDispatch::Http::Parameters::ParseError.new("invalid byte sequence")
+    end
+
+    # 送信内容を受け付けられないときに起こる例外。rescue_responses で 422 へ対応する。
+    def rejected_submission
+      ActionController::InvalidAuthenticityToken.new("Can't verify CSRF token authenticity")
     end
 
     def server_error
