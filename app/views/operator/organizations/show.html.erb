@@ -1,0 +1,26 @@
+<% content_for :title, "#{t(".title", organization: @organization.name)} | #{t("application.name")}" %>
+
+<h1><%= t(".title", organization: @organization.name) %></h1>
+
+<ul>
+  <% @memberships.each do |membership| %>
+    <li>
+      <%= membership.user.email_address %>
+      <%= t("memberships.roles.#{membership.role}") %>
+
+      <%# 与えられるのは管理者の役割だけとする。降格はここでは扱わない。 %>
+      <% unless membership.owner? %>
+        <%= button_to t(".grant_owner"),
+                      operator_organization_membership_path(
+                        locale: I18n.locale,
+                        organization_id: @organization,
+                        id: membership
+                      ),
+                      method: :patch,
+                      class: "button button--quiet" %>
+      <% end %>
+    </li>
+  <% end %>
+</ul>
+
+<p><%= link_to t(".back"), operator_organizations_path(locale: I18n.locale) %></p>

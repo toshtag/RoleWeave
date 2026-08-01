@@ -78,6 +78,15 @@ ja:
       title: この招待は別のメールアドレス宛です
       body: "現在 %{email_address} でログインしています。招待されたメールアドレスでログインし直してください。"
       organizations: 所属する組織へ
+  operator:
+    organizations:
+      index:
+        title: すべての組織
+        owner_count: "管理者 %{count} 人"
+      show:
+        title: "%{organization} の運営"
+        grant_owner: 管理者にする
+        back: すべての組織へ
   organizations:
     index:
       title: 所属する組織

@@ -78,6 +78,15 @@ en:
       title: This invitation is for a different email address
       body: "You are signed in as %{email_address}. Sign in with the invited email address instead."
       organizations: Go to your organizations
+  operator:
+    organizations:
+      index:
+        title: All organizations
+        owner_count: "%{count} administrator(s)"
+      show:
+        title: "Operating %{organization}"
+        grant_owner: Make administrator
+        back: Back to all organizations
   organizations:
     index:
       title: Your organizations

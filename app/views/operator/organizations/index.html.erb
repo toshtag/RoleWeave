@@ -1,0 +1,16 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<h1><%= t(".title") %></h1>
+
+<%#
+  運営者はすべての組織を見られる。通常の一覧は所属する組織だけを出すため、
+  この経路は運営者専用として分けている。
+%>
+<ul>
+  <% @organizations.each do |organization| %>
+    <li>
+      <%= link_to organization.name, operator_organization_path(locale: I18n.locale, id: organization) %>
+      <%= t(".owner_count", count: organization.memberships.count { |membership| membership.owner? }) %>
+    </li>
+  <% end %>
+</ul>
