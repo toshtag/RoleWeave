@@ -21,6 +21,8 @@ class SharedPageContractTest < ActionDispatch::IntegrationTest
     "400.en.html" => :en,
     "404.html" => :ja,
     "404.en.html" => :en,
+    "406-unsupported-browser.html" => :ja,
+    "406-unsupported-browser.en.html" => :en,
     "422.html" => :ja,
     "422.en.html" => :en,
     "500.html" => :ja,
