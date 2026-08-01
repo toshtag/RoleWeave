@@ -239,6 +239,10 @@ bin/verify --full
 - [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
 - [ファイルの保存先](docs/development/file-storage.md) — 添付の保存先と自己ホストでの運用
 - [横断品質要件](docs/quality/cross-cutting-requirements.md) — 各機能フェーズで同時に満たす品質要件
+- [横断品質要件の検証状況](docs/quality/verification-status.md) — 満たしている点と満たしていない点
+- [脅威モデル](docs/security/threat-model.md) — 何から守り、何を受け入れているか
+- [セキュリティ報告手順](SECURITY.md) — 問題を見つけたときの連絡先
+- [バックアップと復元](docs/development/backup-and-restore.md) — データベースと添付を組で扱う
 
 ## 開発の進め方
 
