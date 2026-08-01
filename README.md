@@ -269,6 +269,11 @@ bin/verify --full
 ## ドキュメント
 
 - [プロジェクト概要](docs/project-overview.md) — 何を、誰のために作るか
+- [求職者として使う](docs/guides/candidate.md) — 登録から応募・退会まで
+- [企業の担当者として使う](docs/guides/organization.md) — 組織・求人・選考
+- [運営者として使う](docs/guides/operator.md) — サーバーを運用する人向け
+- [アーキテクチャの概要](docs/architecture/overview.md) — 何がどう組み合わさっているか
+- [開発に参加する](CONTRIBUTING.md) — 進め方と検証の要求
 - [プロジェクト原則](docs/project-principles.md) — 計画・実装上の判断を導く基本原則
 - [ロードマップ](docs/roadmap/index.yaml) — P0 から P15 までのフェーズ索引
 - [アーキテクチャ原則](docs/architecture/principles.md) — 構造に関する判断基準
