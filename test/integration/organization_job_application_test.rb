@@ -64,6 +64,24 @@ class OrganizationJobApplicationTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "自組織の求人の経路でも、他組織へ届いた応募は見られない" do
+    # 求人を絞っても、応募を ID から直接引くと他組織の応募に届いてしまう。
+    outsider = User.create!(email_address: "outsider@example.com", password: PASSWORD).tap(&:confirm)
+    other_organization = Organization.create_with_owner!(name: "別の会社", user: outsider)
+    other_job_posting = other_organization.job_postings.create!(
+      title: "別の会社の求人", description: "仕事の内容", status: "published"
+    )
+    others_application = @candidate_profile.job_applications.create!(job_posting: other_job_posting)
+    sign_in_as(@recruiter)
+
+    get organization_job_posting_application_path(
+      locale: :ja, organization_id: @organization,
+      job_posting_id: @job_posting, id: others_application
+    )
+
+    assert_response :not_found
+  end
+
   test "組織に所属しない利用者からは見られない" do
     sign_in_as(User.create!(email_address: "outsider@example.com", password: PASSWORD).tap(&:confirm))
 
