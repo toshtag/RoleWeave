@@ -13,6 +13,9 @@ class Organization < ApplicationRecord
   # 組織を消したら、その組織への招待も残さない。
   has_many :invitations, dependent: :destroy
 
+  # 組織を消したら、その組織の求人も残さない。
+  has_many :job_postings, dependent: :destroy
+
   # 履歴は組織を削除しても残す。参照は外部キー側で nullify する。
   has_many :membership_events, dependent: nil
 
