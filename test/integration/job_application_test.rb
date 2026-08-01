@@ -109,14 +109,16 @@ class JobApplicationRequestTest < ActionDispatch::IntegrationTest
 
   test "他人のプロフィールから応募する経路がない" do
     # 応募元は経路から受け取らず、常にログインしている本人のプロフィールとする。
-    other = User.create!(email_address: "other@example.com", password: PASSWORD).tap(&:confirm)
-    other_profile = other.create_candidate_profile!(display_name: "他人の名前")
-    sign_in_as(@candidate)
+    # 「最初のプロフィール」を使う実装になっていないことを、
+    # 後から作った側でログインして確かめる。
+    later = User.create!(email_address: "later@example.com", password: PASSWORD).tap(&:confirm)
+    later_profile = later.create_candidate_profile!(display_name: "後から登録した人")
+    sign_in_as(later)
 
     post public_job_posting_application_path(locale: :ja, public_job_posting_id: @job_posting)
 
-    assert_equal 0, other_profile.job_applications.count
-    assert_equal 1, @candidate_profile.job_applications.count
+    assert_equal 1, later_profile.job_applications.count
+    assert_equal 0, @candidate_profile.job_applications.count
   end
 
   test "応募の画面を日本語と英語で表示する" do
