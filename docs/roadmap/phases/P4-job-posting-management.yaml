@@ -3,7 +3,7 @@ name: Job Posting Management
 weight: 10
 confidence: medium
 risk: medium
-status: in_progress
+status: done
 depends_on:
   - P3
 objective: |-
