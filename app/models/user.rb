@@ -20,11 +20,6 @@ class User < ApplicationRecord
   # 実際に届くかどうかは確認メールが確かめるものであり、ここでは判定しない。
   EMAIL_ADDRESS_FORMAT = URI::MailTo::EMAIL_REGEXP
 
-  # 代入の時点で正規化する。
-  #
-  # 保存だけを正規化すると、find_by へ渡した値との比較が表記に依存する。
-  # normalizes は検索条件にも同じ変換を適用するため、
-  # 「登録できるが、そのままでは見つからない」状態が生まれない。
   # 確認リンクの有効期限。
   # 短すぎるとメールを見る前に切れ、長すぎると転送されたメールがいつまでも使える。
   EMAIL_CONFIRMATION_EXPIRES_IN = 24.hours
@@ -48,23 +43,21 @@ class User < ApplicationRecord
     email_address
   end
 
-  # パスワード再設定の token。
+  # 代入の時点で正規化する。
   #
-  # password_salt を含めることで、パスワードを変えた時点で発行済みのリンクを
-  # 使えなくする。使い切りの印をデータベースへ持たなくても、
-  # 「1 度使ったら無効」を満たせる。
-  generates_token_for :password_reset, expires_in: PASSWORD_RESET_EXPIRES_IN do
-    password_salt&.last(10)
-  end
-
+  # 保存だけを正規化すると、find_by へ渡した値との比較が表記に依存する。
+  # normalizes は検索条件にも同じ変換を適用するため、
+  # 「登録できるが、そのままでは見つからない」状態が生まれない。
   normalizes :email_address, with: ->(email_address) { email_address.strip.downcase }
 
   # パスワードは復元できない形で保存する。
   # 平文は password_digest へ入らず、代入した属性もインスタンスの外へ出さない。
   #
-  # 長さの検証は自前で持つ。既定の検証は 72 バイト超だけを見るため、
-  # 短いパスワードをそのまま受け入れてしまう。
-  has_secure_password validations: true
+  # 再設定の token（:password_reset）もここで定義される。
+  # 中身は password_salt を含むため、パスワードを変えた時点で発行済みのリンクが
+  # 使えなくなる。使い切りの印をデータベースへ持たなくても「1 度使ったら無効」を満たせる。
+  # 自前で generates_token_for :password_reset を書くと、同じ token の定義が 2 つになる。
+  has_secure_password validations: true, reset_token: { expires_in: PASSWORD_RESET_EXPIRES_IN }
 
   validates :email_address,
             presence: true,
