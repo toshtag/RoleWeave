@@ -223,6 +223,76 @@ class PublicJobPostingsTest < ActionDispatch::IntegrationTest
     end
   end
 
+  test "1 ページに件数分までしか出ない" do
+    Pagination::DEFAULT_PER_PAGE.times { |index| create_job_posting(status: "published", title: "追加 #{index}") }
+
+    get public_job_postings_path(locale: :ja)
+
+    assert_select "main ul.job-posting-list li", count: Pagination::DEFAULT_PER_PAGE
+  end
+
+  test "次のページに続きが出る" do
+    Pagination::DEFAULT_PER_PAGE.times { |index| create_job_posting(status: "published", title: "追加 #{index}") }
+
+    get public_job_postings_path(locale: :ja, page: 2)
+
+    assert_select "main ul.job-posting-list li", count: 1
+    assert_select "main a", text: @published.title
+  end
+
+  test "1 ページ目に前のページへの導線が出ない" do
+    Pagination::DEFAULT_PER_PAGE.times { |index| create_job_posting(status: "published", title: "追加 #{index}") }
+
+    get public_job_postings_path(locale: :ja)
+
+    assert_select "nav.pagination a", text: I18n.t("shared.pagination.next"), count: 1
+    assert_select "nav.pagination a", text: I18n.t("shared.pagination.previous"), count: 0
+  end
+
+  test "最後のページに次のページへの導線が出ない" do
+    Pagination::DEFAULT_PER_PAGE.times { |index| create_job_posting(status: "published", title: "追加 #{index}") }
+
+    get public_job_postings_path(locale: :ja, page: 2)
+
+    assert_select "nav.pagination a", text: I18n.t("shared.pagination.previous"), count: 1
+    assert_select "nav.pagination a", text: I18n.t("shared.pagination.next"), count: 0
+  end
+
+  test "範囲外のページ番号でも例外にならない" do
+    [ 0, -1, 999, "abc" ].each do |page|
+      get public_job_postings_path(locale: :ja, page: page)
+
+      assert_response :success, "page=#{page} で失敗した"
+    end
+  end
+
+  test "ページ送りで絞り込みの条件が保たれる" do
+    # 条件に一致する求人が 1 ページを超えないと、ページ送りが出ない。
+    (Pagination::DEFAULT_PER_PAGE + 1).times { |index| create_job_posting(status: "published", title: "追加 #{index}") }
+
+    get public_job_postings_path(locale: :ja, keyword: "追加")
+
+    href = css_select("nav.pagination a").first["href"]
+
+    assert_includes CGI.unescape(href), "keyword=追加"
+  end
+
+  test "条件を持たない 2 ページ目の canonical がそのページ自身になる" do
+    # 2 ページ目を 1 ページ目の複製として扱うと、そこにしかない求人が索引されない。
+    Pagination::DEFAULT_PER_PAGE.times { |index| create_job_posting(status: "published", title: "追加 #{index}") }
+
+    get public_job_postings_path(locale: :ja, page: 2)
+
+    assert_select "head link[rel=?][href=?]", "canonical",
+      public_job_postings_url(locale: :ja, page: 2), count: 1
+  end
+
+  test "条件を持つ一覧の canonical はページも条件も持たない" do
+    get public_job_postings_path(locale: :ja, keyword: "採用", page: 2)
+
+    assert_select "head link[rel=?][href=?]", "canonical", public_job_postings_url(locale: :ja), count: 1
+  end
+
   private
     def create_job_posting(status:, title:)
       @organization.job_postings.create!(status: status, title: title, description: "内容")
