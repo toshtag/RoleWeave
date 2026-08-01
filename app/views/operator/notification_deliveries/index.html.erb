@@ -1,0 +1,33 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+
+<%# 運営の画面は検索へ出さない。 %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<p><%= t(".body") %></p>
+
+<% if @notifications.any? %>
+  <ul>
+    <% @notifications.each do |notification| %>
+      <li>
+        <%= l(notification.created_at, format: :long) %>
+        <%= notification.user.email_address %>
+        <%= t("notifications.index.kinds.#{notification.kind}") %>
+        <%= t(".attempts", count: notification.email_attempts) %>
+        <%#
+          失敗の内容は運営者にだけ見せる。原因を追うために要る。
+        %>
+        <code><%= notification.email_error %></code>
+        <%= button_to t(".resend"),
+                      operator_notification_delivery_path(locale: I18n.locale, id: notification),
+                      method: :patch,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
+
+<p><%= link_to t(".organizations"), operator_organizations_path(locale: I18n.locale) %></p>

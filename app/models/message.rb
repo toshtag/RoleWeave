@@ -35,9 +35,13 @@ class Message < ApplicationRecord
           message: self, kind: "message_received"
         )
 
-        next unless recipient.email_notifications?
+        # 設定で送らない場合も、状態として残す。失敗と区別する。
+        unless recipient.email_notifications?
+          notification.update_column(:email_status, "skipped")
+          next
+        end
 
-        NotificationMailer.message_received(notification, locale: I18n.locale).deliver_later
+        NotificationEmailJob.perform_later(notification, locale: I18n.locale)
       end
     end
 

@@ -183,9 +183,12 @@ end
     user: candidate, job_application: self, kind: "stage_changed"
       )
 
-      return unless candidate.email_notifications?
+      unless candidate.email_notifications?
+        notification.update_column(:email_status, "skipped")
+        return
+      end
 
-      NotificationMailer.stage_changed(notification, locale: I18n.locale).deliver_later
+      NotificationEmailJob.perform_later(notification, locale: I18n.locale)
     end
 
     # 宛先は組織の管理者とする。一般の所属者へは送らない。
