@@ -29,6 +29,11 @@ class User < ApplicationRecord
   # 短すぎるとメールを見る前に切れ、長すぎると転送されたメールがいつまでも使える。
   EMAIL_CONFIRMATION_EXPIRES_IN = 24.hours
 
+  # 再設定リンクの有効期限。
+  # 確認リンクより短くする。パスワードを知らない相手がアカウントへ入る
+  # 唯一の正規の入口であり、リンクが有効な時間はそのまま危険な時間になる。
+  PASSWORD_RESET_EXPIRES_IN = 30.minutes
+
   # アカウントを削除したら、そのアカウントのログイン状態も残さない。
   has_many :sessions, dependent: :destroy
 
@@ -41,6 +46,15 @@ class User < ApplicationRecord
   # 発行済みのリンクを使えなくする。
   generates_token_for :email_confirmation, expires_in: EMAIL_CONFIRMATION_EXPIRES_IN do
     email_address
+  end
+
+  # パスワード再設定の token。
+  #
+  # password_salt を含めることで、パスワードを変えた時点で発行済みのリンクを
+  # 使えなくする。使い切りの印をデータベースへ持たなくても、
+  # 「1 度使ったら無効」を満たせる。
+  generates_token_for :password_reset, expires_in: PASSWORD_RESET_EXPIRES_IN do
+    password_salt&.last(10)
   end
 
   normalizes :email_address, with: ->(email_address) { email_address.strip.downcase }
