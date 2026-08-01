@@ -9,6 +9,9 @@ class CandidateProfile < ApplicationRecord
 
   belongs_to :user
 
+  # プロフィールを消したら、その職歴も残さない。
+  has_many :work_experiences, dependent: :destroy
+
   # 所属先のアカウントは、作成した後で変えられないようにする。
   # 変えられると、他人のプロフィールを自分のものにできる。
   attr_readonly :user_id

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_155858) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_01_161325) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -136,6 +136,19 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_155858) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  create_table "work_experiences", force: :cascade do |t|
+    t.bigint "candidate_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.text "description"
+    t.date "ended_on"
+    t.string "organization_name", null: false
+    t.string "position", null: false
+    t.date "started_on", null: false
+    t.datetime "updated_at", null: false
+    t.index ["candidate_profile_id", "started_on"], name: "index_work_experiences_on_candidate_profile_id_and_started_on"
+    t.index ["candidate_profile_id"], name: "index_work_experiences_on_candidate_profile_id"
+  end
+
   add_foreign_key "authentication_events", "users", on_delete: :nullify
   add_foreign_key "candidate_profiles", "users"
   add_foreign_key "invitations", "organizations"
@@ -150,4 +163,5 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_155858) do
   add_foreign_key "memberships", "organizations"
   add_foreign_key "memberships", "users"
   add_foreign_key "sessions", "users"
+  add_foreign_key "work_experiences", "candidate_profiles"
 end
