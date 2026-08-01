@@ -216,7 +216,11 @@ body {
   font-weight: 700;
 }
 
-.form input {
+/*
+ * 入力欄。selector を項目の中へ限定する。
+ * .form input と書くと送信ボタンにも当たり、要素を含むぶん .button より優先される。
+ */
+.form__field input {
   width: 100%;
   padding: 0.5rem;
   border: 0.0625rem solid var(--color-border);
@@ -230,6 +234,8 @@ body {
  * 色だけで押せることを示さず、枠と余白を持たせる。
  */
 .button {
+  /* 内容の幅で置く。縦に積んだ項目へ合わせて伸ばすと、押す場所が広すぎる。 */
+  align-self: flex-start;
   padding: 0.5rem 1rem;
   border: 0.0625rem solid var(--color-border);
   border-radius: var(--control-radius);
