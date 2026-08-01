@@ -96,6 +96,13 @@ ja:
         title: "%{organization} の運営"
         grant_owner: 管理者にする
         back: すべての組織へ
+  public:
+    job_postings:
+      index:
+        title: 求人を探す
+        empty: 現在、公開中の求人はありません。
+      show:
+        back: 求人の一覧へ
   organizations:
     index:
       title: 所属する組織
@@ -190,6 +197,7 @@ ja:
   home:
     show:
       summary: 自己ホスト可能な採用プラットフォームの基盤を開発しています。
+      find_jobs: 求人を探す
   user_mailer:
     email_confirmation:
       subject: メールアドレスの確認

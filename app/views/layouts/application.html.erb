@@ -6,6 +6,11 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="application-name" content="<%= t("application.name") %>">
     <meta name="mobile-web-app-capable" content="yes">
+    <%# 同じ内容へ複数の URL から到達できる画面は、正となる URL を示す。 %>
+    <% if content_for?(:canonical) %>
+      <link rel="canonical" href="<%= yield :canonical %>">
+    <% end %>
+
     <%# 検索結果へ載せたくない画面は、robots を宣言する。 %>
     <% if content_for?(:robots) %>
       <meta name="robots" content="<%= yield :robots %>">

@@ -1,2 +1,4 @@
 <h1><%= t("application.name") %></h1>
 <p><%= t(".summary") %></p>
+
+<p><%= link_to t(".find_jobs"), public_job_postings_path(locale: I18n.locale) %></p>

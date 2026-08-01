@@ -52,6 +52,8 @@ class JobPosting < ApplicationRecord
   attr_accessor :changed_by
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
+  # 公開側へ出せるのは公開中の求人だけとする。
+  scope :published, -> { where(status: "published") }
 
   def draft?
     status == "draft"

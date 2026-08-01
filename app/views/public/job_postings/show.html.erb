@@ -1,0 +1,10 @@
+<% content_for :title, "#{@job_posting.title} | #{t("application.name")}" %>
+<%#
+  canonical はこの画面自身の URL とする。
+  同じ内容へ複数の URL から到達できる場合に、正となる 1 つを示す。
+%>
+<% content_for :canonical, public_job_posting_url(locale: I18n.locale, id: @job_posting) %>
+
+<%= render "job_postings/public", job_posting: @job_posting %>
+
+<p><%= link_to t(".back"), public_job_postings_path(locale: I18n.locale) %></p>
