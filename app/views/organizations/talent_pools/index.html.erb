@@ -26,7 +26,7 @@
         <%= link_to talent_pool.name,
                     organization_talent_pool_path(locale: I18n.locale,
                                                   organization_id: @organization, id: talent_pool) %>
-        <%= t(".members", count: talent_pool.talent_pool_members.size) %>
+        <%= t(".members", count: talent_pool.searchable_members.size) %>
         <%= button_to t(".destroy"),
                       organization_talent_pool_path(locale: I18n.locale,
                                                     organization_id: @organization, id: talent_pool),

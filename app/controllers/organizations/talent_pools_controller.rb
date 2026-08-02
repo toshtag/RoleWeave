@@ -9,13 +9,13 @@ class Organizations::TalentPoolsController < ApplicationController
   before_action :set_organization
 
   def index
-    @talent_pools = @organization.talent_pools.includes(:talent_pool_members).recent
+    @talent_pools = @organization.talent_pools.includes(:searchable_members).recent
     @talent_pool = @organization.talent_pools.build
   end
 
   def show
     @talent_pool = @organization.talent_pools.find(params[:id])
-    @members = @talent_pool.talent_pool_members.includes(:candidate_profile, :added_by).recent
+    @members = @talent_pool.searchable_members.includes(:candidate_profile, :added_by).recent
   end
 
   def create
