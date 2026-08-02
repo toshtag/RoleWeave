@@ -6,6 +6,11 @@ gem "rails", "~> 8.1.3"
 # Active Model のエラー文言、日付、時刻、数値形式を自前で複製すると、
 # Rails の更新へ追随できず、翻訳の網羅性と一貫性も維持できない。
 gem "rails-i18n", "~> 8.1.0"
+# CSV の読み書き [https://github.com/ruby/csv]
+# Ruby 3.4 以降、csv は default gem から bundled gem へ移った。
+# Ruby 本体と同じ配布物であり、第三者の依存ではないが、明示しないと読み込めない。
+# 引用符・改行・エスケープの規則を自前で実装すると、誤りが静かにデータを壊す。
+gem "csv", "~> 3.3"
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
 # Use postgresql as the database for Active Record
