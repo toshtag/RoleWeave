@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_01_233703) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_002155) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -418,6 +418,32 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_233703) do
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
   end
 
+  create_table "webhook_deliveries", force: :cascade do |t|
+    t.integer "attempts", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.datetime "delivered_at"
+    t.text "error"
+    t.string "event_kind", null: false
+    t.integer "response_code"
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "webhook_id", null: false
+    t.index ["webhook_id", "created_at"], name: "index_webhook_deliveries_on_webhook_id_and_created_at"
+    t.index ["webhook_id"], name: "index_webhook_deliveries_on_webhook_id"
+  end
+
+  create_table "webhooks", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.boolean "enabled", default: true, null: false
+    t.string "event_kinds", default: [], null: false, array: true
+    t.bigint "organization_id", null: false
+    t.string "secret", null: false
+    t.datetime "updated_at", null: false
+    t.string "url", null: false
+    t.index ["organization_id", "url"], name: "index_webhooks_on_organization_id_and_url", unique: true
+    t.index ["organization_id"], name: "index_webhooks_on_organization_id"
+  end
+
   create_table "work_experiences", force: :cascade do |t|
     t.bigint "candidate_profile_id", null: false
     t.datetime "created_at", null: false
@@ -487,5 +513,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_01_233703) do
   add_foreign_key "talent_pool_members", "talent_pools"
   add_foreign_key "talent_pool_members", "users", column: "added_by_id", on_delete: :nullify
   add_foreign_key "talent_pools", "organizations"
+  add_foreign_key "webhook_deliveries", "webhooks"
+  add_foreign_key "webhooks", "organizations"
   add_foreign_key "work_experiences", "candidate_profiles"
 end

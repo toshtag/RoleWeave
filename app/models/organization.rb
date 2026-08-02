@@ -33,6 +33,9 @@ class Organization < ApplicationRecord
   has_many :scout_templates, dependent: :destroy
   has_many :scout_blocks, dependent: :destroy
 
+  # 外部への配信先。組織を消したら残さない。
+  has_many :webhooks, dependent: :destroy
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 
