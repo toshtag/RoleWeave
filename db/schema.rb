@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_131500) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -25,6 +25,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
     t.string "subject_type", null: false
     t.datetime "updated_at", null: false
     t.index ["actor_id"], name: "index_access_events_on_actor_id"
+    t.index ["created_at"], name: "index_access_events_on_created_at"
     t.index ["organization_id", "created_at"], name: "index_access_events_on_organization_id_and_created_at"
     t.index ["organization_id"], name: "index_access_events_on_organization_id"
     t.index ["subject_type", "subject_id"], name: "index_access_events_on_subject_type_and_subject_id"
@@ -78,6 +79,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
     t.datetime "updated_at", null: false
     t.string "user_agent"
     t.bigint "user_id"
+    t.index ["created_at"], name: "index_authentication_events_on_created_at"
     t.index ["email_address", "created_at"], name: "index_authentication_events_on_email_address_and_created_at"
     t.index ["user_id", "created_at"], name: "index_authentication_events_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_authentication_events_on_user_id"
@@ -313,6 +315,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
     t.bigint "scout_id"
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["created_at"], name: "index_notifications_on_created_at"
     t.index ["email_status"], name: "index_notifications_on_email_status"
     t.index ["job_application_id"], name: "index_notifications_on_job_application_id"
     t.index ["message_id"], name: "index_notifications_on_message_id"
@@ -320,6 +323,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
     t.index ["scout_id"], name: "index_notifications_on_scout_id"
     t.index ["user_id", "created_at"], name: "index_notifications_on_user_id_and_created_at"
     t.index ["user_id"], name: "index_notifications_on_user_id"
+    t.index ["user_id"], name: "index_notifications_on_user_id_unread", where: "(read_at IS NULL)"
   end
 
   create_table "organizations", force: :cascade do |t|
@@ -391,6 +395,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
     t.datetime "last_active_at", null: false
     t.datetime "updated_at", null: false
     t.bigint "user_id", null: false
+    t.index ["created_at"], name: "index_sessions_on_created_at"
     t.index ["user_id"], name: "index_sessions_on_user_id"
   end
 
