@@ -119,6 +119,12 @@ class QueryCountTest < ActionDispatch::IntegrationTest
     assert_operator count_queries { User.count }, :>=, 1
   end
 
+  test "行を数える補助が実際に数えている" do
+    # 同じ理由による。0 を返し続ける補助は、何も守らない。
+    assert_equal 2, count_loaded(User) { User.limit(2).to_a }
+    assert_equal 0, count_loaded(User) { Organization.count }
+  end
+
   private
     # あるモデルが読み込んだ行の数。
     #
