@@ -57,10 +57,11 @@ class JobPostingCsv
 
   private
     # 1 行を取り込む。失敗しても例外を投げず、理由を返す。
+    # 行番号はファイルの行に合わせる（見出しの分だけずらす）。直す人が探せるようにする。
     def import_row(row, index)
       external_key = row["external_key"].to_s.strip
 
-      return "#{index + 1} 行目: external_key がない" if external_key.blank?
+      return "#{index + 2} 行目: external_key がない" if external_key.blank?
 
       job_posting = @organization.job_postings.find_by(external_key: external_key)
       creating = job_posting.nil?
@@ -72,9 +73,9 @@ class JobPostingCsv
 
       return creating ? :created : :updated if job_posting.save
 
-      "#{index + 1} 行目: #{job_posting.errors.full_messages.to_sentence}"
+      "#{index + 2} 行目: #{job_posting.errors.full_messages.to_sentence}"
     rescue StandardError => error
-      "#{index + 1} 行目: #{error.class}"
+      "#{index + 2} 行目: #{error.class}"
     end
 
     def attributes_from(row)
