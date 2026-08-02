@@ -16,7 +16,8 @@ class Organizations::JobApplicationsController < ApplicationController
     @job_applications = @job_posting.job_applications.recent
 
     # 応募そのものが消えても、記録は残る。両方を出す。
-    @job_application_events = @job_posting.job_application_events.recent.limit(50)
+    # 変更者は画面に出す。preload しないと、記録の数だけ問い合わせが増える。
+    @job_application_events = @job_posting.job_application_events.includes(:changed_by).recent.limit(50)
   end
 
   def show
