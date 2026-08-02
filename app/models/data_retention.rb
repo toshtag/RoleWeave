@@ -47,6 +47,8 @@ class DataRetention
     "desired_conditions" => "プロフィールに従属する",
     "saved_job_postings" => "求職者が自分で保存したもの。プロフィールの削除で消える",
     "saved_searches" => "求職者が自分で保存したもの。プロフィールの削除で消える",
+    "webhooks" => "組織が登録した配信先。組織の削除で消える",
+    "webhook_deliveries" => "配信の結果。配信先の削除で消える",
     "scouts" => "送った記録。組織またはプロフィールの削除で消える",
     "scout_templates" => "企業の下書き。組織の削除で消える",
     "scout_blocks" => "候補者が止めた記録。止めたままにする",

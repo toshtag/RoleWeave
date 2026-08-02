@@ -80,6 +80,11 @@ class JobApplication < ApplicationRecord
   # 送るのは外（SMTP）であり、こちらの都合では成功を保証できない。
   after_commit :notify_organization, on: :create
 
+  # 外部への配信。失敗しても業務処理は巻き戻さない。
+  # 詳細は docs/decisions/0057-webhooks.md を参照する。
+  after_commit :deliver_webhooks_for_creation, on: :create
+  after_commit :deliver_webhooks_for_stage_change, if: :saved_change_to_stage?
+
   scope :recent, -> { order(created_at: :desc, id: :desc) }
   scope :submitted, -> { where(status: "submitted") }
   # 期限を過ぎた応募。放置に気付けるようにする。
@@ -189,6 +194,32 @@ end
       end
 
       NotificationEmailJob.perform_later(notification, locale: I18n.locale)
+    end
+
+    def deliver_webhooks_for_creation
+      deliver_webhooks("job_application_created")
+    end
+
+    def deliver_webhooks_for_stage_change
+      deliver_webhooks("job_application_stage_changed", extra: { stage: stage })
+    end
+
+    # 送るのは識別子と種類だけとする。氏名も本文も送らない。
+    # 送り先はこちらの管理下になく、公開範囲（ADR 0030）が効かない。
+    def deliver_webhooks(event_kind, extra: {})
+      organization = job_posting.organization
+
+      Webhook.for_event(organization, event_kind).each do |webhook|
+    delivery = webhook.webhook_deliveries.create!(event_kind: event_kind)
+
+    WebhookDeliveryJob.perform_later(delivery, {
+      event: event_kind,
+      occurred_at: Time.current,
+      organization_id: organization.id,
+      job_posting_id: job_posting_id,
+      job_application_id: id
+    }.merge(extra))
+      end
     end
 
     # 宛先は組織の管理者とする。一般の所属者へは送らない。

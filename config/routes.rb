@@ -54,6 +54,9 @@ Rails.application.routes.draw do
       resources :candidate_searches, only: :index, module: :organizations
       # スカウトとテンプレート。
       # 詳細は docs/decisions/0056-scouting.md を参照する。
+      # 外部への配信先。管理者だけが扱う。
+      # 詳細は docs/decisions/0057-webhooks.md を参照する。
+      resources :webhooks, only: %i[index create destroy], module: :organizations
       resources :scouts, only: %i[index new create], module: :organizations
       resources :scout_templates, only: %i[index create destroy], module: :organizations
       resources :talent_pools, only: %i[index show create destroy], module: :organizations do
