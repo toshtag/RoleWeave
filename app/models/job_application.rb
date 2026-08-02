@@ -196,20 +196,20 @@ end
       NotificationEmailJob.perform_later(notification, locale: I18n.locale)
     end
 
-def deliver_webhooks_for_creation
-  deliver_webhooks("job_application_created")
-end
+    def deliver_webhooks_for_creation
+      deliver_webhooks("job_application_created")
+    end
 
-def deliver_webhooks_for_stage_change
-  deliver_webhooks("job_application_stage_changed", extra: { stage: stage })
-end
+    def deliver_webhooks_for_stage_change
+      deliver_webhooks("job_application_stage_changed", extra: { stage: stage })
+    end
 
-# 送るのは識別子と種類だけとする。氏名も本文も送らない。
-# 送り先はこちらの管理下になく、公開範囲（ADR 0030）が効かない。
-def deliver_webhooks(event_kind, extra: {})
-  organization = job_posting.organization
+    # 送るのは識別子と種類だけとする。氏名も本文も送らない。
+    # 送り先はこちらの管理下になく、公開範囲（ADR 0030）が効かない。
+    def deliver_webhooks(event_kind, extra: {})
+      organization = job_posting.organization
 
-  Webhook.for_event(organization, event_kind).each do |webhook|
+      Webhook.for_event(organization, event_kind).each do |webhook|
     delivery = webhook.webhook_deliveries.create!(event_kind: event_kind)
 
     WebhookDeliveryJob.perform_later(delivery, {
@@ -219,8 +219,8 @@ def deliver_webhooks(event_kind, extra: {})
       job_posting_id: job_posting_id,
       job_application_id: id
     }.merge(extra))
-  end
-end
+      end
+    end
 
     # 宛先は組織の管理者とする。一般の所属者へは送らない。
     def notify_organization
