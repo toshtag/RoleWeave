@@ -235,6 +235,7 @@ described above. Setup and usage documentation will be provided in both language
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
 - [Coding style](docs/development/coding-style.md) — language, comment, and structure rules referenced while implementing
 - [Development workflow](docs/development/workflow.md) — responsibilities of the roadmap, issues, PRs, and ADRs
+- [Reverse proxy assumptions](docs/development/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
 - [Cross-cutting quality requirements](docs/quality/cross-cutting-requirements.md) — quality requirements met within each feature phase
 
 ## How development proceeds
