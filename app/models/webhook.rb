@@ -15,7 +15,7 @@ class Webhook < ApplicationRecord
 
   validates :url, presence: true, uniqueness: { scope: :organization_id }
   validates :secret, presence: true
-  validate :url_is_http
+  validate :url_is_acceptable
   validate :event_kinds_are_known
 
   scope :enabled, -> { where(enabled: true) }
@@ -38,16 +38,15 @@ class Webhook < ApplicationRecord
       self.secret = SecureRandom.hex(32) if secret.blank?
     end
 
-    # http/https に限る。file: や内部の別の仕組みを叩かせない。
-    def url_is_http
+    # 送り先として受け入れる形かどうか。判定は WebhookDestination が持つ。
+    # ここへ条件を書き足すと、登録の画面と配信のジョブで判定が分かれる。
+    def url_is_acceptable
       return if url.blank?
 
-      scheme = URI.parse(url).scheme
-      return if %w[http https].include?(scheme)
+      rejection = WebhookDestination.new(url).rejection
+      return if rejection.nil?
 
-      errors.add(:url, :invalid_scheme)
-    rescue URI::InvalidURIError
-      errors.add(:url, :invalid_scheme)
+      errors.add(:url, rejection)
     end
 
     def event_kinds_are_known

@@ -58,6 +58,18 @@ class WebhookTest < ActionDispatch::IntegrationTest
     assert_predicate @organization.webhooks.build(url: "https://example.invalid/hook"), :valid?
   end
 
+  test "内部のアドレスを登録できない" do
+    # 判定は WebhookDestination が持つ。ここでは経路が判定を通ることだけを見る。
+    sign_in_as(@owner)
+
+    post webhooks_path, params: { webhook: { url: "http://169.254.169.254/latest/",
+                                             event_kinds: [ "job_application_created" ] } }
+
+    assert_equal 0, Webhook.count
+    assert_match(/#{I18n.t("activerecord.errors.models.webhook.attributes.url.internal_address")}/,
+                 flash[:alert])
+  end
+
   test "知らない種類を拒否する" do
     assert_not @organization.webhooks.build(url: "https://example.invalid/hook",
                                             event_kinds: [ "unknown" ]).valid?
@@ -130,11 +142,11 @@ class WebhookTest < ActionDispatch::IntegrationTest
     hook = webhook
     delivery = hook.webhook_deliveries.create!(event_kind: "job_application_created")
 
-    delivery.record_failure!(IOError.new("届かない"))
+    delivery.record_failure!("connection_failed")
 
     assert_equal "failed", delivery.reload.status
     assert_equal 1, delivery.attempts
-    assert_match(/IOError/, delivery.error)
+    assert_equal "connection_failed", delivery.error
 
     delivery.record_delivered!(200)
 

@@ -5,6 +5,14 @@
 class WebhookDelivery < ApplicationRecord
   STATUSES = %w[pending delivered failed].freeze
 
+  # 失敗の種別。`error` の列はこの値だけを持つ。
+  #
+  # 例外のメッセージをそのまま残さない。残すと、接続を拒まれたのか、
+  # 名前が引けないのか、応答が返ったのかの違いが画面に出る。
+  # その違いは、内部のどこに何が居るかを教える（ADR 0060）。
+  FAILURE_REASONS = %w[blocked_destination internal_address unresolvable
+                       invalid_scheme timeout connection_failed http_error].freeze
+
   belongs_to :webhook
 
   validates :event_kind, inclusion: { in: Webhook::EVENT_KINDS }
@@ -18,9 +26,12 @@ class WebhookDelivery < ApplicationRecord
                    delivered_at: Time.current, error: nil, attempts: attempts + 1)
   end
 
-  def record_failure!(error, response_code: nil)
+  # 失敗を種別として残す。知らない値は、種別を足し忘れた場合に備えて丸める。
+  def record_failure!(reason, response_code: nil)
+    reason = reason.to_s
+    reason = "connection_failed" unless FAILURE_REASONS.include?(reason)
+
     update_columns(status: "failed", response_code: response_code,
-                   attempts: attempts + 1,
-                   error: error.is_a?(String) ? error : "#{error.class}: #{error.message}")
+                   attempts: attempts + 1, error: reason)
   end
 end

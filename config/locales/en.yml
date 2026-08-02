@@ -135,6 +135,7 @@ en:
           attributes:
             url:
               invalid_scheme: must start with http or https
+              internal_address: cannot point at an internal address
             event_kinds:
               unknown: contains an unknown event type
         candidate_profile:
@@ -504,6 +505,14 @@ en:
           pending: Sending
           delivered: Delivered
           failed: Failed
+        failures:
+          blocked_destination: The destination is not allowed
+          internal_address: The destination points at an internal address
+          unresolvable: The destination name cannot be resolved
+          invalid_scheme: The destination URL is not valid
+          timeout: No response
+          connection_failed: Cannot connect
+          http_error: The destination returned an error
         no_delivery: Nothing delivered yet
         empty: No webhooks registered yet.
       create:
