@@ -73,6 +73,16 @@ class DataRetention
     "active_storage_variant_records" => "変換した画像を作っていない"
   }.freeze
 
+  # 1 回の文で扱う行の数。
+  #
+  # 期限を過ぎた分を 1 つの DELETE で消すと、初回や長く回していなかった場合に
+  # 数百万行が 1 文になる。その間トランザクションが開いたままになり、
+  # WAL が一度に増え、autovacuum が追いつくまで場所が空かない。
+  #
+  # **この値に強い根拠はない。**数千行なら 1 文が短く終わる、という程度である。
+  # 実際に回した結果に応じて見直す（ADR 0049 のしきい値と同じ扱い）。
+  BATCH_SIZE = 5_000
+
   def initialize(now: Time.current)
     @now = now
   end
@@ -86,7 +96,7 @@ class DataRetention
   def apply
     POLICIES.to_h do |table, policy|
       count = case policy.fetch(:strategy)
-      when :delete then expired(policy).delete_all
+      when :delete then delete_in_batches(expired(policy))
       when :anonymize then anonymize(table, expired(policy))
       else raise ArgumentError, "未知の扱い: #{policy.fetch(:strategy)}"
       end
@@ -100,11 +110,40 @@ class DataRetention
       policy.fetch(:model).call.where(created_at: ...(@now - policy.fetch(:period)))
     end
 
+    # 分けて消す。返すのは合計の件数とする。
+    #
+    # 対象は主キーで絞ってから消す。scope へ limit を付けたまま delete_all は使えない
+    # （PostgreSQL の DELETE は LIMIT を取らない）。
+    def delete_in_batches(scope)
+      total = 0
+
+      loop do
+        ids = scope.limit(BATCH_SIZE).pluck(:id)
+        break if ids.empty?
+
+        total += scope.model.where(id: ids).delete_all
+      end
+
+      total
+    end
+
     # 行は残し、個人を特定できる値だけを置き換える。
     def anonymize(table, scope)
       raise ArgumentError, "匿名化の方法が決まっていない: #{table}" unless table == "authentication_events"
 
-      scope.where.not(email_address: AccountDeletion::ANONYMIZED_EMAIL_ADDRESS)
-           .update_all(email_address: AccountDeletion::ANONYMIZED_EMAIL_ADDRESS, user_id: nil)
+      # すでに匿名化済みの行は対象から外す。
+      # 外さないと、同じ行を毎回書き換え、繰り返しが終わらない。
+      remaining = scope.where.not(email_address: AccountDeletion::ANONYMIZED_EMAIL_ADDRESS)
+      total = 0
+
+      loop do
+        ids = remaining.limit(BATCH_SIZE).pluck(:id)
+        break if ids.empty?
+
+        total += remaining.model.where(id: ids)
+                          .update_all(email_address: AccountDeletion::ANONYMIZED_EMAIL_ADDRESS, user_id: nil)
+      end
+
+      total
     end
 end
