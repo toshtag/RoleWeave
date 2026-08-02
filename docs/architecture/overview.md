@@ -3,7 +3,7 @@
 この文書は日本語版を正本とする。
 
 判断の基準は [`principles.md`](principles.md)、
-個別の判断は [`../decisions/`](../decisions/) にある（52 件）。
+個別の判断は [`../decisions/`](../decisions/) にある（63 件）。
 ここでは「何がどう組み合わさっているか」だけを書く。
 
 ## 構成
@@ -22,8 +22,14 @@ Rails 8.1（Puma）
 PostgreSQL 18
 ```
 
-外部のサービスに依存しない。SMTP だけが外へ出る。
-自己ホストできることを前提に選んでいる。
+外部のサービスに依存しない。自己ホストできることを前提に選んでいる。
+
+外へ出る通信は 2 つだけである。
+
+- SMTP（メールの送信）
+- Webhook の配信。**送り先は利用者が登録する。**
+  こちらは送る仕組みだけを持ち、特定のサービスへは依存しない。
+  内部の宛先へ向けられないよう、宛先の判定を 1 か所に置いている（ADR 0060）
 
 ## 経路の分け方
 
@@ -48,11 +54,18 @@ URL は必ず `/:locale` から始まる（[ADR 0001](../decisions/0001-locale-p
 User ─┬─ CandidateProfile ─┬─ WorkExperience / Education / Skill
       │                     ├─ DesiredCondition
       │                     ├─ 添付（resume / curriculum_vitae）
+      │                     ├─ SavedJobPosting / SavedSearch
+      │                     ├─ Scout（受け取ったもの）/ ScoutBlock（組織ごとの配信停止）
+      │                     ├─ TalentPoolMember
       │                     └─ JobApplication ─┬─ Conversation ─ Message ─ MessageRead
       │                                        ├─ ApplicationReview
       │                                        ├─ InterviewSchedule
       │                                        └─ JobApplicationEvent（応募が消えても残る）
-      ├─ Membership ─ Organization ─ JobPosting
+      ├─ Membership ─ Organization ─┬─ JobPosting
+      │                             ├─ TalentPool ─ TalentPoolMember
+      │                             ├─ Scout / ScoutTemplate / ScoutBlock
+      │                             ├─ Webhook ─ WebhookDelivery
+      │                             └─ IntegrationRun（CSV の実行結果）
       ├─ Session / AuthenticationEvent
       └─ Notification
 ```
@@ -70,6 +83,8 @@ User ─┬─ CandidateProfile ─┬─ WorkExperience / Education / Skill
 | 選考を進められるか | `JobApplication#can_move_to?` |
 | どれだけ残すか | `DataRetention::POLICIES` |
 | 何をエクスポートするか | `ProfileExport::EXPORTED_COLUMNS` |
+| 探せる候補者か | `CandidateProfile.searchable` |
+| Webhook を送ってよい宛先か | `WebhookDestination` |
 
 ### 記録は消えても残す
 
@@ -94,6 +109,8 @@ User ─┬─ CandidateProfile ─┬─ WorkExperience / Education / Skill
 | 保持期限 | [ADR 0046](../decisions/0046-data-retention.md) |
 | 監査ログ | [ADR 0047](../decisions/0047-access-audit-log.md) |
 | 構造化ログ | [ADR 0048](../decisions/0048-structured-logging.md) |
+| 前段の proxy の前提 | [ADR 0062](../decisions/0062-reverse-proxy-assumptions.md) |
+| 受け取る入力の大きさの上限 | [ADR 0063](../decisions/0063-request-size-limits.md) |
 
 ## 判断を追う
 
@@ -114,13 +131,22 @@ ADR は番号順に積み上がっている。全部を読む必要はない。
 | 連絡と通知 | 0041〜0043 |
 | 安全と運用 | 0044〜0047 |
 | 性能と観測 | 0048〜0050 |
+| デモと版の付け方 | 0051、0053 |
+| 保存と候補者の発掘 | 0054、0055 |
+| スカウト | 0056 |
+| 外部連携（Webhook・CSV） | 0057、0058、0060、0061 |
+| v1 以降の判断の進め方 | 0059 |
+| 前段の proxy と入力の大きさ | 0062、0063 |
 
 ## 意図的に持たないもの
 
 | 持たないもの | 理由 |
 | --- | --- |
 | 生年月日・性別・顔写真 | 採用の判断に使ってはならない（ADR 0026） |
-| 候補者の検索・一覧 | 「見せる」と「探される」は同じ同意ではない（ADR 0030） |
-| 応募を経由しない連絡 | 探されない設計と食い違う（ADR 0041） |
+| 許可のない候補者の検索・一覧 | 「見せる」と「探される」は同じ同意ではない。**許可した候補者だけを対象にする**（ADR 0030、ADR 0055） |
+| 応募を経由しない双方向のやり取り | スカウトは 1 組織から 1 通だけで、返信の経路を持たない。続きは応募の会話で行う（ADR 0041、ADR 0056） |
+| 候補者・応募者の CSV | 一括で持ち出せる形にしない（ADR 0058） |
+| Webhook への個人情報 | 送った先には公開範囲も保持期限も効かない（ADR 0057） |
+| 個別サービス向けの連携実装 | 商用 SDK へ直接依存しない（P14 の非目標） |
 | 外部のスクリプト・CDN | CSP を `self` から始められる（ADR 0045） |
 | 商用の監視サービス | 自己ホストの前提と合わない（ADR 0048） |
