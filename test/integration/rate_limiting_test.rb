@@ -57,6 +57,56 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     assert_response :too_many_requests
   end
 
+  test "未認証の要求はメッセージの枠を消費しない" do
+    # 枠を数えるのは、認証・メールの確認・応募の解決・参加者の判定を
+    # 通った要求だけとする。
+    # 通らない要求で減らせると、同じ IP の正規の参加者を止められる。
+    conversation = prepare_conversation
+
+    exceed(ApplicationController::MESSAGE_ATTEMPT_LIMIT) { |index| send_message(conversation, index) }
+
+    assert_redirected_to new_session_path(locale: :ja)
+    assert_equal 0, Message.count
+
+    sign_in_as(@user)
+
+    assert_difference -> { Message.count }, 1 do
+      send_message(conversation, 9_000)
+    end
+  end
+
+  test "メールが未確認の利用者の要求はメッセージの枠を消費しない" do
+    conversation = prepare_conversation
+    unconfirmed = User.create!(email_address: "unconfirmed@example.com", password: PASSWORD)
+    sign_in_as(unconfirmed)
+
+    exceed(ApplicationController::MESSAGE_ATTEMPT_LIMIT) { |index| send_message(conversation, index) }
+
+    assert_response :forbidden
+
+    sign_in_as(@user)
+
+    assert_difference -> { Message.count }, 1 do
+      send_message(conversation, 9_000)
+    end
+  end
+
+  test "会話の参加者でない利用者の要求はメッセージの枠を消費しない" do
+    conversation = prepare_conversation
+    outsider = User.create!(email_address: "outsider@example.com", password: PASSWORD).tap(&:confirm)
+    sign_in_as(outsider)
+
+    exceed(ApplicationController::MESSAGE_ATTEMPT_LIMIT) { |index| send_message(conversation, index) }
+
+    assert_response :not_found
+
+    sign_in_as(@user)
+
+    assert_difference -> { Message.count }, 1 do
+      send_message(conversation, 9_000)
+    end
+  end
+
   test "上限までの招待は通り、メールが 1 通ずつ積まれる" do
     organization = owned_organization
     sign_in_as(@user)
@@ -186,6 +236,11 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     def invite(organization, index)
       post organization_invitations_path(locale: :ja, organization_id: organization),
            params: { invitation: { email_address: "invited#{index}@example.invalid", role: "member" } }
+    end
+
+    def send_message(conversation, index)
+      post application_conversation_path(locale: :ja, application_id: conversation.job_application),
+           params: { message: { body: "#{index} 通目" } }
     end
 
     def exceed(limit)
