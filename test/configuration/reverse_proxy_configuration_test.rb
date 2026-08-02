@@ -29,11 +29,25 @@ class ReverseProxyConfigurationTest < ActiveSupport::TestCase
 
   test "稼働確認の経路を名前の検証から除く" do
     # 監視は名前ではなく IP で叩く構成がある。
-    assert_match(%r{config\.host_authorization\s*=.*/up}m, @source)
+    # 生成時のコメントに同じ行があると、それを拾ってしまう。
+    # 効いている行だけを見るため、コメントを除いてから探す。
+    assert_match(%r{config\.host_authorization\s*=.*/up}, effective_source)
+  end
+
+  test "設定を 2 か所に書かない" do
+    # どちらが効いているのかが読めなくなる。
+    assert_equal 1, @source.scan(/config\.host_authorization/).size
+    assert_equal 1, @source.scan(/config\.hosts/).size
   end
 
   test "逆プロキシの前提が文書化されている" do
     # 設定できることと、設定しないと何が効かないかは、運用の側が読む。
     assert_predicate Rails.root.join("docs/development/reverse-proxy.md"), :exist?
   end
+
+  private
+    # コメントを除いた行だけを返す。
+    def effective_source
+      @source.lines.reject { |line| line.strip.start_with?("#") }.join
+    end
 end
