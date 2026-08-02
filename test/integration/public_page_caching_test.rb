@@ -96,12 +96,44 @@ class PublicPageCachingTest < ActionDispatch::IntegrationTest
   end
 
   test "sitemap が ETag と Last-Modified を返す" do
-    # 304 が返るかどうかはここで確かめない。Issue #197 で別に扱う。
     get sitemap_path
 
     assert_response :success
     assert response.headers["ETag"].present?, "ETag がない"
     assert response.headers["Last-Modified"].present?, "Last-Modified がない"
+  end
+
+  test "sitemap も条件付き GET が効く" do
+    get sitemap_path
+    etag = response.headers["ETag"]
+
+    get sitemap_path, headers: { "If-None-Match" => etag }
+
+    assert_response :not_modified
+    assert_empty response.body, "304 なのに本文を送っている"
+  end
+
+  test "求人が更新されると sitemap は 304 を返さない" do
+    get sitemap_path
+    etag = response.headers["ETag"]
+
+    @published.update!(title: "書き換えた求人")
+
+    get sitemap_path, headers: { "If-None-Match" => etag }
+
+    assert_response :success
+    assert_match(/<urlset/, response.body)
+  end
+
+  test "robots も条件付き GET で壊れない" do
+    # robots は fresh_when を呼ばない。ETag は Rack が付ける。
+    # sitemap と同じ壊れ方をしないことを、こちらでも押さえておく。
+    get robots_path
+    etag = response.headers["ETag"]
+
+    get robots_path, headers: { "If-None-Match" => etag }
+
+    assert_response :not_modified
   end
 
   test "詳細も条件付き GET が効く" do
