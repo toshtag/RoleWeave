@@ -488,6 +488,7 @@ en:
         no_history: No runs yet.
       create:
         missing_file: No file was selected.
+        too_large: "The file is too large. Keep it within %{megabytes} MB and %{rows} rows."
         completed: "Imported. Created %{created}, updated %{updated}, failed %{failed}."
     webhooks:
       index:

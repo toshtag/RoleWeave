@@ -25,6 +25,18 @@ class JobPostingCsv
   # 文字列として扱わせる印。表計算ソフトはこれを値の一部として表示しない。
   TEXT_MARKER = "'".freeze
 
+  # 取り込みで受け付ける大きさと行数。
+  #
+  # 上限がないと、1 つのファイルでメモリを使い切らせられる。
+  # 値そのものに強い根拠はない。求人の 1 件は数 KB であり、
+  # 1 万件の取り込みは手作業の移行として十分な規模である。
+  # 詳細は docs/decisions/0063-request-size-limits.md を参照する。
+  MAX_BYTE_SIZE = 5 * 1024 * 1024
+  MAX_ROWS = 10_000
+
+  # 大きすぎる入力。取り込まずに理由を返す。
+  class TooLarge < StandardError; end
+
   def initialize(organization)
     @organization = organization
   end
@@ -40,12 +52,20 @@ class JobPostingCsv
   end
 
   # 取り込んだ結果（作成・更新・失敗の件数と、失敗の内容）を返す。
+  #
+  # 大きすぎる入力は `TooLarge` を投げる。数えた分だけ取り込んで途中で止めない。
+  # 半分だけ取り込まれた状態は、再実行しても直せるとは言えない（ADR 0058）。
   def import(source, performed_by: nil)
+    raise TooLarge if source.bytesize > MAX_BYTE_SIZE
+    # 数える段階で止める。取り込みながら止めると、半分だけ入った状態が残る。
+    raise TooLarge if too_many_rows?(source)
+
     created = 0
     updated = 0
     failures = []
 
-    CSV.parse(source, headers: true).each_with_index do |row, index|
+    # 全行を一度に配列へ展開しない。1 行ずつ読む。
+    CSV.new(source, headers: true).each.with_index do |row, index|
       result = import_row(row, index)
 
       case result
@@ -68,6 +88,20 @@ class JobPostingCsv
   end
 
   private
+    # 行数を数える。上限を超えた時点で数えるのをやめる。
+    # 最後まで数えると、上限を確かめるためだけに全体を読むことになる。
+    def too_many_rows?(source)
+      count = 0
+
+      CSV.new(source, headers: true).each do
+        count += 1
+
+        return true if count > MAX_ROWS
+      end
+
+      false
+    end
+
     # 1 行を取り込む。失敗しても例外を投げず、理由を返す。
     # 行番号はファイルの行に合わせる（見出しの分だけずらす）。直す人が探せるようにする。
     def import_row(row, index)
