@@ -12,8 +12,9 @@ class Organizations::WebhooksController < ApplicationController
   before_action :require_organization_owner
 
   def index
-    @webhooks = @organization.webhooks.includes(:webhook_deliveries).recent
+    @webhooks = @organization.webhooks.recent
     @webhook = @organization.webhooks.build
+    @latest_deliveries = WebhookDelivery.latest_per_webhook(@webhooks)
   end
 
   def create
