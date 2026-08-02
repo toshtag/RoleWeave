@@ -40,6 +40,22 @@ class Membership < ApplicationRecord
     role == "owner"
   end
 
+  # owner を減らしうる変更を、組織ごとに 1 つずつ通す。
+  #
+  # `last_owner_remains` は、**いまの owner を数えて**決める。
+  # 数えてから保存するまでの間に別の変更が入ると、
+  # どちらも「ほかに owner がいる」と判断して、両方が通る。
+  # 検証はどちらも誤っていないまま、組織の owner だけが 0 人になる。
+  #
+  # 0 人になると、招待も役割の変更も誰にもできない。
+  # 利用者だけでは戻せず、運営者か DB の管理者が要る。
+  #
+  # 同じ不変条件は `AccountDeletion` も守る。owner を減らす経路が 2 つあるため、
+  # 押さえる対象（組織の行）を両方でそろえる。
+  def update_within_owner_invariant(attributes)
+    organization.with_lock { update(attributes) }
+  end
+
   private
     def role_change_is_not_self_demotion
       return unless role_changed? && persisted?
