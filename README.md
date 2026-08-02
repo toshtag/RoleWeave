@@ -281,6 +281,7 @@ bin/verify --full
 - [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
 - [プロジェクト原則](docs/project-principles.md) — 計画・実装上の判断を導く基本原則
 - [ロードマップ](docs/roadmap/index.yaml) — P0 から P15 までのフェーズ索引
+- [v1 以降の検討候補](docs/roadmap/post-v1-options.md) — 実装の約束ではない候補の一覧と評価の手順
 - [アーキテクチャ原則](docs/architecture/principles.md) — 構造に関する判断基準
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
 - [コーディングスタイル](docs/development/coding-style.md) — 実装中に参照する言語・コメント・構造の要点
