@@ -1,13 +1,17 @@
 class ApplicationController < ActionController::Base
   # 繰り返しの試行の上限と期間。
   #
-  # 総当たり（ログイン）、大量作成（登録）、大量送信（再設定の依頼・メッセージ）を抑える。
+  # 総当たり（ログイン）、大量作成（登録）、
+  # 大量送信（再設定の依頼・メッセージ・招待）を抑える。
   # 値はここ 1 か所に置く。経路ごとに書くと、片方だけ緩めた状態が生まれる。
   # 詳細は docs/decisions/0044-rate-limiting.md を参照する。
   SIGN_IN_ATTEMPT_LIMIT = 10
   SIGN_UP_ATTEMPT_LIMIT = 5
   PASSWORD_RESET_ATTEMPT_LIMIT = 5
   MESSAGE_ATTEMPT_LIMIT = 30
+  # 招待は宛先を選べる。届く先は、こちらの利用者とは限らない。
+  # 通常の招待は数人であり、5 分で 10 件を超える使い方は想定しない。
+  INVITATION_ATTEMPT_LIMIT = 10
   RATE_LIMIT_PERIOD = 5.minutes
 
   include Authentication

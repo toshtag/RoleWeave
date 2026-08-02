@@ -1,6 +1,15 @@
 class InvitationsController < ApplicationController
   include OrganizationScope
 
+  # 任意の宛先へメールを積める経路である。
+  #
+  # 同じ組織から同じ宛先への未受諾の招待には一意制約があるが、
+  # **宛先を変えれば何度でも作れる。**組織も確認済みのアカウントであれば作れるため、
+  # 組織ごとに数えると、作り直すだけで迂回できる。
+  # 数える単位は IP とする（ADR 0044）。組織を切り替えても変わらない。
+  rate_limit to: INVITATION_ATTEMPT_LIMIT, within: RATE_LIMIT_PERIOD, only: :create,
+             with: -> { render_rate_limited }
+
   before_action :require_authentication
   before_action :require_confirmed_email
   before_action :set_organization, only: %i[new create]
