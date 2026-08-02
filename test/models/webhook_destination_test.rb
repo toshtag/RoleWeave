@@ -38,6 +38,15 @@ class WebhookDestinationTest < ActiveSupport::TestCase
     end
   end
 
+  test "旧サイトローカルの範囲を拒否する" do
+    # fec0::/10 は RFC 3879 で廃止された。ただし廃止は、既に配ってある
+    # アドレスを消して回るものではない。内部でこの範囲を配っている環境は残る。
+    # 範囲の端まで確かめる。fe80::/10 は febf:: までで切れており、ここは含まない。
+    [ "http://[fec0::1]/", "http://[fedc::1]/", "http://[feff::1]/" ].each do |url|
+      assert_equal :internal_address, WebhookDestination.new(url).rejection, url
+    end
+  end
+
   test "IPv4 を写した IPv6 も元の IPv4 として判定する" do
     # 写した形のまま比べると、同じ宛先が範囲の表に載っていない値になる。
     assert_equal :internal_address, WebhookDestination.new("http://[::ffff:127.0.0.1]/").rejection
@@ -65,6 +74,17 @@ class WebhookDestinationTest < ActiveSupport::TestCase
     end
 
     assert_equal "internal_address", error.message
+  end
+
+  test "名前の解決の結果に旧サイトローカルが混ざれば配信の時点で拒む" do
+    # 1 つでも内部を指すなら、どれへ繋ぐかによって結果が変わる宛先である。
+    resolving("93.184.216.34", "fec0::1") do
+      error = assert_raises(WebhookDestination::Blocked) do
+        WebhookDestination.new("http://example.com/hook").connect_address
+      end
+
+      assert_equal "internal_address", error.message
+    end
   end
 
   test "解決できない名前は配信の時点で拒む" do
@@ -103,6 +123,21 @@ class WebhookDestinationTest < ActiveSupport::TestCase
   end
 
   private
+    # 名前の解決の結果を差し替える。
+    #
+    # fec0::/10 へ解決される実在の名前はないため、解決の側を置き換えるほかない。
+    # 実際のネットワークへは繋がない。判定だけを見る。
+    def resolving(*ip_addresses)
+      original = Addrinfo.method(:getaddrinfo)
+      Addrinfo.define_singleton_method(:getaddrinfo) do |*|
+        ip_addresses.map { |ip_address| Addrinfo.ip(ip_address) }
+      end
+
+      yield
+    ensure
+      Addrinfo.define_singleton_method(:getaddrinfo, original)
+    end
+
     def allowing(hosts)
       original = ENV["WEBHOOK_ALLOWED_HOSTS"]
       ENV["WEBHOOK_ALLOWED_HOSTS"] = hosts
