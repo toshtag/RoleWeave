@@ -57,6 +57,45 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     assert_response :too_many_requests
   end
 
+  test "上限までの招待は通り、メールが 1 通ずつ積まれる" do
+    organization = owned_organization
+    sign_in_as(@user)
+
+    assert_difference -> { Invitation.count }, ApplicationController::INVITATION_ATTEMPT_LIMIT do
+      assert_enqueued_emails ApplicationController::INVITATION_ATTEMPT_LIMIT do
+        ApplicationController::INVITATION_ATTEMPT_LIMIT.times { |index| invite(organization, index) }
+      end
+    end
+  end
+
+  test "上限を超える招待が 429 になり、行もメールも増えない" do
+    # 任意の宛先へメールを積める経路である。招待そのものに一意制約はあるが、
+    # 宛先を変えれば何度でも作れる。
+    organization = owned_organization
+    sign_in_as(@user)
+
+    exceed(ApplicationController::INVITATION_ATTEMPT_LIMIT) do |index|
+      @before = [ Invitation.count, enqueued_jobs.size ]
+      invite(organization, index)
+    end
+
+    assert_response :too_many_requests
+    assert_equal @before, [ Invitation.count, enqueued_jobs.size ]
+  end
+
+  test "組織を切り替えても招待の上限は保たれる" do
+    # 組織は確認済みのアカウントであれば作れる。
+    # 組織ごとに数えると、作り直すだけで上限を迂回できる。
+    first = owned_organization("最初の会社")
+    second = owned_organization("次の会社")
+    sign_in_as(@user)
+
+    ApplicationController::INVITATION_ATTEMPT_LIMIT.times { |index| invite(first, index) }
+    invite(second, 0)
+
+    assert_response :too_many_requests
+  end
+
   test "429 の画面が日本語と英語で読める" do
     I18n.available_locales.each do |locale|
       Rails.cache.clear
@@ -80,9 +119,24 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     assert_equal 5, ApplicationController::SIGN_UP_ATTEMPT_LIMIT
     assert_equal 5, ApplicationController::PASSWORD_RESET_ATTEMPT_LIMIT
     assert_equal 30, ApplicationController::MESSAGE_ATTEMPT_LIMIT
+    assert_equal 10, ApplicationController::INVITATION_ATTEMPT_LIMIT
   end
 
   private
+    def owned_organization(name = "サンプル株式会社")
+      Organization.create_with_owner!(name: name, user: @user)
+    end
+
+    def sign_in_as(user)
+      post session_path(locale: :ja), params: { email_address: user.email_address, password: PASSWORD }
+    end
+
+    # 宛先を毎回変える。同じ宛先への未受諾の招待には一意制約がある。
+    def invite(organization, index)
+      post organization_invitations_path(locale: :ja, organization_id: organization),
+           params: { invitation: { email_address: "invited#{index}@example.invalid", role: "member" } }
+    end
+
     def exceed(limit)
       (limit + 1).times { |index| yield index }
     end
