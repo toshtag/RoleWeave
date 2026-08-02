@@ -87,6 +87,26 @@ class CsvIntegrationTest < ActionDispatch::IntegrationTest
     assert_equal "draft", JobPosting.sole.status
   end
 
+test "失敗の理由が読める形で残る" do
+  # 「何行目が失敗した」だけでは、何を直せばよいか分からない。
+  sign_in_as(@owner)
+  body = "#{HEADER}\nkey-1,,本文,,,,,,,\n"
+
+  post imports_path, params: { file: uploaded(body) }
+
+  assert_match(/題名/, IntegrationRun.recent.first.failures)
+end
+
+test "CSV に状態の列があっても無視する" do
+  # CSV が公開の判断を迂回する経路になってはならない。
+  sign_in_as(@owner)
+  body = "#{HEADER},status\nkey-1,題名,本文,,,,,,,,published\n"
+
+  post imports_path, params: { file: uploaded(body) }
+
+  assert_equal "draft", JobPosting.sole.status
+end
+
   test "管理者が CSV を書き出せる" do
     @organization.job_postings.create!(title: "書き出す求人", description: "本文",
                                        external_key: "key-1", status: "published")
