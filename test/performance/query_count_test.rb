@@ -65,12 +65,87 @@ class QueryCountTest < ActionDispatch::IntegrationTest
     assert_equal baseline, after, "通知が増えると問い合わせも増えている（N+1）"
   end
 
+  test "候補者の検索の一覧は件数に比例して問い合わせを増やさない" do
+    sign_in_as(@owner)
+    2.times { |index| searchable_profile(index) }
+    baseline = count_queries { get organization_candidate_searches_path(locale: :ja, organization_id: @organization) }
+
+    3.times { |index| searchable_profile(index + 10) }
+    after = count_queries { get organization_candidate_searches_path(locale: :ja, organization_id: @organization) }
+
+    assert_equal baseline, after, "候補者が増えると問い合わせも増えている（N+1）"
+  end
+
+  test "Webhook の一覧は配信先の数に比例して問い合わせを増やさない" do
+    sign_in_as(@owner)
+    2.times { |index| webhook_with_delivery(index) }
+    baseline = count_queries { get organization_webhooks_path(locale: :ja, organization_id: @organization) }
+
+    3.times { |index| webhook_with_delivery(index + 10) }
+    after = count_queries { get organization_webhooks_path(locale: :ja, organization_id: @organization) }
+
+    assert_equal baseline, after, "配信先が増えると問い合わせも増えている（N+1）"
+  end
+
+  test "Webhook の一覧は配信の記録を全件読まない" do
+    # 問い合わせの数では検出できない。preload は 1 回であり、
+    # その 1 回が何行読むかが問題である。読んだ行数で見る。
+    sign_in_as(@owner)
+    webhook = webhook_with_delivery(0)
+    baseline = count_loaded(WebhookDelivery) { get organization_webhooks_path(locale: :ja, organization_id: @organization) }
+
+    5.times { webhook.webhook_deliveries.create!(event_kind: "job_application_created") }
+    after = count_loaded(WebhookDelivery) { get organization_webhooks_path(locale: :ja, organization_id: @organization) }
+
+    assert_equal baseline, after, "配信の記録が増えると読み込む行も増えている"
+  end
+
+  test "応募の一覧は記録の変更者の数に比例して問い合わせを増やさない" do
+    job_posting = published_job_posting
+    sign_in_as(@owner)
+    # 変更者を持つ記録で作る。持たない記録（kind: created）では
+    # belongs_to が問い合わせないため、includes を外しても検出できない。
+    2.times { |index| stage_change_event(job_posting, index) }
+    baseline = count_queries { get applications_path(job_posting) }
+
+    3.times { |index| stage_change_event(job_posting, index + 10) }
+    after = count_queries { get applications_path(job_posting) }
+
+    assert_equal baseline, after, "記録が増えると問い合わせも増えている（N+1）"
+  end
+
   test "数える補助が実際に数えている" do
     # 補助そのものが 0 を返し続けると、どのテストも通ってしまう。
     assert_operator count_queries { User.count }, :>=, 1
   end
 
+  test "行を数える補助が実際に数えている" do
+    # 同じ理由による。0 を返し続ける補助は、何も守らない。
+    assert_equal 2, count_loaded(User) { User.limit(2).to_a }
+    assert_equal 0, count_loaded(User) { Organization.count }
+  end
+
   private
+    # あるモデルが読み込んだ行の数。
+    #
+    # 問い合わせの数だけでは、1 回で全件を読む形を検出できない。
+    # 「使わない行を読んでいないか」は、行の数でしか見えない。
+    def count_loaded(model)
+      count = 0
+
+      subscriber = ActiveSupport::Notifications.subscribe("instantiation.active_record") do |*args|
+        payload = ActiveSupport::Notifications::Event.new(*args).payload
+
+        count += payload[:record_count] if payload[:class_name] == model.name
+      end
+
+      yield
+
+      count
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
     def sign_in_as(user)
       post session_path(locale: :ja), params: { email_address: user.email_address, password: PASSWORD }
     end
@@ -90,6 +165,37 @@ class QueryCountTest < ActionDispatch::IntegrationTest
     def applications_path(job_posting)
       organization_job_posting_applications_path(
         locale: :ja, organization_id: @organization, job_posting_id: job_posting
+      )
+    end
+
+    # 検索に出る候補者。スキルを持たせる。一覧がスキルを並べるためである。
+    def searchable_profile(index)
+      user = User.create!(email_address: "searchable#{index}@example.com", password: PASSWORD).tap(&:confirm)
+      profile = user.create_candidate_profile!(
+        display_name: "候補者 #{index}", visibility: "all_organizations", scout_opt_in: true
+      )
+      profile.skills.create!(name: "スキル #{index}")
+
+      profile
+    end
+
+    def webhook_with_delivery(index)
+      webhook = @organization.webhooks.create!(
+        url: "https://example.invalid/hook/#{index}", event_kinds: [ "job_application_created" ]
+      )
+      webhook.webhook_deliveries.create!(event_kind: "job_application_created")
+
+      webhook
+    end
+
+    # 変更者を持つ記録。ステージの変更だけがこれを持つ。
+    def stage_change_event(job_posting, index)
+      changed_by = User.create!(email_address: "changer#{index}@example.com", password: PASSWORD).tap(&:confirm)
+
+      JobApplicationEvent.create!(
+        organization: @organization, job_posting: job_posting, changed_by: changed_by,
+        kind: "stage_changed", from_stage: "screening", to_stage: "interviewing",
+        candidate_display_name: "応募者 #{index}", job_posting_title: job_posting.title
       )
     end
 end

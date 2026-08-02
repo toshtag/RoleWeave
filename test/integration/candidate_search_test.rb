@@ -82,6 +82,19 @@ class CandidateSearchTest < ActionDispatch::IntegrationTest
     assert_select "main", text: /山田 太郎/
   end
 
+  test "スキルが名前の昇順で並ぶ" do
+    # 並び順は関連の定義（CandidateProfile）が持つ。
+    # 読み出す側で scope を付けると preload した結果を捨てて引き直すため、
+    # 並び順をここで固定しておく（ADR 0049）。
+    @profile.skills.create!(name: "評価設計")
+    @profile.skills.create!(name: "英語")
+    sign_in_as(@recruiter)
+
+    get search_path
+
+    assert_match(/採用計画 \/ 英語 \/ 評価設計/, response.body)
+  end
+
   test "検索したことが監査ログに残る" do
     sign_in_as(@recruiter)
 

@@ -46,7 +46,7 @@
           配信の結果。失敗しても業務処理は巻き戻さないため、
           ここを見ないと失敗に気付けない。
         %>
-        <% latest = webhook.webhook_deliveries.recent.first %>
+        <% latest = @latest_deliveries[webhook.id] %>
         <% if latest %>
           <%= t(".last_delivery", status: t(".statuses.#{latest.status}"),
                                   at: l(latest.created_at, format: :long)) %>

@@ -25,7 +25,12 @@ class CandidateProfile < ApplicationRecord
   # プロフィールを消したら、その職歴も残さない。
   has_many :work_experiences, dependent: :destroy
   has_many :educations, dependent: :destroy
-  has_many :skills, dependent: :destroy
+  # 並び順を関連の側へ持たせる。
+  #
+  # 読み出す側が `skills.alphabetical` と書くと、preload した結果があっても
+  # scope が新しい relation を作り、問い合わせが飛び直す。
+  # 詳細は docs/decisions/0049-query-observability.md を参照する。
+  has_many :skills, -> { alphabetical }, dependent: :destroy
   has_one :desired_condition, dependent: :destroy
 
   # 応募。プロフィールを消したら応募も残さない。

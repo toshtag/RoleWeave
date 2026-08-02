@@ -21,6 +21,24 @@ class WebhookDelivery < ApplicationRecord
   scope :recent, -> { order(created_at: :desc, id: :desc) }
   scope :failed, -> { where(status: "failed") }
 
+  # 配信先ごとの最新の 1 件を、配信先の id で引ける形で返す。
+  #
+  # 一覧が要るのはこれだけである。関連ごと preload すると、
+  # 増え続ける配信の記録を全件メモリへ読むことになる。
+  # 配信の記録は保持期限の対象外であり（ADR 0046）、配信先を消すまで残る。
+  #
+  # PostgreSQL の DISTINCT ON を使い、配信先の数によらず 1 回の問い合わせにする。
+  # 先頭の並び順は DISTINCT ON の列と一致させる必要がある。
+  def self.latest_per_webhook(webhooks)
+    webhook_ids = webhooks.map(&:id)
+    return {} if webhook_ids.empty?
+
+    select("DISTINCT ON (webhook_id) *")
+      .where(webhook_id: webhook_ids)
+      .order(:webhook_id, created_at: :desc, id: :desc)
+      .index_by(&:webhook_id)
+  end
+
   def record_delivered!(response_code)
     update_columns(status: "delivered", response_code: response_code,
                    delivered_at: Time.current, error: nil, attempts: attempts + 1)
