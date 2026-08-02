@@ -56,12 +56,9 @@ class ScoutingTest < ActionDispatch::IntegrationTest
   end
 
   test "上限を超えると送れない" do
-    Scout::DAILY_LIMIT_PER_ORGANIZATION.times do |index|
-      other = User.create!(email_address: "c#{index}@example.com", password: PASSWORD).tap(&:confirm)
-      profile = other.create_candidate_profile!(display_name: "候補者 #{index}",
-                                                visibility: "all_organizations", scout_opt_in: true)
-      @organization.scouts.create!(candidate_profile: profile, body: "本文")
-    end
+    # 上限の数だけ作る。ただし作る数には天井を置く。
+    # 定数を緩める変異を入れたときに、テストが巨大なデータを作りに行かないようにする。
+    fill_scouts([ Scout::DAILY_LIMIT_PER_ORGANIZATION, 60 ].min)
 
     assert_not @organization.scouts.build(candidate_profile: @profile, body: "上限超過").valid?
   end
@@ -188,5 +185,32 @@ class ScoutingTest < ActionDispatch::IntegrationTest
 
     def scouts_path
       organization_scouts_path(locale: :ja, organization_id: @organization)
+    end
+
+    # 上限の検証のために、候補者とスカウトをまとめて作る。
+    # 1 件ずつ作ると、パスワードの計算だけで時間がかかる。
+    def fill_scouts(count)
+      now = Time.current
+
+      user_ids = User.insert_all!(
+        Array.new(count) do |index|
+          { email_address: "filler#{index}@example.com", password_digest: "x", confirmed_at: now,
+            created_at: now, updated_at: now }
+        end
+      ).rows.flatten
+
+      profile_ids = CandidateProfile.insert_all!(
+        user_ids.map.with_index do |user_id, index|
+          { user_id: user_id, display_name: "候補者 #{index}", visibility: "all_organizations",
+            scout_opt_in: true, created_at: now, updated_at: now }
+        end
+      ).rows.flatten
+
+      Scout.insert_all!(
+        profile_ids.map do |profile_id|
+          { organization_id: @organization.id, candidate_profile_id: profile_id, body: "本文",
+            created_at: now, updated_at: now }
+        end
+      )
     end
 end
