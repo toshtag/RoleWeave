@@ -44,16 +44,40 @@ class Conversation < ApplicationRecord
 
   # 自分が送っていない、まだ読んでいないメッセージの数。
   def unread_count_for(user)
-    messages.where.not(sender_id: user.id)
-            .where.not(id: MessageRead.where(user_id: user.id).select(:message_id))
-            .count
+    unread_messages_for(user).count
   end
 
   # 開いた時点で、相手のメッセージを既読にする。
+  #
+  # 1 回の書き込みでまとめる。1 通ずつ作ると、未読の数だけ
+  # 検証の SELECT と INSERT が往復する。
   def mark_read_by(user)
-    unread = messages.where.not(sender_id: user.id)
-                     .where.not(id: MessageRead.where(user_id: user.id).select(:message_id))
+    now = Time.current
+    rows = unread_messages_for(user).pluck(:id).map do |message_id|
+      { message_id: message_id, user_id: user.id, created_at: now, updated_at: now }
+    end
 
-    unread.find_each { |message| MessageRead.create!(message: message, user: user) }
+    return if rows.empty?
+
+    # insert_all はモデルの検証もコールバックも通らない。時刻は明示して渡す。
+    # 二重の記録は一意索引に任せる。同じ会話を同時に開いた場合に起こりうる。
+    MessageRead.insert_all(rows, unique_by: %i[message_id user_id])
   end
+
+  private
+    # 自分が送っていない、まだ読んでいないメッセージ。
+    #
+    # 数えるときも既読にするときも、同じ判定を使う。2 か所へ書くと、
+    # 数えた未読と既読にした未読が食い違いうる。
+    #
+    # `NOT EXISTS` で書く。`NOT IN` の副問い合わせは anti-join へ書き換えられず、
+    # **その利用者が読んだすべてのメッセージ**を毎回組み立てることになる。
+    # 会話の中には限られないため、読むほど重くなる。
+    # `message_reads` の `(message_id, user_id)` の一意索引が、そのまま使える。
+    def unread_messages_for(user)
+      read_by_user = MessageRead.where(user_id: user.id)
+                                .where(MessageRead.arel_table[:message_id].eq(Message.arel_table[:id]))
+
+      messages.where.not(sender_id: user.id).where.not(read_by_user.arel.exists)
+    end
 end
