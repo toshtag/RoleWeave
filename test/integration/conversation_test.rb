@@ -187,6 +187,34 @@ class ConversationTest < ActionDispatch::IntegrationTest
                  "未読がないのに書き込んでいる"
   end
 
+  test "同じ会話を同時に開いても既読の記録が壊れない" do
+    # 未読を数えた後、書き込む前に、相手側の書き込みが入りうる。
+    # そのとき同じ行を 2 回書こうとする。一意索引に任せて落とす（unique_by）。
+    #
+    # 通常の経路では 2 回目に未読が残らないため、この状況にならない。
+    # 同じ未読をもう一度渡して、書き込みの側だけを確かめる。
+    sign_in_as(@candidate)
+    post conversation_path, params: { message: { body: "応募者からの連絡" } }
+    conversation = @job_application.reload.conversation
+    unread = conversation.messages.where(id: Message.sole.id)
+
+    # minitest 6 は mock を同梱しないため、直接差し替える
+    # （webhook_delivery_job_test と同じやり方）。
+    conversation.define_singleton_method(:unread_messages_for) { |_user| unread }
+
+    statements = captured_sql { conversation.mark_read_by(@owner) }
+
+    assert_nothing_raised { conversation.mark_read_by(@owner) }
+    assert_equal 1, MessageRead.count
+
+    # どの一意性に任せるかを明示する。insert_all は unique_by がなくても
+    # ON CONFLICT DO NOTHING を出すが、その場合はどの制約の衝突も黙って落とす。
+    insert = statements.find { |sql| sql.start_with?("INSERT INTO \"message_reads\"") }
+
+    assert_match(/ON CONFLICT \("message_id","user_id"\) DO NOTHING/, insert,
+                 "衝突の対象を明示していない: #{insert}")
+  end
+
   test "未読の判定が NOT IN を使わない" do
     # NOT IN の副問い合わせは anti-join へ書き換えられず、
     # その利用者が読んだすべてのメッセージを毎回組み立てることになる。

@@ -52,14 +52,14 @@ class Conversation < ApplicationRecord
   # 1 回の書き込みでまとめる。1 通ずつ作ると、未読の数だけ
   # 検証の SELECT と INSERT が往復する。
   def mark_read_by(user)
-    now = Time.current
     rows = unread_messages_for(user).pluck(:id).map do |message_id|
-      { message_id: message_id, user_id: user.id, created_at: now, updated_at: now }
+      { message_id: message_id, user_id: user.id }
     end
 
-    return if rows.empty?
-
-    # insert_all はモデルの検証もコールバックも通らない。時刻は明示して渡す。
+    # insert_all はモデルの検証もコールバックも通らない。
+    # 作成時刻と更新時刻だけは Rails が入れる（`record_timestamps`）。
+    # 空の配列は問い合わせを出さずに戻るため、ここで分岐しない。
+    #
     # 二重の記録は一意索引に任せる。同じ会話を同時に開いた場合に起こりうる。
     MessageRead.insert_all(rows, unique_by: %i[message_id user_id])
   end
