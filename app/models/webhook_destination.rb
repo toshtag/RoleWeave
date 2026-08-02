@@ -43,6 +43,7 @@ class WebhookDestination
     "2001:db8::/32",      # 文書用
     "fc00::/7",           # ユニークローカル
     "fe80::/10",          # リンクローカル
+    "fec0::/10",          # 旧サイトローカル。RFC 3879 で廃止されたが、配ってある分は残る
     "ff00::/8"            # マルチキャスト
   ].map { |range| IPAddr.new(range) }.freeze
 
