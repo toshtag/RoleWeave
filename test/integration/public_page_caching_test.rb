@@ -75,6 +75,35 @@ class PublicPageCachingTest < ActionDispatch::IntegrationTest
     assert_response :success
   end
 
+  test "別のページにしか出ない求人を更新しても、1 ページ目の Last-Modified が進まない" do
+    # Last-Modified は、そのページに出る求人から作る（ADR 0025）。
+    # 絞り込み結果の全体から作ると、2 ページ目の更新で 1 ページ目の
+    # Last-Modified が進み、内容が変わっていないページに 200 が返る。
+    Pagination::DEFAULT_PER_PAGE.times { |index| create_job_posting(title: "求人 #{index}") }
+
+    get public_job_postings_path(locale: :ja)
+    first_page_last_modified = response.headers["Last-Modified"]
+
+    # 1 ページ目に出ない求人（最も古い＝2 ページ目）を更新する。
+    travel 1.hour do
+      @published.update!(title: "書き換えた求人")
+    end
+
+    get public_job_postings_path(locale: :ja)
+
+    assert_equal first_page_last_modified, response.headers["Last-Modified"],
+                 "1 ページ目に出ない求人の更新で Last-Modified が進んでいる"
+  end
+
+  test "sitemap が ETag と Last-Modified を返す" do
+    # 304 が返るかどうかはここで確かめない。Issue #197 で別に扱う。
+    get sitemap_path
+
+    assert_response :success
+    assert response.headers["ETag"].present?, "ETag がない"
+    assert response.headers["Last-Modified"].present?, "Last-Modified がない"
+  end
+
   test "詳細も条件付き GET が効く" do
     get public_job_posting_path(locale: :ja, id: @published)
     etag = response.headers["ETag"]
