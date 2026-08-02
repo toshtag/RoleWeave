@@ -114,9 +114,46 @@ class QueryCountTest < ActionDispatch::IntegrationTest
     assert_equal baseline, after, "記録が増えると問い合わせも増えている（N+1）"
   end
 
+  test "公開求人の一覧は、同じ絞り込みを 2 回までしか実行しない" do
+    # 1 ページ分を読むのに要るのは、総件数と、そのページの求人の 2 回である。
+    # Last-Modified のためにもう一度走らせると、キーワードの絞り込みでは
+    # 全件走査が 3 回になる。
+    3.times { |index| published_job_posting(title: "求人 #{index}") }
+
+    statements = captured_sql { get public_job_postings_path(locale: :ja, keyword: "求人") }
+
+    assert_equal 2, statements.count { |sql| sql.include?('FROM "job_postings"') },
+                 "求人を引く問い合わせが 2 回を超えている:\n#{statements.join("\n")}"
+  end
+
+  test "sitemap は求人を 1 回だけ、使う列だけ読む" do
+    3.times { |index| published_job_posting(title: "求人 #{index}") }
+
+    statements = captured_sql { get sitemap_path }
+    job_posting_statements = statements.select { |sql| sql.include?('FROM "job_postings"') }
+
+    assert_equal 1, job_posting_statements.size,
+                 "求人を引く問い合わせが 1 回を超えている:\n#{job_posting_statements.join("\n")}"
+
+    # View が使うのは id と updated_at だけである。
+    # description は必須の text であり、本文が長い運用では読んで捨てる量が効く。
+    #
+    # 読む列を列挙して確かめる。「description を読んでいない」を否定形で書くと、
+    # SELECT "job_postings".* を素通りさせる（列名が文へ現れない）。
+    assert_match(/SELECT "job_postings"\."id", "job_postings"\."updated_at" FROM/,
+                 job_posting_statements.first,
+                 "View で使わない列を読んでいる: #{job_posting_statements.first}")
+  end
+
   test "数える補助が実際に数えている" do
     # 補助そのものが 0 を返し続けると、どのテストも通ってしまう。
     assert_operator count_queries { User.count }, :>=, 1
+  end
+
+  test "SQL を集める補助が実際に集めている" do
+    statements = captured_sql { User.limit(1).to_a }
+
+    assert(statements.any? { |sql| sql.include?('FROM "users"') }, "SQL が集まっていない")
   end
 
   test "行を数える補助が実際に数えている" do
@@ -142,6 +179,28 @@ class QueryCountTest < ActionDispatch::IntegrationTest
       yield
 
       count
+    ensure
+      ActiveSupport::Notifications.unsubscribe(subscriber)
+    end
+
+    # 実行された SQL の文。
+    #
+    # 数だけでは「どの表を何回引いたか」「どの列を読んだか」が分からない。
+    # 値（bind）は Rails が文へ埋めないため、ここにも現れない（ADR 0049）。
+    def captured_sql
+      statements = []
+
+      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*args|
+        payload = ActiveSupport::Notifications::Event.new(*args).payload
+
+        next if SlowQueryLogger::IGNORED_NAMES.include?(payload[:name])
+
+        statements << payload[:sql]
+      end
+
+      yield
+
+      statements
     ensure
       ActiveSupport::Notifications.unsubscribe(subscriber)
     end
