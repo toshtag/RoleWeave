@@ -30,10 +30,14 @@ class Public::JobPostingsController < ApplicationController
     #
     # 材料に絞り込みの条件と現在のページを含める。同じ URL でも条件が違えば別の応答になる。
     # ログイン状態も含める。レイアウトのヘッダーがログイン状態で変わるためである。
+    #
+    # Last-Modified は**そのページに出る求人**から作る。読み込み済みであり、
+    # 問い合わせは要らない。絞り込み結果の全体から作ると、キーワードの絞り込みでは
+    # 全件走査がもう 1 回増え、しかも別のページの更新で 1 ページ目が古い扱いになる。
     # 詳細は docs/decisions/0025-public-page-caching.md を参照する。
     fresh_when(
       etag: [ @job_postings.to_a, @search, @pagination.current_page, signed_in? ],
-      last_modified: scope.maximum(:updated_at),
+      last_modified: @job_postings.map(&:updated_at).max,
       public: false
     )
   end
