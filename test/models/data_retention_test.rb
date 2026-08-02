@@ -109,6 +109,70 @@ test "期限を過ぎたセッションを削除する" do
     assert_equal 1, DataRetention.new.apply["sessions"]
   end
 
+  test "削除を分けて実行する" do
+    # 1 つの DELETE で数百万行を消すと、その間トランザクションが開いたままになる。
+    stub_batch_size(2) do
+      5.times { expired_session }
+
+      statements = captured_sql { DataRetention.new.apply }
+      deletes = statements.select { |sql| sql.start_with?("DELETE FROM \"sessions\"") }
+
+      # 5 件を 2 件ずつ → 3 回。
+      assert_equal 3, deletes.size, "1 文で消している:\n#{deletes.join("\n")}"
+      assert_equal 0, Session.count
+    end
+  end
+
+  test "分けても、期限を過ぎたものがすべて消える" do
+    stub_batch_size(2) do
+      5.times { expired_session }
+      fresh = @user.sessions.create!
+
+      assert_equal 5, DataRetention.new.apply["sessions"]
+      assert_equal [ fresh.id ], Session.pluck(:id)
+    end
+  end
+
+  test "匿名化も分けて実行する" do
+    stub_batch_size(2) do
+      5.times { |index| expired_authentication_event(index) }
+
+      statements = captured_sql { DataRetention.new.apply }
+      updates = statements.select { |sql| sql.start_with?("UPDATE \"authentication_events\"") }
+
+      assert_equal 3, updates.size, "1 文で書き換えている:\n#{updates.join("\n")}"
+      assert_equal [ AccountDeletion::ANONYMIZED_EMAIL_ADDRESS ],
+                   AuthenticationEvent.distinct.pluck(:email_address)
+    end
+  end
+
+  test "匿名化済みの行を二重に数えない" do
+    # 対象から外さないと、同じ行を毎回書き換えて繰り返しが終わらない。
+    expired_authentication_event(0)
+
+    assert_equal 1, DataRetention.new.apply["authentication_events"]
+    assert_equal 0, DataRetention.new.apply["authentication_events"]
+  end
+
+  test "1 回あたりの件数に根拠がないことが書かれている" do
+    # 測っていない値を、根拠のある値として扱わないための印である。
+    source = Rails.root.join("app/models/data_retention.rb").read
+
+    assert_match(/BATCH_SIZE/, source)
+    assert_match(/根拠はない/, source[/#.*?BATCH_SIZE = \d[\d_]*/m].to_s,
+                 "BATCH_SIZE のそばに、根拠がないことが書かれていない")
+  end
+
+  test "保持期限の絞り込みが created_at の索引を使う" do
+    # created_at だけで対象を選ぶ。先頭が created_at の索引がないと全件走査になる。
+    %w[sessions notifications access_events authentication_events].each do |table|
+      indexes = ActiveRecord::Base.connection.indexes(table)
+
+      assert(indexes.any? { |index| index.columns == [ "created_at" ] },
+             "#{table} に created_at の索引がない")
+    end
+  end
+
   test "基準の時刻を渡せる" do
     session = @user.sessions.create!
 
@@ -116,4 +180,30 @@ test "期限を過ぎたセッションを削除する" do
     assert_equal 1, DataRetention.new(now: 1.year.from_now).report["sessions"]
     assert Session.exists?(session.id)
   end
+
+  private
+    # 1 回あたりの件数を小さくして、分けて実行されることを見えるようにする。
+    # 実際の値（5,000）でテストのデータを作ると、時間がかかるだけで何も分からない。
+    def stub_batch_size(size)
+      original = DataRetention::BATCH_SIZE
+      DataRetention.send(:remove_const, :BATCH_SIZE)
+      DataRetention.const_set(:BATCH_SIZE, size)
+
+      yield
+    ensure
+      DataRetention.send(:remove_const, :BATCH_SIZE)
+      DataRetention.const_set(:BATCH_SIZE, original)
+    end
+
+    def expired_session
+      @user.sessions.create!.tap { |session| session.update_column(:created_at, 91.days.ago) }
+    end
+
+    def expired_authentication_event(index)
+      event = AuthenticationEvent.record(kind: "sign_in_succeeded",
+                                         email_address: "person#{index}@example.com", user: @user)
+      event.update_column(:created_at, 366.days.ago)
+
+      event
+    end
 end

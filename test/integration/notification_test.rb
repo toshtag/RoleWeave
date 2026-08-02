@@ -152,6 +152,31 @@ class NotificationTest < ActionDispatch::IntegrationTest
     assert_select "header a", text: I18n.t("application.account.notifications", count: 1)
   end
 
+  test "未読の件数が部分索引を使う" do
+    # ヘッダーの件数は、ログイン中のすべての画面で実行される。
+    # (user_id, created_at) の索引では read_at IS NULL を絞れず、
+    # その利用者の通知をすべて読んでから本体を確かめることになる。
+    #
+    # 読み終えた通知は対象から外れるため、部分索引は小さいままでいられる。
+    # テストの件数では、PostgreSQL はどの索引よりも全件走査を選ぶ。
+    # 走査を禁じたうえで、**どの索引を選ぶか**を見る。
+    # 部分索引がなければ (user_id, created_at) などが選ばれる。
+    connection = ActiveRecord::Base.connection
+    connection.execute("SET LOCAL enable_seqscan = off")
+    plan = connection.select_values(
+      "EXPLAIN #{@owner.notifications.unread.select("COUNT(*)").to_sql}"
+    ).join("\n")
+
+    assert_match(/index_notifications_on_user_id_unread/, plan,
+                 "未読の件数がこの索引を使っていない:\n#{plan}")
+
+    # 名前だけでは、全体の索引へ差し替えても気付けない。
+    # 部分索引であること（読み終えた通知が対象から外れること）まで確かめる。
+    index = connection.indexes("notifications").find { |i| i.name == "index_notifications_on_user_id_unread" }
+
+    assert_equal "(read_at IS NULL)", index.where, "部分索引になっていない"
+  end
+
   test "未ログインでは通知を扱えない" do
     get notifications_path(locale: :ja)
 
