@@ -57,6 +57,10 @@ Rails.application.routes.draw do
       # 外部への配信先。管理者だけが扱う。
       # 詳細は docs/decisions/0057-webhooks.md を参照する。
       resources :webhooks, only: %i[index create destroy], module: :organizations
+      # 求人の CSV 入出力。管理者だけが扱う。
+      # 詳細は docs/decisions/0058-csv-integration.md を参照する。
+      resources :job_posting_imports, only: %i[new create], module: :organizations
+      resource :job_posting_export, only: :show, module: :organizations
       resources :scouts, only: %i[index new create], module: :organizations
       resources :scout_templates, only: %i[index create destroy], module: :organizations
       resources :talent_pools, only: %i[index show create destroy], module: :organizations do

@@ -470,6 +470,24 @@ en:
         save: Save this job posting
         back: Back to job postings
   organizations:
+    job_posting_imports:
+      new:
+        title: Import job postings from CSV
+        body: One row per job posting. Rows are matched by external_key; existing ones are updated.
+        draft_notice: Imported job postings become drafts. Publish them through the usual review flow.
+        file: CSV file
+        submit: Import
+        export: Export current job postings as CSV
+        history: Run history
+        kinds:
+          job_posting_import: Import
+          job_posting_export: Export
+        counts: "created %{created} / updated %{updated} / failed %{failed}"
+        removed_account: deleted account
+        no_history: No runs yet.
+      create:
+        missing_file: No file was selected.
+        completed: "Imported. Created %{created}, updated %{updated}, failed %{failed}."
     webhooks:
       index:
         title: Outgoing webhooks
@@ -616,6 +634,7 @@ en:
       talent_pools: Talent pools
       scouts: Messages
       webhooks: Webhooks
+      job_posting_imports: Job posting CSV
       job_postings: View job postings
     new:
       title: Create an organization
