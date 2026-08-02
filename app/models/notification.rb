@@ -4,7 +4,7 @@
 # アプリの中の記録まで止めると、後から見返す手段がなくなる。
 # 方針は docs/decisions/0042-notifications.md を正本とする。
 class Notification < ApplicationRecord
-  KINDS = %w[message_received stage_changed new_job_postings].freeze
+  KINDS = %w[message_received stage_changed new_job_postings scout_received].freeze
 
   # メールの配信の状態。
   # skipped は「設定により送らない」であり、失敗ではない。
@@ -14,6 +14,7 @@ class Notification < ApplicationRecord
   belongs_to :job_application, optional: true
   belongs_to :message, optional: true
   belongs_to :saved_search, optional: true
+  belongs_to :scout, optional: true
 
   attr_readonly :user_id, :job_application_id, :message_id, :kind
 

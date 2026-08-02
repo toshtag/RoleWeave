@@ -1,0 +1,39 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title", name: @candidate_profile.display_name) %></h1>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<%# 同じ候補者へ 2 通目は送れない。押す前に伝える。 %>
+<p><%= t(".notice") %></p>
+
+<% if @scout_templates.any? %>
+  <h2><%= t(".templates") %></h2>
+  <ul>
+    <% @scout_templates.each do |template| %>
+      <li>
+        <strong><%= template.name %></strong>
+        <div class="job-posting__body"><%= simple_format(template.body) %></div>
+      </li>
+    <% end %>
+  </ul>
+<% end %>
+
+<%= form_with url: organization_scouts_path(locale: I18n.locale, organization_id: @organization,
+                                            candidate_profile_id: @candidate_profile),
+              method: :post, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :body, t(".body") %>
+    <%= form.text_area :body, rows: 8, required: true %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p>
+  <%= link_to t(".back"),
+              organization_candidate_searches_path(locale: I18n.locale, organization_id: @organization) %>
+</p>

@@ -49,6 +49,11 @@
                                                         organization_id: @organization,
                                                         id: candidate_profile) %>
 
+        <%= link_to t(".scout"),
+                    new_organization_scout_path(locale: I18n.locale,
+                                                organization_id: @organization,
+                                                candidate_profile_id: candidate_profile) %>
+
 <%# タレントプールへ入れる。プールがない場合は作ってから。 %>
 <% @talent_pools.each do |talent_pool| %>
   <%= button_to t(".add_to", name: talent_pool.name),

@@ -124,6 +124,13 @@ en:
           attributes:
             starts_at:
               in_the_past: cannot be in the past
+        scout:
+          attributes:
+            candidate_profile:
+              not_searchable: is not accepting messages
+              blocked: has stopped messages from this organization
+            base:
+              daily_limit_reached: The daily sending limit has been reached
         candidate_profile:
           attributes:
             resume:
@@ -208,6 +215,7 @@ en:
       applications: View my applications
       saved_jobs: View saved job postings
       saved_searches: View saved searches
+      scouts: View messages from organizations
       export: Download my data
       destroy: Delete my profile
       destroy_confirm: This deletes your profile along with work experience, education, skills, preferences and attachments. Your account stays.
@@ -229,6 +237,14 @@ en:
     edit:
       title: Edit profile
       submit: Save
+  candidate_scouts:
+    index:
+      title: Messages from organizations
+      block: Stop messages from this organization
+      blocked: Messages stopped
+      empty: No messages yet.
+      visibility: Visibility settings
+      back: Back to profile
   conversations:
     show:
       title: Messages
@@ -342,6 +358,7 @@ en:
         message_received: You have a new message
         stage_changed: The status of your application changed
       new_job_postings: New job postings match your saved search
+      scout_received: An organization sent you a message
       open: Open
       empty: No notifications yet.
   notification_settings:
@@ -353,6 +370,9 @@ en:
       submit: Save
       back: Back to account
   notification_mailer:
+    scout_received:
+      subject: An organization sent you a message
+      body: "%{organization} sent you a message. You can read it here:"
     new_job_postings:
       subject:
         one: "%{count} new job posting matches your saved search"
@@ -377,6 +397,7 @@ en:
           candidate_document_downloaded: Downloaded an attachment
           personal_data_exported: Exported their own data
           candidate_search_performed: Searched for candidates
+          scout_sent: Sent a message to a candidate
         removed_account: deleted account
         empty: No records yet.
         organizations: Back to organizations
@@ -443,6 +464,32 @@ en:
         save: Save this job posting
         back: Back to job postings
   organizations:
+    scouts:
+      index:
+        title: Sent messages
+        remaining: You can send %{count} more today (limit %{limit} per day).
+        removed_account: deleted account
+        empty: You have not sent any messages yet.
+        search: Find candidates
+        templates: Manage templates
+      new:
+        title: Contact %{name}
+        notice: You can send only one message to the same candidate. It cannot be undone.
+        templates: Templates
+        body: Message
+        submit: Send
+        back: Back to candidate search
+    scout_templates:
+      index:
+        title: Message templates
+        name: Template name
+        body: Body
+        create: Create
+        destroy: Delete
+        empty: No templates yet.
+        back: Back to sent messages
+      create:
+        invalid: Could not create. The name is taken, or you have reached the limit.
     candidate_searches:
       index:
         title: Find candidates
@@ -450,6 +497,7 @@ en:
         skill: Skill
         submit: Filter
         show: View profile
+        scout: Send a message
         add_to: Add to %{name}
         empty: No candidates match these conditions.
     talent_pools:
@@ -540,6 +588,7 @@ en:
       members: View members
       candidate_searches: Find candidates
       talent_pools: Talent pools
+      scouts: Messages
       job_postings: View job postings
     new:
       title: Create an organization
