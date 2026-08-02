@@ -136,9 +136,13 @@ class QueryCountTest < ActionDispatch::IntegrationTest
                  "求人を引く問い合わせが 1 回を超えている:\n#{job_posting_statements.join("\n")}"
 
     # View が使うのは id と updated_at だけである。
-    # description は必須の text であり、求人 5 万件では読んで捨てる量が効く。
-    assert_no_match(/"job_postings"\."description"/, job_posting_statements.first,
-                    "View で使わない列を読んでいる")
+    # description は必須の text であり、本文が長い運用では読んで捨てる量が効く。
+    #
+    # 読む列を列挙して確かめる。「description を読んでいない」を否定形で書くと、
+    # SELECT "job_postings".* を素通りさせる（列名が文へ現れない）。
+    assert_match(/SELECT "job_postings"\."id", "job_postings"\."updated_at" FROM/,
+                 job_posting_statements.first,
+                 "View で使わない列を読んでいる: #{job_posting_statements.first}")
   end
 
   test "数える補助が実際に数えている" do
