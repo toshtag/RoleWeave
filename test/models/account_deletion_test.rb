@@ -32,6 +32,23 @@ class AccountDeletionTest < ActiveSupport::TestCase
     assert_predicate AccountDeletion.new(@user), :deletable?
   end
 
+  test "判定は削除の時点で決まる" do
+    # 画面を出した時点の答えを、削除の時点でも使わない。
+    # 使うと、その間にもう 1 人の管理者が減っていても気付けない。
+    organization = Organization.create_with_owner!(name: "サンプル株式会社", user: @user)
+    another_owner = User.create!(email_address: "owner2@example.com", password: PASSWORD)
+    another_membership = organization.memberships.create!(user: another_owner, role: "owner",
+                                                          changed_by: @user)
+    deletion = AccountDeletion.new(@user)
+
+    assert_predicate deletion, :deletable?
+
+    another_membership.update_column(:role, "member")
+
+    assert_raises(ActiveRecord::RecordNotDestroyed) { deletion.delete! }
+    assert_equal 1, organization.memberships.where(role: "owner").count
+  end
+
   test "一般の所属だけであれば削除できる" do
     organization = Organization.create_with_owner!(
       name: "サンプル株式会社",
