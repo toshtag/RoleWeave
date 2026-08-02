@@ -27,6 +27,25 @@ Rails.application.configure do
   # Assume all access to the app is happening through a SSL-terminating reverse proxy.
   config.assume_ssl = true
 
+  # 前段の逆プロキシのうち、どれを信じるか。
+  #
+  # assume_ssl は「逆プロキシが居る」という前提だが、
+  # それだけでは `X-Forwarded-For` を誰が書いたかを区別できない。
+  # 区別しないと、header を変えるだけでレート制限（ADR 0044）を数え直させられ、
+  # 監査ログ（ADR 0047）へ任意の IP を残せる。
+  #
+  # 書かない場合は Rails の既定のままとする。
+  # 既定で拒否にすると、設定のない起動が理由の分からない失敗になる。
+  # 詳細は docs/decisions/0062-reverse-proxy-assumptions.md を参照する。
+  trusted_proxies = ReverseProxy.trusted_proxies
+  config.action_dispatch.trusted_proxies = trusted_proxies if trusted_proxies.any?
+
+  # 受け入れるホスト名。書かない場合はいままでどおり全てを受け付ける。
+  config.hosts += ReverseProxy.allowed_hosts
+
+  # 稼働確認は名前ではなく IP で叩かれる。名前の検証から除く。
+  config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
   # Force all access to the app over SSL, use Strict-Transport-Security, and use secure cookies.
   config.force_ssl = true
 

@@ -10,6 +10,9 @@ Bundler.require(*Rails.groups)
 # また middleware が保持する定数を reload の対象にしない。
 require_relative "../lib/localized_public_exceptions"
 
+# 逆プロキシの前提は環境ごとの設定ファイルが読む。autoload では間に合わない。
+require_relative "../lib/reverse_proxy"
+
 # 構造化ログは初期化の早い段階で購読する。autoload では購読の登録が遅れる。
 require_relative "../lib/structured_log"
 require_relative "../lib/structured_log_subscriber"
@@ -26,6 +29,7 @@ module RoleWeave
     # localized_public_exceptions.rb は上で明示的に読み込む。autoload の対象から外し、
     # 読み込み方が 2 通りある状態を残さない。
     config.autoload_lib(ignore: %w[assets tasks localized_public_exceptions.rb
+                              reverse_proxy.rb
                               structured_log.rb structured_log_subscriber.rb
                               slow_query_logger.rb])
 
