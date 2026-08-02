@@ -29,7 +29,7 @@ class Organizations::ScoutsController < ApplicationController
       candidate_profile: @candidate_profile, sent_by: current_user, body: params[:body]
     )
 
-    if @scout.save
+    if @scout.save_within_daily_limit
       notify(@scout)
       record_access("scout_sent", subject: @candidate_profile,
                                   subject_label: @candidate_profile.display_name,

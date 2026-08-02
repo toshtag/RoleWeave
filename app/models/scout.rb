@@ -29,6 +29,23 @@ class Scout < ApplicationRecord
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
 
+  # 上限の判定と保存を、同じ組織では 1 つずつ通す。
+  #
+  # 検証だけでは足りない。**数えてから INSERT するまでの間に別の送信が入れる。**
+  # 両方が同じ件数を見れば、両方とも上限内だと判断して保存する。
+  # 合計は上限を超えるが、どちらの検証も誤っていない。
+  #
+  # 押さえるのは組織の行とする。上限が組織ごとであるため、
+  # 待つ範囲もその組織の中に収まる。別の組織の送信は互いに待たない。
+  #
+  # 保存する経路はここだけとする。`save` を直接呼ぶ経路を残すと、
+  # そちらから上限を超えられる。
+  def save_within_daily_limit
+    return save if organization.nil?
+
+    organization.with_lock { save }
+  end
+
   private
     # 受信を許可していない候補者へは送れない（ADR 0055）。
     def candidate_is_searchable
