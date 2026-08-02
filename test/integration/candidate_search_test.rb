@@ -160,6 +160,59 @@ class CandidateSearchTest < ActionDispatch::IntegrationTest
     assert_response :not_found
   end
 
+  test "探せる候補者はプールに表示される" do
+    pool = @organization.talent_pools.create!(name: "採用候補")
+    pool.talent_pool_members.create!(candidate_profile: @profile)
+    sign_in_as(@recruiter)
+
+    get organization_talent_pool_path(locale: :ja, organization_id: @organization, id: pool)
+
+    assert_response :success
+    assert_select "main", text: /山田 太郎/
+  end
+
+  test "入れた後に受信の許可を取り消した候補者は、プールに表示されない" do
+    pool = @organization.talent_pools.create!(name: "採用候補")
+    pool.talent_pool_members.create!(candidate_profile: @profile)
+    @profile.update!(scout_opt_in: false)
+    sign_in_as(@recruiter)
+
+    get organization_talent_pool_path(locale: :ja, organization_id: @organization, id: pool)
+
+    assert_response :success
+    assert_no_match(/山田 太郎/, response.body)
+    assert_no_match(/東京/, response.body)
+    assert_no_match(profile_link, response.body)
+  end
+
+  test "入れた後に公開範囲を closed にした候補者は、プールに表示されない" do
+    pool = @organization.talent_pools.create!(name: "採用候補")
+    pool.talent_pool_members.create!(candidate_profile: @profile)
+    @profile.update!(visibility: "closed")
+    sign_in_as(@recruiter)
+
+    get organization_talent_pool_path(locale: :ja, organization_id: @organization, id: pool)
+
+    assert_response :success
+    assert_no_match(/山田 太郎/, response.body)
+    assert_no_match(/東京/, response.body)
+    assert_no_match(profile_link, response.body)
+  end
+
+  test "プールの件数に、探せなくなった候補者を含めない" do
+    # 件数にも含めないことは ADR 0055 の影響に書いてある。
+    # 名前を隠しても件数が残れば、何人保存したかは伝わる。
+    pool = @organization.talent_pools.create!(name: "採用候補")
+    pool.talent_pool_members.create!(candidate_profile: @profile)
+    @profile.update!(scout_opt_in: false)
+    sign_in_as(@recruiter)
+
+    get organization_talent_pools_path(locale: :ja, organization_id: @organization)
+
+    assert_response :success
+    assert_select "main", text: /#{I18n.t("organizations.talent_pools.index.members", count: 0)}/
+  end
+
   test "他組織のタレントプールを扱えない" do
     outsider = User.create!(email_address: "outsider@example.com", password: PASSWORD).tap(&:confirm)
     other_organization = Organization.create_with_owner!(name: "別の会社", user: outsider)
@@ -210,6 +263,11 @@ class CandidateSearchTest < ActionDispatch::IntegrationTest
   end
 
   private
+    # プロフィールの詳細への link。名前を隠しても、この URL が残れば id は伝わる。
+    def profile_link
+      organization_candidate_profile_path(locale: :ja, organization_id: @organization, id: @profile)
+    end
+
     def sign_in_as(user)
       post session_path(locale: :ja), params: { email_address: user.email_address, password: PASSWORD }
     end
