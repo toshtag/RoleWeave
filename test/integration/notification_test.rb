@@ -168,7 +168,13 @@ class NotificationTest < ActionDispatch::IntegrationTest
     ).join("\n")
 
     assert_match(/index_notifications_on_user_id_unread/, plan,
-                 "未読の件数が部分索引を使っていない:\n#{plan}")
+                 "未読の件数がこの索引を使っていない:\n#{plan}")
+
+    # 名前だけでは、全体の索引へ差し替えても気付けない。
+    # 部分索引であること（読み終えた通知が対象から外れること）まで確かめる。
+    index = connection.indexes("notifications").find { |i| i.name == "index_notifications_on_user_id_unread" }
+
+    assert_equal "(read_at IS NULL)", index.where, "部分索引になっていない"
   end
 
   test "未ログインでは通知を扱えない" do
