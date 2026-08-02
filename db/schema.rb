@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_02_002155) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_02_003608) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -133,6 +133,22 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_002155) do
     t.index ["candidate_profile_id"], name: "index_educations_on_candidate_profile_id"
   end
 
+  create_table "integration_runs", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.integer "created_count", default: 0, null: false
+    t.integer "failed_count", default: 0, null: false
+    t.text "failures"
+    t.string "kind", null: false
+    t.bigint "organization_id", null: false
+    t.bigint "performed_by_id"
+    t.string "status", default: "completed", null: false
+    t.datetime "updated_at", null: false
+    t.integer "updated_count", default: 0, null: false
+    t.index ["organization_id", "created_at"], name: "index_integration_runs_on_organization_id_and_created_at"
+    t.index ["organization_id"], name: "index_integration_runs_on_organization_id"
+    t.index ["performed_by_id"], name: "index_integration_runs_on_performed_by_id"
+  end
+
   create_table "interview_schedules", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.bigint "created_by_id"
@@ -219,6 +235,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_002155) do
     t.datetime "created_at", null: false
     t.text "description", null: false
     t.string "employment_type"
+    t.string "external_key"
     t.string "location"
     t.string "occupation"
     t.bigint "organization_id", null: false
@@ -228,6 +245,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_002155) do
     t.string "status", null: false
     t.string "title", null: false
     t.datetime "updated_at", null: false
+    t.index ["organization_id", "external_key"], name: "index_job_postings_on_organization_id_and_external_key", unique: true
     t.index ["organization_id", "status", "created_at"], name: "idx_on_organization_id_status_created_at_dbef991872"
     t.index ["organization_id"], name: "index_job_postings_on_organization_id"
     t.index ["salary_currency", "annual_salary_min"], name: "index_job_postings_on_salary_currency_and_annual_salary_min"
@@ -468,6 +486,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_02_002155) do
   add_foreign_key "conversations", "job_applications"
   add_foreign_key "desired_conditions", "candidate_profiles"
   add_foreign_key "educations", "candidate_profiles"
+  add_foreign_key "integration_runs", "organizations"
+  add_foreign_key "integration_runs", "users", column: "performed_by_id", on_delete: :nullify
   add_foreign_key "interview_schedules", "job_applications"
   add_foreign_key "interview_schedules", "users", column: "created_by_id", on_delete: :nullify
   add_foreign_key "invitations", "organizations"

@@ -472,6 +472,24 @@ ja:
         save: この求人を保存する
         back: 求人の一覧へ
   organizations:
+    job_posting_imports:
+      new:
+        title: 求人の CSV 取り込み
+        body: 1 行が 1 件の求人です。external_key で照合し、あれば更新、なければ作成します。
+        draft_notice: 取り込んだ求人は下書きになります。公開するには、いつもの申請と承認を通してください。
+        file: CSV ファイル
+        submit: 取り込む
+        export: 現在の求人を CSV で書き出す
+        history: 実行の履歴
+        kinds:
+          job_posting_import: 取り込み
+          job_posting_export: 書き出し
+        counts: "作成 %{created} / 更新 %{updated} / 失敗 %{failed}"
+        removed_account: 削除されたアカウント
+        no_history: まだ実行の履歴はありません。
+      create:
+        missing_file: ファイルが選ばれていません。
+        completed: "取り込みました。作成 %{created} 件 / 更新 %{updated} 件 / 失敗 %{failed} 件。"
     webhooks:
       index:
         title: 外部への配信
@@ -618,6 +636,7 @@ ja:
       talent_pools: タレントプール
       scouts: スカウト
       webhooks: 外部への配信
+      job_posting_imports: 求人の CSV 入出力
       job_postings: 求人を見る
     new:
       title: 組織の作成

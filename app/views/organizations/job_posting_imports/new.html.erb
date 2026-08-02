@@ -1,0 +1,56 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if flash[:notice] %>
+  <p role="status"><%= flash[:notice] %></p>
+<% end %>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<p><%= t(".body") %></p>
+
+<%# 列の並びを示す。書いていない列は読み書きしない。 %>
+<p><code><%= JobPostingCsv::COLUMNS.join(",") %></code></p>
+
+<p><%= t(".draft_notice") %></p>
+
+<%= form_with url: organization_job_posting_imports_path(locale: I18n.locale,
+                                                         organization_id: @organization),
+              method: :post, class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :file, t(".file") %>
+    <%= form.file_field :file, accept: "text/csv" %>
+  </div>
+
+  <%= form.submit t(".submit"), class: "button" %>
+<% end %>
+
+<p>
+  <%= link_to t(".export"),
+              organization_job_posting_export_path(locale: I18n.locale, organization_id: @organization) %>
+</p>
+
+<h2><%= t(".history") %></h2>
+
+<% if @integration_runs.any? %>
+  <ul>
+    <% @integration_runs.each do |run| %>
+      <li>
+        <%= l(run.created_at, format: :long) %>
+        <%= t(".kinds.#{run.kind}") %>
+        <%= t(".counts", created: run.created_count, updated: run.updated_count, failed: run.failed_count) %>
+        <%= run.performed_by&.email_address || t(".removed_account") %>
+        <%# 失敗した行の内容を出す。出さないと、何を直せばよいか分からない。 %>
+        <% if run.failures.present? %>
+          <pre><%= run.failures %></pre>
+        <% end %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".no_history") %></p>
+<% end %>
