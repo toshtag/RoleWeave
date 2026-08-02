@@ -15,6 +15,12 @@ class Public::SitemapsController < ApplicationController
     # relation の maximum を呼ぶと、読み終えた後にもう一度全件を走査する。
     fresh_when(etag: @job_postings, last_modified: @job_postings.map(&:updated_at).max, public: true)
 
+    # 内容が変わっていなければ、fresh_when がここで 304 を返す。
+    # **その場合は描画へ進まない。**進むと 2 回目の描画になり、
+    # AbstractController::DoubleRenderError で 500 になる。
+    # fresh_when は 304 を返したかどうかを返り値では示さないため、performed? で見る。
+    return if performed?
+
     render formats: :xml, content_type: "application/xml"
   end
 end
