@@ -13,6 +13,10 @@ require_relative "../lib/localized_public_exceptions"
 # 逆プロキシの前提は環境ごとの設定ファイルが読む。autoload では間に合わない。
 require_relative "../lib/reverse_proxy"
 
+# 本文の大きさの上限は middleware stack の組み立て時に必要になる。
+# また middleware が保持する定数を reload の対象にしない。
+require_relative "../lib/request_body_limit"
+
 # 構造化ログは初期化の早い段階で購読する。autoload では購読の登録が遅れる。
 require_relative "../lib/structured_log"
 require_relative "../lib/structured_log_subscriber"
@@ -29,7 +33,7 @@ module RoleWeave
     # localized_public_exceptions.rb は上で明示的に読み込む。autoload の対象から外し、
     # 読み込み方が 2 通りある状態を残さない。
     config.autoload_lib(ignore: %w[assets tasks localized_public_exceptions.rb
-                              reverse_proxy.rb
+                              reverse_proxy.rb request_body_limit.rb
                               structured_log.rb structured_log_subscriber.rb
                               slow_query_logger.rb])
 
@@ -63,6 +67,11 @@ module RoleWeave
     #
     # 環境ごとに切り替えず、すべての環境で同じ exceptions app を使う。
     # 実際に表示するかどうかは consider_all_requests_local と show_exceptions が決める。
+    # 本文の大きさの上限は、本文を読む処理より前へ置く。
+    # 後ろへ置くと、上限を超えたことに気付いた時点ですでに受け取っている。
+    # 詳細は docs/decisions/0063-request-size-limits.md を参照する。
+    config.middleware.insert_before 0, RequestBodyLimit
+
     config.exceptions_app = LocalizedPublicExceptions.new(
       public_path: Rails.public_path,
       available_locales: config.i18n.available_locales,

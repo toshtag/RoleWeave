@@ -490,6 +490,7 @@ ja:
         no_history: まだ実行の履歴はありません。
       create:
         missing_file: ファイルが選ばれていません。
+        too_large: "ファイルが大きすぎます。%{megabytes} MB 以内、%{rows} 行以内にしてください。"
         completed: "取り込みました。作成 %{created} 件 / 更新 %{updated} 件 / 失敗 %{failed} 件。"
     webhooks:
       index:
