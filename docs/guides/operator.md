@@ -49,6 +49,7 @@ docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com
 
 | やること | 手順 |
 | --- | --- |
+| 前段の proxy の設定 | [逆プロキシの前提](../development/reverse-proxy.md) |
 | 保持期限の適用 | [README](../../README.md) の「保持期限を適用する」 |
 | バックアップ | [バックアップと復元](../development/backup-and-restore.md) |
 | 配信の失敗の確認 | `/ja/operator/notification_deliveries` を定期的に見る |

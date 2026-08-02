@@ -6,13 +6,41 @@ An open source, self-hostable recruiting platform.
 
 ## Current status
 
-**v0.1.0 — ready to evaluate, not guaranteed for production use.**
+**Ready to evaluate, not guaranteed for production use.**
 
-Accounts, organizations, job postings, public job discovery, candidate profiles,
-applications, hiring workflow, messaging and notifications, plus the privacy,
-security and operations work behind them, are implemented.
-What is *not* included (sourcing, external integrations) and the known limitations
-are listed in the [changelog](CHANGELOG.md).
+The latest published release is `v0.1.0`. The current `main` contains features and
+fixes added after `v0.1.0`. They have not been versioned yet, so they have not been
+published as a release.
+
+Every planned phase, P0 through P15, is complete
+(see the [roadmap](docs/roadmap/index.yaml)).
+
+The following is implemented on the current `main`:
+
+| Area | Contents |
+| --- | --- |
+| Accounts | Sign-up, email confirmation, sign-in, password reset, authentication records |
+| Organizations | Creation, invitations, roles (owner / member), role change history, operators |
+| Job postings | Creation and editing, separation of submission and approval, publication history |
+| Public discovery | Job list and detail, keyword and attribute filters, pagination, sitemap and robots, structured data |
+| Profiles | Basic information, work history, education, skills, desired conditions, document attachments, visibility |
+| Applications | Applying, duplicate prevention, snapshot at the time of applying, withdrawal, organization-side access |
+| Hiring workflow | Selection stages, reviews and comments, assignees, interview schedules, decision deadlines |
+| Messaging | Conversations tied to an application, read state, in-app notifications, email notifications, delivery failures and resending |
+| Saving and sourcing | Saved jobs, saved searches, new job notifications, candidate search, talent pools |
+| Scouting | Sending, templates, sending limits, opting out, duplicate prevention |
+| Integrations | Generic webhooks, job posting CSV import and export, integration run history |
+| Safety | Rate limiting, CSP, reverse proxy assumptions, request size limits, retention, deletion and anonymization, audit log |
+| Operations | Structured logging, slow query logging, load testing, capacity model, backup procedure |
+| Evaluation | Fictional demo data, role-based guides, architecture overview |
+
+Candidate search and scouting only reach candidates **who have explicitly opted in**.
+The default is opted out (see
+[ADR 0055](docs/decisions/0055-candidate-search.md), written in Japanese).
+
+What is still *not* included and the known limitations are listed in the
+[changelog](CHANGELOG.md). Quality requirements that are not met are listed in
+[the verification status](docs/quality/verification-status.md).
 
 While on `0.x`, breaking changes may still land between versions.
 
@@ -125,15 +153,18 @@ development-ready state.
 docker compose up
 ```
 
-Minimal Japanese and English entry pages are provided as the application shell.
+Japanese and English entry pages are provided.
 
 ```text
 http://127.0.0.1:3000/ja
 http://127.0.0.1:3000/en
 ```
 
-`/` redirects to the Japanese page. Business features such as job postings, job
-applications, and authentication are not implemented yet.
+`/` redirects to the Japanese page. The public job list is at `/en/jobs`, sign-in at
+`/en/session/new`, and account creation at `/en/registration/new`.
+The role-based guides ([candidate](docs/guides/candidate.md),
+[organization](docs/guides/organization.md)) list the entry points per role.
+They are written in Japanese; the URLs apply to `/en` as well.
 
 The health check is still available for confirming that the application is running.
 
@@ -163,6 +194,64 @@ docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com
 
 Operators can only list every organization and restore an organization's administrator.
 See [`docs/decisions/0015-operator-role.md`](docs/decisions/0015-operator-role.md) for details.
+
+### Load the demo data
+
+This loads fictional data for evaluation. It can only be run in development.
+
+```bash
+docker compose run --rm app bin/rails roleweave:demo:seed
+```
+
+The accounts and passwords it creates are printed. Every email address is under
+`@example.invalid`, a domain that cannot exist.
+
+To remove it, run the following.
+
+```bash
+docker compose run --rm app bin/rails roleweave:demo:clean
+```
+
+### Run the load test
+
+Create the data first, then measure. No external load tool is required.
+
+```bash
+docker compose run --rm app bin/rails "roleweave:load:seed[5000]"
+```
+
+```bash
+docker compose run --rm app bin/rails "roleweave:load:measure[20]"
+```
+
+Remove the data once you are done measuring.
+
+```bash
+docker compose run --rm app bin/rails roleweave:load:clean
+```
+
+Measured values are in
+[`docs/performance/load-test-results.md`](docs/performance/load-test-results.md) and
+the estimates in
+[`docs/performance/capacity-model.md`](docs/performance/capacity-model.md).
+
+### Apply the retention policy
+
+This deletes and anonymizes data past its retention period. It is never run
+automatically.
+
+```bash
+docker compose run --rm app bin/rails roleweave:retention:report
+```
+
+Check the counts with `report` first, then apply.
+
+```bash
+docker compose run --rm app bin/rails roleweave:retention:apply
+```
+
+See [`docs/decisions/0046-data-retention.md`](docs/decisions/0046-data-retention.md)
+for what is kept and for how long.
 
 ### Standard verification
 
@@ -229,14 +318,29 @@ The documents below are internal design documents and are written in Japanese, a
 described above. Setup and usage documentation will be provided in both languages.
 
 - [Project overview](docs/project-overview.md) — what is being built and who it is for
+- [Using it as a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
+- [Using it as an organization](docs/guides/organization.md) — organizations, job postings, hiring
+- [Using it as an operator](docs/guides/operator.md) — for whoever runs the server
+- [Architecture overview](docs/architecture/overview.md) — how the pieces fit together
+- [Contributing](CONTRIBUTING.md) — how work proceeds and what verification is required
+- [Changelog](CHANGELOG.md) — what each version contains and its known limitations
+- [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
 - [Project principles](docs/project-principles.md) — the principles that guide planning and implementation decisions
 - [Roadmap](docs/roadmap/index.yaml) — phase index from P0 through P15
+- [Post-v1 options](docs/roadmap/post-v1-options.md) — candidates under consideration, not commitments, and how they are evaluated
 - [Architecture principles](docs/architecture/principles.md) — how structural decisions are made
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
 - [Coding style](docs/development/coding-style.md) — language, comment, and structure rules referenced while implementing
 - [Development workflow](docs/development/workflow.md) — responsibilities of the roadmap, issues, PRs, and ADRs
+- [File storage](docs/development/file-storage.md) — where attachments live and how they are handled when self-hosting
 - [Reverse proxy assumptions](docs/development/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
 - [Cross-cutting quality requirements](docs/quality/cross-cutting-requirements.md) — quality requirements met within each feature phase
+- [Verification status](docs/quality/verification-status.md) — what is met and what is not
+- [Threat model](docs/security/threat-model.md) — what is defended against and what is accepted
+- [Security policy](SECURITY.md) — where to report a problem
+- [Backup and restore](docs/development/backup-and-restore.md) — the database and the attachments are handled as a pair
+- [Load test results](docs/performance/load-test-results.md) — measured values only
+- [Capacity model](docs/performance/capacity-model.md) — estimates with the assumptions stated
 
 ## How development proceeds
 
@@ -245,6 +349,12 @@ implementation tasks and bugs, and pull requests for implementation results
 and verification records. As a rule, each issue produces one verifiable result
 and one pull request. See the [development workflow](docs/development/workflow.md)
 for details.
+
+**Every planned phase (P0 through P15) is complete.** From here on, features are not
+added by working down a plan. When a concrete bug report or a request grounded in
+actual use arrives, an issue is opened and judged on its own
+(see [post-v1 options](docs/roadmap/post-v1-options.md) and
+[ADR 0059](docs/decisions/0059-post-v1-evaluation.md)).
 
 ## License
 
