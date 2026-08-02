@@ -104,6 +104,26 @@ class OrganizationAuthorizationTest < ActionDispatch::IntegrationTest
     assert_not_predicate @member_membership.reload, :owner?
   end
 
+  test "役割の変更は、組織の行を押さえたまま行う" do
+    # 最後の owner を残す検証は、いまの owner を数えて決める。
+    # 数えてから保存するまでの間に別の変更が入ると、
+    # 両方が「ほかに owner がいる」と判断して owner が 0 人になる。
+    sign_in_as(@owner)
+    @member_membership.update_column(:role, "owner")
+
+    statements = captured_sql { change_role(@member_membership, "member") }
+
+    lock = statements.index { |sql| sql.match?(/SELECT.+FROM "organizations".+FOR UPDATE/m) }
+    count = statements.index { |sql| sql.match?(/FROM "memberships".+"role" = /m) }
+    update = statements.index { |sql| sql.start_with?("UPDATE \"memberships\"") }
+
+    assert lock, "組織の行を FOR UPDATE で押さえていない"
+    assert count, "owner を数えていない"
+    assert update, "役割を保存していない"
+    assert lock < count, "owner を数える前に組織の行を押さえていない"
+    assert count < update, "数えた後に保存していない"
+  end
+
   test "メンバー一覧を日本語と英語で表示する" do
     sign_in_as(@owner)
 
