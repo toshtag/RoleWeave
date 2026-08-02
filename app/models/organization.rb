@@ -36,6 +36,9 @@ class Organization < ApplicationRecord
   # 外部への配信先。組織を消したら残さない。
   has_many :webhooks, dependent: :destroy
 
+  # 連携の実行の結果。組織を消したら残さない。
+  has_many :integration_runs, dependent: :destroy
+
   # 前後の空白は取り除く。表示名の違いが空白だけ、という状態を作らない。
   normalizes :name, with: ->(name) { name.strip }
 
