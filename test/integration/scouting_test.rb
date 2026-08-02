@@ -63,6 +63,27 @@ class ScoutingTest < ActionDispatch::IntegrationTest
     assert_not @organization.scouts.build(candidate_profile: @profile, body: "上限超過").valid?
   end
 
+  test "上限の判定と保存を、組織の行を押さえたまま行う" do
+    # 数えてから INSERT するまでの間に別の送信が入ると、
+    # 両方が上限内だと判断して合計が上限を超える。
+    # 数える前に組織の行を押さえ、同じ組織の送信を 1 つずつ通す。
+    sign_in_as(@recruiter)
+
+    statements = captured_sql do
+      post scouts_path, params: { candidate_profile_id: @profile.id, body: "ご連絡しました" }
+    end
+
+    lock = statements.index { |sql| sql.match?(/SELECT.+FROM "organizations".+FOR UPDATE/m) }
+    count = statements.index { |sql| sql.match?(/SELECT COUNT\(\*\).+FROM "scouts"/m) }
+    insert = statements.index { |sql| sql.start_with?("INSERT INTO \"scouts\"") }
+
+    assert lock, "組織の行を FOR UPDATE で押さえていない"
+    assert count, "当日の件数を数えていない"
+    assert insert, "スカウトを保存していない"
+    assert lock < count, "件数を数える前に組織の行を押さえていない"
+    assert count < insert, "数えた後に保存していない"
+  end
+
   test "受信を許可していない候補者へ送れない" do
     @profile.update!(scout_opt_in: false)
     sign_in_as(@recruiter)
