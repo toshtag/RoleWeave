@@ -13,6 +13,12 @@ class TalentPool < ApplicationRecord
   has_many :talent_pool_members, dependent: :destroy
   has_many :candidate_profiles, through: :talent_pool_members
 
+  # 企業へ見せてよい所属だけ。**表示と件数はこちらを使う。**
+  #
+  # 行そのものは残す。候補者が許可を戻せば、また見えるようにする。
+  # 消してしまうと、取り消しと再開のたびに組織側の作業が失われる。
+  has_many :searchable_members, -> { searchable }, class_name: "TalentPoolMember"
+
   normalizes :name, with: ->(name) { name.strip }
 
   validates :name, presence: true, length: { maximum: NAME_MAX_LENGTH }
