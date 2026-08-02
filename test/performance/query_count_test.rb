@@ -50,8 +50,7 @@ class QueryCountTest < ActionDispatch::IntegrationTest
     3.times { |index| conversation.messages.create!(sender: @owner, body: "追加 #{index}") }
     after = count_queries { get application_conversation_path(locale: :ja, application_id: application) }
 
-    # 既読の記録は未読の数だけ増える。読み出しの問い合わせが増えないことを見る。
-    assert_operator after, :<=, baseline + 3, "メッセージが増えると読み出しの問い合わせも増えている（N+1）"
+    assert_equal baseline, after, "メッセージが増えると問い合わせも増えている（N+1）"
   end
 
   test "通知の一覧は件数に比例して問い合わせを増やさない" do
@@ -163,48 +162,6 @@ class QueryCountTest < ActionDispatch::IntegrationTest
   end
 
   private
-    # あるモデルが読み込んだ行の数。
-    #
-    # 問い合わせの数だけでは、1 回で全件を読む形を検出できない。
-    # 「使わない行を読んでいないか」は、行の数でしか見えない。
-    def count_loaded(model)
-      count = 0
-
-      subscriber = ActiveSupport::Notifications.subscribe("instantiation.active_record") do |*args|
-        payload = ActiveSupport::Notifications::Event.new(*args).payload
-
-        count += payload[:record_count] if payload[:class_name] == model.name
-      end
-
-      yield
-
-      count
-    ensure
-      ActiveSupport::Notifications.unsubscribe(subscriber)
-    end
-
-    # 実行された SQL の文。
-    #
-    # 数だけでは「どの表を何回引いたか」「どの列を読んだか」が分からない。
-    # 値（bind）は Rails が文へ埋めないため、ここにも現れない（ADR 0049）。
-    def captured_sql
-      statements = []
-
-      subscriber = ActiveSupport::Notifications.subscribe("sql.active_record") do |*args|
-        payload = ActiveSupport::Notifications::Event.new(*args).payload
-
-        next if SlowQueryLogger::IGNORED_NAMES.include?(payload[:name])
-
-        statements << payload[:sql]
-      end
-
-      yield
-
-      statements
-    ensure
-      ActiveSupport::Notifications.unsubscribe(subscriber)
-    end
-
     def sign_in_as(user)
       post session_path(locale: :ja), params: { email_address: user.email_address, password: PASSWORD }
     end
