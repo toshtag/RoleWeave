@@ -94,11 +94,57 @@ class WebhookDeliveryJobTest < ActiveJob::TestCase
     assert_equal 403, delivery.response_code
   end
 
+  test "接続の失敗は connection_failed として残り、例外の内容は残らない" do
+    # 「接続を拒まれた」と「経路がない」の違いは、内部に何が居るかを教える。
+    delivery = delivery_for("http://93.184.216.34/hook")
+
+    without_sending(Errno::ECONNREFUSED.new("connect(2) for 10.0.0.5:8080")) do
+      assert_raises(Errno::ECONNREFUSED) do
+        WebhookDeliveryJob.perform_now(delivery, { event: "job_application_created" })
+      end
+    end
+
+    assert_equal "connection_failed", delivery.reload.error
+    assert_nil delivery.response_code
+  end
+
+  test "応答を待てない場合は timeout として残る" do
+    delivery = delivery_for("http://93.184.216.34/hook")
+
+    without_sending(Net::OpenTimeout.new) do
+      assert_raises(Net::OpenTimeout) do
+        WebhookDeliveryJob.perform_now(delivery, { event: "job_application_created" })
+      end
+    end
+
+    assert_equal "timeout", delivery.reload.error
+  end
+
+  test "リダイレクトを追わない" do
+    # 追うと、判定を通った URL から内部の宛先へ飛べる。
+    delivery = delivery_for("http://93.184.216.34/hook")
+
+    calls = without_sending(Net::HTTPFound.new("1.1", "302", "Found")) do
+      assert_raises(WebhookDeliveryJob::DeliveryFailed) do
+        WebhookDeliveryJob.perform_now(delivery, { event: "job_application_created" })
+      end
+    end
+
+    assert_equal 1, calls.size
+    assert_equal "http_error", delivery.reload.error
+    assert_equal 302, delivery.response_code
+  end
+
   # 応答を返すだけの相手。実際の送信は行わない。
+  # 例外を渡すと、その例外を投げる相手になる。
   class FakeHttp
     def initialize(response) = @response = response
 
-    def request(_request) = @response
+    def request(_request)
+      raise @response if @response.is_a?(Exception)
+
+      @response
+    end
   end
 
   private
