@@ -83,6 +83,57 @@ class RateLimitingTest < ActionDispatch::IntegrationTest
     assert_equal @before, [ Invitation.count, enqueued_jobs.size ]
   end
 
+  test "未認証の要求は招待の枠を消費しない" do
+    # 枠を数えるのは、認証・メールの確認・組織の解決・組織の管理者の判定を
+    # 通った要求だけとする。
+    # 通らない要求で減らせると、同じ IP の正規の管理者を止められる。
+    organization = owned_organization
+
+    exceed(ApplicationController::INVITATION_ATTEMPT_LIMIT) { |index| invite(organization, index) }
+
+    assert_redirected_to new_session_path(locale: :ja)
+    assert_equal 0, Invitation.count
+
+    sign_in_as(@user)
+
+    assert_difference -> { Invitation.count }, 1 do
+      invite(organization, 9_000)
+    end
+  end
+
+  test "メールが未確認の利用者の要求は招待の枠を消費しない" do
+    organization = owned_organization
+    unconfirmed = User.create!(email_address: "unconfirmed@example.com", password: PASSWORD)
+    sign_in_as(unconfirmed)
+
+    exceed(ApplicationController::INVITATION_ATTEMPT_LIMIT) { |index| invite(organization, index) }
+
+    assert_response :forbidden
+
+    sign_in_as(@user)
+
+    assert_difference -> { Invitation.count }, 1 do
+      invite(organization, 9_000)
+    end
+  end
+
+  test "管理者でない利用者の要求は招待の枠を消費しない" do
+    organization = owned_organization
+    member = User.create!(email_address: "member2@example.com", password: PASSWORD).tap(&:confirm)
+    organization.memberships.create!(user: member, role: "member", changed_by: @user)
+    sign_in_as(member)
+
+    exceed(ApplicationController::INVITATION_ATTEMPT_LIMIT) { |index| invite(organization, index) }
+
+    assert_response :not_found
+
+    sign_in_as(@user)
+
+    assert_difference -> { Invitation.count }, 1 do
+      invite(organization, 9_000)
+    end
+  end
+
   test "組織を切り替えても招待の上限は保たれる" do
     # 組織は確認済みのアカウントであれば作れる。
     # 組織ごとに数えると、作り直すだけで上限を迂回できる。

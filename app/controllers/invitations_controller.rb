@@ -1,21 +1,27 @@
 class InvitationsController < ApplicationController
   include OrganizationScope
 
-  # 任意の宛先へメールを積める経路である。
-  #
-  # 同じ組織から同じ宛先への未受諾の招待には一意制約があるが、
-  # **宛先を変えれば何度でも作れる。**組織も確認済みのアカウントであれば作れるため、
-  # 組織ごとに数えると、作り直すだけで迂回できる。
-  # 数える単位は IP とする（ADR 0044）。組織を切り替えても変わらない。
-  rate_limit to: INVITATION_ATTEMPT_LIMIT, within: RATE_LIMIT_PERIOD, only: :create,
-             with: -> { render_rate_limited }
-
   before_action :require_authentication
   before_action :require_confirmed_email
   before_action :set_organization, only: %i[new create]
   # 招待できるのは管理者だけとする。入ったばかりのメンバーが
   # 誰でも他の人を招待できる状態にしない。
   before_action :require_organization_owner, only: %i[new create]
+
+  # 任意の宛先へメールを積める経路である。
+  #
+  # 同じ組織から同じ宛先への未受諾の招待には一意制約があるが、
+  # **宛先を変えれば何度でも作れる。**組織も確認済みのアカウントであれば作れるため、
+  # 組織ごとに数えると、作り直すだけで迂回できる。
+  # 数える単位は IP とする（ADR 0044）。組織を切り替えても変わらない。
+  #
+  # **認可の後に置く。**Rails は宣言した位置へ before_action を登録するため、
+  # 認証より前に書くと、認証・認可を通らない要求まで枠を数えることになる。
+  # 枠は IP 単位で共有される。減らされた側の管理者は招待を作れなくなる。
+  # 数えるのは、上の 4 つの before_action を通った要求である。
+  # 通った後は、入力の検証に失敗した要求も数える。
+  rate_limit to: INVITATION_ATTEMPT_LIMIT, within: RATE_LIMIT_PERIOD, only: :create,
+             with: -> { render_rate_limited }
 
   def new
     @invitation = @organization.invitations.new
