@@ -37,6 +37,10 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     "404.en.html" => :en,
     "406-unsupported-browser.html" => :ja,
     "406-unsupported-browser.en.html" => :en,
+    # 413 は例外ではないため exceptions_app を通らない。
+    # RequestBodyLimit が直接返す。静的ページとしての契約は同じである。
+    "413.html" => :ja,
+    "413.en.html" => :en,
     "422.html" => :ja,
     "422.en.html" => :en,
     "500.html" => :ja,
@@ -49,6 +53,7 @@ class ErrorPagesTest < ActionDispatch::IntegrationTest
     "400" => { ja: "リクエストを処理できません", en: "Unable to process this request" },
     "404" => { ja: "ページが見つかりません", en: "Page not found" },
     "406" => { ja: "このブラウザーには対応していません", en: "Your browser is not supported" },
+    "413" => { ja: "送信されたデータが大きすぎます", en: "The submitted data is too large" },
     "422" => { ja: "送信内容を受け付けられません", en: "Unable to accept this submission" },
     "500" => { ja: "ページを表示できません", en: "Unable to display this page" }
   }.freeze
