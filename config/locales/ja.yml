@@ -131,6 +131,12 @@ ja:
               blocked: からこの組織の受信が止められています
             base:
               daily_limit_reached: 本日の送信の上限に達しました
+        webhook:
+          attributes:
+            url:
+              invalid_scheme: は http または https で指定してください
+            event_kinds:
+              unknown: に未知の種類が含まれています
         candidate_profile:
           attributes:
             resume:
@@ -466,6 +472,26 @@ ja:
         save: この求人を保存する
         back: 求人の一覧へ
   organizations:
+    webhooks:
+      index:
+        title: 外部への配信
+        body: 業務の出来事を外部の URL へ送ります。送るのは識別子と種類だけで、個人情報は含みません。
+        url: 送信先の URL
+        event_kinds: 送る出来事
+        kinds:
+          job_application_created: 応募があったとき
+          job_application_stage_changed: 選考の段階が変わったとき
+        create: 登録する
+        destroy: 削除する
+        last_delivery: "最後の配信: %{status}（%{at}）"
+        statuses:
+          pending: 送信中
+          delivered: 成功
+          failed: 失敗
+        no_delivery: まだ配信していません
+        empty: まだ配信先はありません。
+      create:
+        created: "登録しました。署名の秘密は %{secret} です。この画面を離れると二度と表示されません。"
     scouts:
       index:
         title: 送ったスカウト
@@ -591,6 +617,7 @@ ja:
       candidate_searches: 候補者を探す
       talent_pools: タレントプール
       scouts: スカウト
+      webhooks: 外部への配信
       job_postings: 求人を見る
     new:
       title: 組織の作成

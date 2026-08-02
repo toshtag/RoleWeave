@@ -131,6 +131,12 @@ en:
               blocked: has stopped messages from this organization
             base:
               daily_limit_reached: The daily sending limit has been reached
+        webhook:
+          attributes:
+            url:
+              invalid_scheme: must start with http or https
+            event_kinds:
+              unknown: contains an unknown event type
         candidate_profile:
           attributes:
             resume:
@@ -464,6 +470,26 @@ en:
         save: Save this job posting
         back: Back to job postings
   organizations:
+    webhooks:
+      index:
+        title: Outgoing webhooks
+        body: Sends events to an external URL. Only identifiers and the event type are sent, never personal data.
+        url: Destination URL
+        event_kinds: Events to send
+        kinds:
+          job_application_created: When an application arrives
+          job_application_stage_changed: When the selection stage changes
+        create: Register
+        destroy: Delete
+        last_delivery: "Last delivery: %{status} (%{at})"
+        statuses:
+          pending: Sending
+          delivered: Delivered
+          failed: Failed
+        no_delivery: Nothing delivered yet
+        empty: No webhooks registered yet.
+      create:
+        created: "Registered. The signing secret is %{secret}. It will never be shown again."
     scouts:
       index:
         title: Sent messages
@@ -589,6 +615,7 @@ en:
       candidate_searches: Find candidates
       talent_pools: Talent pools
       scouts: Messages
+      webhooks: Webhooks
       job_postings: View job postings
     new:
       title: Create an organization

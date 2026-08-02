@@ -1,0 +1,68 @@
+<% content_for :title, "#{t(".title")} | #{t("application.name")}" %>
+<% content_for :robots, "noindex, nofollow" %>
+
+<h1><%= t(".title") %></h1>
+
+<% if flash[:notice] %>
+  <%# 秘密はここでしか出さない。以後は画面に出さない。 %>
+  <p role="status"><%= flash[:notice] %></p>
+<% end %>
+
+<% if flash[:alert] %>
+  <p class="form-error" role="alert"><%= flash[:alert] %></p>
+<% end %>
+
+<p><%= t(".body") %></p>
+
+<%= form_with model: @webhook,
+              url: organization_webhooks_path(locale: I18n.locale, organization_id: @organization),
+              class: "form" do |form| %>
+  <div class="form__field">
+    <%= form.label :url, t(".url") %>
+    <%= form.url_field :url, required: true %>
+  </div>
+
+  <fieldset class="form__field">
+    <legend><%= t(".event_kinds") %></legend>
+    <% Webhook::EVENT_KINDS.each do |event_kind| %>
+      <div>
+        <%= check_box_tag "webhook[event_kinds][]", event_kind, false, id: "webhook_event_kinds_#{event_kind}" %>
+        <%= label_tag "webhook_event_kinds_#{event_kind}", t(".kinds.#{event_kind}") %>
+      </div>
+    <% end %>
+  </fieldset>
+
+  <%= form.submit t(".create"), class: "button" %>
+<% end %>
+
+<% if @webhooks.any? %>
+  <ul>
+    <% @webhooks.each do |webhook| %>
+      <li>
+        <%= webhook.url %>
+        <%= webhook.event_kinds.map { |kind| t(".kinds.#{kind}") }.join(" / ") %>
+
+        <%#
+          配信の結果。失敗しても業務処理は巻き戻さないため、
+          ここを見ないと失敗に気付けない。
+        %>
+        <% latest = webhook.webhook_deliveries.recent.first %>
+        <% if latest %>
+          <%= t(".last_delivery", status: t(".statuses.#{latest.status}"),
+                                  at: l(latest.created_at, format: :long)) %>
+          <%= latest.error %>
+        <% else %>
+          <%= t(".no_delivery") %>
+        <% end %>
+
+        <%= button_to t(".destroy"),
+                      organization_webhook_path(locale: I18n.locale,
+                                                organization_id: @organization, id: webhook),
+                      method: :delete,
+                      class: "button button--quiet" %>
+      </li>
+    <% end %>
+  </ul>
+<% else %>
+  <p><%= t(".empty") %></p>
+<% end %>
