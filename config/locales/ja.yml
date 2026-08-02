@@ -135,6 +135,7 @@ ja:
           attributes:
             url:
               invalid_scheme: は http または https で指定してください
+              internal_address: に内部のアドレスは指定できません
             event_kinds:
               unknown: に未知の種類が含まれています
         candidate_profile:
@@ -506,6 +507,14 @@ ja:
           pending: 送信中
           delivered: 成功
           failed: 失敗
+        failures:
+          blocked_destination: 送信先が許可されていません
+          internal_address: 送信先が内部のアドレスを指しています
+          unresolvable: 送信先の名前を解決できません
+          invalid_scheme: 送信先の URL が不正です
+          timeout: 応答がありません
+          connection_failed: 接続できません
+          http_error: 送信先がエラーを返しました
         no_delivery: まだ配信していません
         empty: まだ配信先はありません。
       create:

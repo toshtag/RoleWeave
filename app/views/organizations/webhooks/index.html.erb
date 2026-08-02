@@ -50,7 +50,11 @@
         <% if latest %>
           <%= t(".last_delivery", status: t(".statuses.#{latest.status}"),
                                   at: l(latest.created_at, format: :long)) %>
-          <%= latest.error %>
+          <%# 失敗は種別だけを出す。例外の内容をそのまま出すと、
+              接続できたかどうかが送り先ごとに読み取れてしまう（ADR 0060）。 %>
+          <% if latest.error.present? %>
+            <%= t(".failures.#{latest.error}") %>
+          <% end %>
         <% else %>
           <%= t(".no_delivery") %>
         <% end %>
