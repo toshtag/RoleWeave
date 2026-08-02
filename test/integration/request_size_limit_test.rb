@@ -51,6 +51,21 @@ class RequestSizeLimitTest < ActionDispatch::IntegrationTest
     assert_not reached
   end
 
+  test "上限の判定が経路の入口に置かれている" do
+    # 単体で正しくても、stack へ入っていなければ何も止まらない。
+    # 後ろへ置くと、気付いた時点ですでに受け取っている。
+    assert_equal RequestBodyLimit, Rails.application.middleware.first.klass
+  end
+
+  test "上限を超える本文が実際の経路で 413 になる" do
+    sign_in_as(@owner)
+
+    post imports_path, params: { file: uploaded("#{HEADER}\n") },
+                       headers: { "CONTENT_LENGTH" => (RequestBodyLimit::MAX_BYTES + 1).to_s }
+
+    assert_response :content_too_large
+  end
+
   test "上限を超える CSV は取り込まない" do
     sign_in_as(@owner)
     oversized = "#{HEADER}\n#{"key-1,題名,#{"あ" * 1_000},,,,,,,\n" * 2_000}"
