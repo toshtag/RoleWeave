@@ -3,7 +3,7 @@ name: Post-V1 Options
 weight: 3
 confidence: low
 risk: low
-status: in_progress
+status: done
 depends_on:
   - P12
 objective: |-
