@@ -287,6 +287,7 @@ bin/verify --full
 - [コーディングスタイル](docs/development/coding-style.md) — 実装中に参照する言語・コメント・構造の要点
 - [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
 - [ファイルの保存先](docs/development/file-storage.md) — 添付の保存先と自己ホストでの運用
+- [逆プロキシの前提](docs/development/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
 - [横断品質要件](docs/quality/cross-cutting-requirements.md) — 各機能フェーズで同時に満たす品質要件
 - [横断品質要件の検証状況](docs/quality/verification-status.md) — 満たしている点と満たしていない点
 - [脅威モデル](docs/security/threat-model.md) — 何から守り、何を受け入れているか
