@@ -37,10 +37,16 @@ gem "bcrypt", "~> 3.1.7"
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
 gem "tzinfo-data", platforms: %i[ windows jruby ]
 
-# Use the database-backed adapters for Rails.cache, Active Job, and Action Cable
+# Use the database-backed adapters for Rails.cache and Active Job
+#
+# solid_cache は Rails.cache を直接呼ぶ箇所が無くても外せない。
+# Rails 8 の rate_limit が既定で config.cache_store を使う（ADR 0044）。
+# production の cache_store は :solid_cache_store であり、
+# 外すと本番のレート制限がプロセスローカルになる。
+#
+# Action Cable を読み込まないため、solid_cable は宣言しない（ADR 0065）。
 gem "solid_cache"
 gem "solid_queue"
-gem "solid_cable"
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false

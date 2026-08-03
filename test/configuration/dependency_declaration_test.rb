@@ -20,7 +20,18 @@ class DependencyDeclarationTest < ActiveSupport::TestCase
   #   jbuilder            JSON を返す経路がない
   #   capybara            system test がない
   #   selenium-webdriver  同上
-  REMOVED_GEMS = %w[jbuilder capybara selenium-webdriver].freeze
+  #   solid_cable         Action Cable を読み込まない（ADR 0065）
+  REMOVED_GEMS = %w[jbuilder capybara selenium-webdriver solid_cable].freeze
+
+  # 読み込まない Rails のフレームワーク（ADR 0065）。
+  UNLOADED_FRAMEWORKS = %w[ActionCable ActionText ActionMailbox].freeze
+
+  # 読み込むフレームワーク。
+  # 片側だけを検査すると、require の一覧をまとめて削っても気付けない。
+  LOADED_FRAMEWORKS = %w[
+    ActiveRecord ActiveStorage ActionController
+    ActionView ActionMailer ActiveJob
+  ].freeze
 
   # Rails が読み込まない標準ライブラリと、それを使っていると判断する目印。
   #
@@ -40,6 +51,30 @@ class DependencyDeclarationTest < ActiveSupport::TestCase
         require gem_name
       end
     end
+  end
+
+  test "使っていない Rails のフレームワークを読み込まない" do
+    UNLOADED_FRAMEWORKS.each do |framework|
+      assert_nil defined?(framework) && (Object.const_get(framework) rescue nil),
+        "#{framework} が読み込まれている。config/application.rb の require を確認する"
+    end
+  end
+
+  test "使っている Rails のフレームワークを読み込む" do
+    LOADED_FRAMEWORKS.each do |framework|
+      assert (Object.const_get(framework) rescue nil),
+        "#{framework} が読み込まれていない。config/application.rb の require を確認する"
+    end
+  end
+
+  test "production の設定に cable データベースを持たない" do
+    # Action Cable を読み込まない以上、作成・接続・バックアップ・監視の
+    # 対象として cable データベースを残さない（ADR 0065）。
+    production = Rails.application.config.database_configuration.fetch("production")
+
+    assert_not_includes production.keys, "cable"
+    assert_includes production.keys, "queue"
+    assert_includes production.keys, "cache"
   end
 
   test "Rails が読み込まない標準ライブラリを、使う側が宣言する" do

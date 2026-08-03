@@ -3,7 +3,7 @@
 この文書は日本語版を正本とする。
 
 判断の基準は [`principles.md`](principles.md)、
-個別の判断は [`../decisions/`](../decisions/) にある（64 件）。
+個別の判断は [`../decisions/`](../decisions/) にある（65 件）。
 ここでは「何がどう組み合わさっているか」だけを書く。
 
 ## 構成
@@ -16,7 +16,7 @@ Rails 8.1（Puma）
    ├── Propshaft + Importmap（自前の資産だけ。外部の CDN を使わない）
    ├── Turbo / Stimulus
    ├── Active Storage（Disk。storage/ に置く）
-   └── Solid Queue / Solid Cache / Solid Cable
+   └── Solid Queue / Solid Cache
    │
    ▼
 PostgreSQL 18
