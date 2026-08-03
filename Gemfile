@@ -43,8 +43,11 @@ gem "solid_cable"
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
 
-# Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
-gem "image_processing", "~> 1.2"
+# 画像の variant を生成しないため、image_processing とその backend
+# （mini_magick、ruby-vips）を宣言しない（ADR 0064）。
+# 宣言すると、使わない変換の経路のために、ホストと CI runner を含む
+# 全実行環境へ libvips または ImageMagick を要求することになる。
+# variant が必要になったときは、実行環境の前提と一緒に足す。
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem

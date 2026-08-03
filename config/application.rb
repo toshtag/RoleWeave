@@ -27,6 +27,12 @@ module RoleWeave
     # Initialize configuration defaults for originally generated Rails version.
     config.load_defaults 8.1
 
+    # 画像の variant を生成しない（ADR 0064）。
+    # 添付は職務経歴書の書類だけで、variant を呼ぶコードは存在しない。
+    # 既定の :vips のままにすると、使わない変換の経路のために
+    # ホストと CI runner を含む全実行環境へ libvips を要求することになる。
+    config.active_storage.variant_processor = :disabled
+
     # Please, add to the `ignore` list any other `lib` subdirectories that do
     # not contain `.rb` files, or that should not be reloaded or eager loaded.
     # Common ones are `templates`, `generators`, or `middleware`, for example.
