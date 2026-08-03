@@ -50,12 +50,53 @@ docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com
 | やること | 手順 |
 | --- | --- |
 | 前段の proxy の設定 | [逆プロキシの前提](../operations/reverse-proxy.md) |
-| 保持期限の適用 | [README](../../README.md) の「保持期限を適用する」 |
 | バックアップ | [バックアップと復元](../operations/backup-and-restore.md) |
 | 配信の失敗の確認 | `/ja/operator/notification_deliveries` を定期的に見る |
-| 性能の確認 | [負荷試験](../operations/load-test-results.md) の手順で測る |
+| 保持期限の適用 | 下の「保持期限を適用する」 |
+| 性能を測る | 下の「性能を測る」 |
 
 **配信の失敗は自動で知らされない。**
 メールが送れない状況で、メールで知らせることはできないためである
 （[ADR 0043](../decisions/0043-notification-delivery-failures.md)）。
 定期的に見に行く運用が要る。
+
+## 保持期限を適用する
+
+保持期限を過ぎたデータを削除・匿名化する。**自動では実行しない。**
+
+まず件数を確認する。
+
+```bash
+docker compose run --rm app bin/rails roleweave:retention:report
+```
+
+そのうえで適用する。
+
+```bash
+docker compose run --rm app bin/rails roleweave:retention:apply
+```
+
+何をどれだけ残すかは
+[ADR 0046](../decisions/0046-data-retention.md) にある。
+
+## 性能を測る
+
+データを作ってから測る。外部の負荷ツールは要らない。
+
+```bash
+docker compose run --rm app bin/rails "roleweave:load:seed[5000]"
+```
+
+```bash
+docker compose run --rm app bin/rails "roleweave:load:measure[20]"
+```
+
+測り終えたら消す。
+
+```bash
+docker compose run --rm app bin/rails roleweave:load:clean
+```
+
+実測値は[負荷試験の実測値](../operations/load-test-results.md)、
+見積もりは[容量モデル](../operations/capacity-model.md)にある。
+**本番のデータベースでは実行しない。**
