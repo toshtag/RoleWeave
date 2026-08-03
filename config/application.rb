@@ -1,6 +1,21 @@
 require_relative "boot"
 
-require "rails/all"
+require "rails"
+
+# 使うフレームワークだけを読み込む（ADR 0065）。
+# rails/all は Action Cable・Action Text・Action Mailbox も読み込むが、
+# いずれもこのアプリケーションでは 1 か所も使っていない。
+#
+# rails/all は各 require を rescue LoadError で囲む。
+# gem を外しても静かに読み込まれなくなるだけで、何も知らせない。
+# ここでは握り潰さない。外したものは LoadError で止まる。
+require "active_record/railtie"
+require "active_storage/engine"
+require "action_controller/railtie"
+require "action_view/railtie"
+require "action_mailer/railtie"
+require "active_job/railtie"
+require "rails/test_unit/railtie"
 
 # Require the gems listed in Gemfile, including any gems
 # you've limited to :test, :development, or :production.
