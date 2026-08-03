@@ -114,11 +114,23 @@ cd RoleWeave
 docker compose build app
 ```
 
+取得した `.deb` と `.gem` は BuildKit の cache mount へ置いています。
+イメージには残らず、次のビルドでは取り直しません。
+
 ベースイメージと依存関係をキャッシュなしで作り直す場合は、次を実行します。
 Foundation の再検証で使用するもので、通常の開発では必要ありません。
 
 ```bash
 docker compose build --no-cache app
+```
+
+`--no-cache` は cache mount も空にします。この経路だけは毎回取り直します。
+
+ビルドの過程で溜まったキャッシュは、Docker 側に残ります。
+容量を戻すときは次を実行します。**これは他のプロジェクトの分も消します。**
+
+```bash
+docker builder prune
 ```
 
 ### 初期セットアップ

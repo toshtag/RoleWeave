@@ -78,6 +78,47 @@ fi
 # lockfile を変更できない状態で依存を解決していること。
 grep -Fq "BUNDLE_FROZEN=true bundle install" Dockerfile
 
+# 取得物は cache mount へ置き、レイヤーへ残さない。
+#
+# mount が外れても、ビルドは成功し、イメージも動く。
+# 増えるのは毎回の取り直しとイメージの中身だけで、どちらも壊れた形では現れない。
+# 静的検査で拒否しないと、黙って元へ戻る。
+#
+# パターンが -- で始まるため、grep へは -e で渡す。
+for cache_target in /var/cache/apt /var/lib/apt/lists; do
+  if ! grep -Fq -e "--mount=type=cache,target=${cache_target},sharing=locked" Dockerfile; then
+    printf 'Dockerfile must mount a build cache at %s\n' "$cache_target" >&2
+    exit 1
+  fi
+done
+
+# apt の既定は、導入した直後に取得済みの .deb を捨てる。
+# cache mount を用意しても、捨てられた後では次のビルドで使えない。
+grep -Fq "rm -f /etc/apt/apt.conf.d/docker-clean" Dockerfile
+grep -Fq 'Binary::apt::APT::Keep-Downloaded-Packages "true";' Dockerfile
+
+# bundler の cache は Ruby の ABI ごとに分かれる。
+# mount の target には ARG を展開できないため、Dockerfile には ABI を直接書いてある。
+# RUBY_VERSION を上げたとき、target だけが古いまま残ると、
+# 失敗せずに mount が効かなくなる。対応を検査で固定する。
+ruby_abi="$(
+  awk -F= '
+    $1 == "ARG RUBY_VERSION" { split($2, part, "."); print part[1] "." part[2] ".0" }
+  ' Dockerfile
+)"
+
+if [[ -z "$ruby_abi" ]]; then
+  printf 'failed to derive the Ruby ABI from ARG RUBY_VERSION\n' >&2
+  exit 1
+fi
+
+if ! grep -Fq -e \
+  "--mount=type=cache,target=/usr/local/bundle/ruby/${ruby_abi}/cache,sharing=locked" \
+  Dockerfile; then
+  printf 'Dockerfile must mount the bundler cache for Ruby ABI %s\n' "$ruby_abi" >&2
+  exit 1
+fi
+
 # Node.js の不在は、Dockerfile の文字列ではなくビルド済みイメージで確認する。
 #
 # 以前はここで Dockerfile 全体へ node|npm の文字列検査を行っていたが、
@@ -397,6 +438,43 @@ if compose run --rm --no-deps app sh -c 'command -v node || command -v npm'; the
   printf 'the app image must not contain Node.js or npm\n' >&2
   exit 1
 fi
+
+# PostgreSQL のクライアントは導入しない。app からは pg gem が libpq を直接呼ぶ。
+# libvips と同じく、不在を実測する場所として残す。
+if compose run --rm --no-deps app sh -c \
+  'dpkg-query -W "postgresql-client*" || command -v psql || command -v pg_dump || command -v pg_restore'; then
+  printf 'the app image must not contain the PostgreSQL client tools\n' >&2
+  exit 1
+fi
+
+# libpq5 は落とさない。pg gem が呼ぶ実体であり、外すと接続そのものができなくなる。
+# 「呼ばれないものを落とす」の行き過ぎを、不在の検査と対で止める。
+compose run --rm --no-deps app dpkg-query -W libpq5
+
+# 取得物がイメージへ残っていないことを実測する。
+# 静的検査は cache mount がそう書いてあることしか示さない。
+# 書いてあっても、後段のレイヤーが同じ path へ書き戻せば残る。
+compose run --rm --no-deps app sh -c '
+  set -eu
+
+  lists="$(find /var/lib/apt/lists -type f | wc -l)"
+  if [ "$lists" -ne 0 ]; then
+    echo "apt package lists remain in the image: $lists" >&2
+    exit 1
+  fi
+
+  archives="$(find /var/cache/apt -type f -name "*.deb" | wc -l)"
+  if [ "$archives" -ne 0 ]; then
+    echo "apt archives remain in the image: $archives" >&2
+    exit 1
+  fi
+
+  gems="$(find /usr/local/bundle -type f -name "*.gem" -path "*/cache/*" | wc -l)"
+  if [ "$gems" -ne 0 ]; then
+    echo "downloaded .gem files remain in the image: $gems" >&2
+    exit 1
+  fi
+'
 
 # --- 動的検証: 依存が欠けた状態からのセットアップ ------------------------------
 #
