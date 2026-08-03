@@ -261,7 +261,7 @@ below are written in Japanese.
 - [Development workflow](docs/development/workflow.md) — responsibilities of issues, PRs, verification, and ADRs
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
 - [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
-- [Decision records](docs/decisions/) — 67 ADRs; the [architecture overview](docs/architecture.md) indexes them by topic
+- [Decision records](docs/decisions/) — the [architecture overview](docs/architecture.md) indexes them by topic
 
 ### Knowing what is missing
 

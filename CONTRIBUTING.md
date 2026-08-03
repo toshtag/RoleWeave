@@ -16,7 +16,7 @@ Issue も Pull Request も歓迎します。返信までに時間がかかるこ
 1 つの Issue につき、1 つの成果と 1 つの Pull Request を原則としています。
 
 ```
-Issue を作る → ブランチを切る（pN/tM-slug）→ 細かくコミット →
+Issue を作る → ブランチを切る → 細かくコミット →
 Pull Request を作る → 検証の結果を書く → squash merge
 ```
 
