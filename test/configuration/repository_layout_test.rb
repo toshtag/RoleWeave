@@ -12,6 +12,10 @@ class RepositoryLayoutTest < ActiveSupport::TestCase
   # controller にも mailer にも対応しないが、Rails の規約が意味を与えるもの。
   CONVENTIONAL_VIEW_DIRECTORIES = %w[layouts shared].freeze
 
+  # 中身が ignore されるため、.keep が無いとディレクトリごと消えるもの。
+  # .gitignore と .dockerignore が、この一覧を名前で否定している。
+  IGNORED_DIRECTORIES_WITH_KEEP = %w[log storage tmp tmp/pids tmp/storage].freeze
+
   test "描画する経路を持たないテンプレートを置かない" do
     # app/views/pwa/ は、route が 2 行ともコメントアウトされたまま残っていた。
     # 到達できないテンプレートは、実装の一部として読まれるが実行されない。
@@ -43,6 +47,27 @@ class RepositoryLayoutTest < ActiveSupport::TestCase
     assert_not_empty Rails.root.glob("scripts/*")
   end
 
+  test "内容のあるディレクトリに .keep を置かない" do
+    # .keep は、Git が空のディレクトリを追跡しないことへの回避策である。
+    # 中身が 1 つでもあれば何もしない。それでも読む側は
+    # 「ここは空になりうる」と読む。test/integration/ には 55 件のテストがある。
+    redundant = Rails.root.glob("**/.keep")
+      .reject { |path| ignored_directory?(path.dirname) }
+      .select { |path| path.dirname.children.size > 1 }
+
+    assert_empty redundant.map { |path| path.relative_path_from(Rails.root).to_s },
+      ".keep が要らないディレクトリにある"
+  end
+
+  test "ignore の対象のディレクトリの .keep を残す" do
+    # .gitignore と .dockerignore が名前で否定している。
+    # 落とすと、その行が指す先が無くなり、ディレクトリも追跡から消える。
+    IGNORED_DIRECTORIES_WITH_KEEP.each do |directory|
+      assert_path_exists Rails.root.join(directory, ".keep"),
+        "#{directory}/.keep は .gitignore と .dockerignore が名前で否定している"
+    end
+  end
+
   private
     # 拡張子で絞らない。落とした app/views/pwa/service-worker.js は .erb ではなく、
     # .erb だけを見る検査では、同じものが戻っても気付けない。
@@ -51,6 +76,10 @@ class RepositoryLayoutTest < ActiveSupport::TestCase
         .select(&:file?)
         .map { |path| path.dirname.relative_path_from(Rails.root.join("app/views")).to_s }
         .uniq
+    end
+
+    def ignored_directory?(directory)
+      IGNORED_DIRECTORIES_WITH_KEEP.include?(directory.relative_path_from(Rails.root).to_s)
     end
 
     # コメントと空行を除いて、1 行でも残るか。
