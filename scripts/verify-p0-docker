@@ -136,8 +136,6 @@ fi
 dockerignore_lines=(
   ".git"
   ".bundle"
-  ".env*"
-  "config/*.key"
   "log/*"
   "tmp/*"
   "storage/*"
@@ -172,6 +170,95 @@ for kept in docs scripts; do
     exit 1
   fi
 done
+
+# --- 静的検証: 秘密情報が build context へ入らないこと -------------------------
+#
+# パターンの綴りではなく、実際に入るかどうかで判定する。
+# .dockerignore のパターンは path 全体と照合するため、
+# .env* と config/*.key は先頭階層にしか当たらない。
+# 綴りを一覧で固定していたときは、この 2 行が揃っていることを確認したうえで
+# config/.env と config/credentials/*.key を通していた。
+#
+# 判定には、リポジトリの .dockerignore だけを持ち込んだ使い捨ての context を使う。
+# 実在の config/ へダミーの鍵を置かない。
+#
+# 対象は scripts/verify-security が Git 追跡を拒否している path に合わせる。
+
+secret_probe_paths=(
+  ".env"
+  ".env.production"
+  "config/.env"
+  "config/master.key"
+  "config/credentials/production.key"
+  "config/credentials.yml.enc"
+  "config/credentials/production.yml.enc"
+)
+
+secret_probe_context="$(mktemp -d)"
+
+# ベースイメージは Dockerfile と同じものを使い、ここで別の版を持ち込まない。
+secret_probe_ruby_version="$(
+  awk -F= '$1 == "ARG RUBY_VERSION" { print $2 }' Dockerfile
+)"
+
+if [[ -z "$secret_probe_ruby_version" ]]; then
+  printf 'failed to read ARG RUBY_VERSION from Dockerfile\n' >&2
+  exit 1
+fi
+
+mkdir -p "$secret_probe_context/config/credentials"
+
+for probe_path in "${secret_probe_paths[@]}"; do
+  printf 'probe\n' > "$secret_probe_context/$probe_path"
+done
+
+printf \
+  'FROM ruby:%s-slim-bookworm\nCOPY . /ctx\n' \
+  "$secret_probe_ruby_version" \
+  > "$secret_probe_context/Dockerfile"
+
+find_secrets_in_context() {
+  local tag="$1"
+
+  docker build --quiet --tag "$tag" "$secret_probe_context" >/dev/null
+  docker run --rm "$tag" \
+    sh -c 'find /ctx -type f \( -name "*.key" -o -name ".env*" -o -name "*.yml.enc" \) | sort' \
+    | tr -d '\r'
+}
+
+cleanup_secret_probe() {
+  docker image rm --force \
+    roleweave-secret-probe-ignored \
+    roleweave-secret-probe-control \
+    >/dev/null 2>&1 || true
+  rm -rf "$secret_probe_context"
+}
+
+trap cleanup_secret_probe EXIT
+
+# 対照を先に取る。probe を置き忘れた context では、
+# 除外の検査は何もしなくても成功してしまう。
+leaked_without_ignore="$(find_secrets_in_context roleweave-secret-probe-control)"
+
+for probe_path in "${secret_probe_paths[@]}"; do
+  if ! printf '%s\n' "$leaked_without_ignore" | grep -Fxq "/ctx/$probe_path"; then
+    printf 'the secret probe is not exercising %s\n' "$probe_path" >&2
+    exit 1
+  fi
+done
+
+# 本番の .dockerignore を持ち込んで、同じ context を作り直す。
+cp .dockerignore "$secret_probe_context/.dockerignore"
+leaked_with_ignore="$(find_secrets_in_context roleweave-secret-probe-ignored)"
+
+if [[ -n "$leaked_with_ignore" ]]; then
+  printf '.dockerignore must keep secrets out of the build context:\n%s\n' \
+    "$leaked_with_ignore" >&2
+  exit 1
+fi
+
+cleanup_secret_probe
+trap - EXIT
 
 # --- 静的検証: config/database.yml -------------------------------------------
 #
