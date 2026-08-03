@@ -42,6 +42,10 @@ docker compose run --rm app bin/verify
 bin/verify --full
 ```
 
+**`bin/verify --full` は CI では実行されません。**
+Docker イメージと Compose の検証は、手元で実行した結果だけが証拠になります
+（[ADR 0069](docs/decisions/0069-pull-request-verification-scope.md)）。
+
 **負の検証**も行ってください。
 実装を一時的に壊し、テストが実際に落ちることを確かめます。
 落ちなかった場合は、そのことを PR へ書き、テストを足してください。
@@ -91,6 +95,9 @@ One issue, one outcome, one pull request. Include the results of
 `bin/verify` and `bin/verify --full` in every pull request, plus a
 **negative verification**: break the implementation on purpose and confirm the
 tests fail. If they do not, say so and add the missing test.
+
+CI runs the application checks only. `bin/verify --full` — the Docker image and
+Compose verification — is not run there, so your local run is the only evidence.
 
 Identifiers are in English; user-facing text ships in both Japanese and English
 in the same change. Comments explain *why*, not *what*.

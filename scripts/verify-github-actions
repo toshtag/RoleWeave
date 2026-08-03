@@ -9,6 +9,17 @@
 # 引数を受け取れるようにしているのは負の検証のためである。
 # 一時ディレクトリへ複製した Workflow を検査し、正規のファイルを破壊しない。
 #
+# 検査する対象は「壊れると気づけないもの」に限る。
+#
+#   供給元  Action を承認済みの SHA へ固定していること、service イメージの版
+#   権限    書き込み権限、secrets、fork の PR を特権で走らせる trigger
+#   環境    runner の版、timeout、job 単位での権限の上書き
+#   実行    bin/verify に無いコマンドを CI だけで実行していないこと
+#
+# job 名・step 名・キーの並び・スカラーの書き方は検査しない。
+# 表記を固定しても守れるものが無く、CI の構成を変えるたびに
+# 検証器を書き換える費用だけが残るためである。
+#
 # 判定は YAML の解析結果に対して行う。
 # 文字列 grep だけでは値の所属先を取り違え、コメントと実行内容を混同する。
 # リリースタグのコメントは解析結果に残らないため、生の行を併用する。
@@ -20,6 +31,13 @@
 require "yaml"
 
 DEFAULT_WORKFLOW_PATH = ".github/workflows/ci.yml"
+
+# 検証内容の正本。Workflow が実行するコマンドは、すべてここにも並ぶ。
+VERIFY_PATH = "bin/verify"
+
+# service コンテナのイメージは、ローカル開発と同じものを使う。
+COMPOSE_PATH = "compose.yaml"
+DATABASE_SERVICE = "db"
 
 # 承認済みの Action 固定。
 #
@@ -38,78 +56,28 @@ APPROVED_ACTION_PINS = {
   }
 }.freeze
 
-# 表示名は正規値へ固定する。
+# Action ごとに必ず与える入力。
 #
-# 表示名を動的にする必要はない。空でないことだけを検査すると、
-# GitHub 式の評価結果を表示名として出力できてしまう。
-# github.token は GITHUB_TOKEN と機能的に同等であり、
-# github コンテキスト全体にも同種の機密情報が含まれる。
-EXPECTED_JOB_NAME = "統一検証"
-
-# steps の順序と責務。name と with は完全一致で検査し、暗黙の設定追加を拒否する。
-EXPECTED_STEPS = [
-  {
-    name: "リポジトリを取得",
-    action: "actions/checkout",
-    with: { "persist-credentials" => false }
-  },
-  {
-    name: "Rubyを準備",
-    action: "ruby/setup-ruby",
-    with: { "ruby-version" => ".ruby-version", "bundler-cache" => true }
-  },
-  { name: "統一検証", run: "bin/ci" }
-].freeze
+# 一致は部分集合で見る。ここに無い入力を足すことは妨げない。
+# 固定するのは、省略すると黙って危険側または不正確側へ倒れるものだけとする。
+#
+#   persist-credentials  false にしないと、checkout の token が .git/config へ残る
+#   ruby-version         version file を指さないと、CI だけ別の Ruby で検証してしまう
+REQUIRED_ACTION_INPUTS = {
+  "actions/checkout" => { "persist-credentials" => false },
+  "ruby/setup-ruby" => { "ruby-version" => ".ruby-version" }
+}.freeze
 
 # 同じブランチまたは PR の実行だけを打ち切る。
 # 固定値へ退行すると、無関係な PR の実行まで打ち切られる。
 EXPECTED_CONCURRENCY_GROUP = "ci-${{ github.workflow }}-${{ github.ref }}"
 
-# ソース上のトップレベルキー。順序まで含めて固定する。
+# job へ書かせない設定。
 #
-# YAML 1.1 に従うパーサーは on / yes / ON をすべて真偽値として解釈する。
-# 解析結果の真偽値キーを on へ正規化するだけでは、
-# ソース上を true: や yes: へ書き換えた Workflow を検出できない。
-# Trigger が失われれば CI そのものが実行されなくなる。
-EXPECTED_TOP_LEVEL_SOURCE_KEYS = %w[
-  name
-  on
-  permissions
-  concurrency
-  jobs
-].freeze
-
-# スカラーのソース表現。解析結果では区別できない書き方を、ソース側で固定する。
-#
-# 真偽値は小文字の true / false だけを正規形とする。
-# Actions Toolkit の getBooleanInput が受け付けるのは true と false だけであり、
-# YAML 1.1 の別名（yes / no / on / off）は対象外となる。
-#
-# 数値も同様に、30 と等値になる別表記（30.0 / !!float 30 / 0x1e / +30）を拒否する。
-EXPECTED_SOURCE_SCALAR_VALUES = {
-  "cancel-in-progress" => "true",
-  "persist-credentials" => "false",
-  "bundler-cache" => "true",
-  "timeout-minutes" => "30"
-}.freeze
-
-# インデントのないマッピングキー。引用符付きのキーは意図的に拾わない。
-# 拾わないことで一覧の件数が合わなくなり、完全一致の検査で失敗する。
-TOP_LEVEL_KEY_LINE = /\A([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]|\z)/
-
-# 検証内容の正本は bin/verify とする。個別のコマンドを Workflow へ複製しない。
-# npm は P0-R1 で撤去した Node.js 基盤の再導入経路として拒否する。
-FORBIDDEN_RUN_FRAGMENTS = %w[
-  bin/rubocop
-  bin/rails
-  bin/verify
-  bin/setup
-  scripts/verify-p0
-  docker
-  bundler-audit
-  brakeman
-  npm
-].freeze
+#   permissions           job 単位で最上位の contents: read を上書きできる
+#   continue-on-error     失敗しても成功として報告される
+#   container             実行環境の正本が Dockerfile と二重になる
+JOB_FORBIDDEN_KEYS = %w[permissions continue-on-error container].freeze
 
 # secrets コンテキストへの参照そのものを禁止する。
 # プロパティ参照だけを探すと、toJSON(secrets) のようにコンテキスト全体を
@@ -119,13 +87,21 @@ SECRET_REFERENCE = /\bsecrets\b/i
 
 # github.token は GITHUB_TOKEN シークレットと機能的に同等である。
 # secrets コンテキストだけを禁止しても、こちらの経路が残る。
-# 表示名の完全固定と併せて、二重に拒否する。
 GITHUB_TOKEN_REFERENCE = /\bgithub\s*(?:\.\s*token|\[\s*["']token["']\s*\])/i
 
 # 引用符で囲んだキーは YAML として同じ意味を持つが、素朴な行検査を迂回できる。
 # 迂回を検出するため、正規形式より広く uses 行を拾う。
 USES_LINE = /\A\s*["']?uses["']?\s*:/
 PINNED_USES_LINE = /\A\s*uses:[ ]+(\S+)@([0-9a-f]{40})[ ]+#[ ]*(\S+)[ ]*\z/
+
+# インデントのないマッピングキー。引用符付きのキーは意図的に拾わない。
+# 拾わないことで一覧の件数が合わなくなり、集合の検査で失敗する。
+#
+# YAML 1.1 に従うパーサーは on / yes / ON をすべて真偽値として解釈する。
+# 解析結果の真偽値キーを on へ正規化するだけでは、
+# ソース上を true: や yes: へ書き換えた Workflow を検出できない。
+# Trigger が失われれば CI そのものが実行されなくなる。
+TOP_LEVEL_KEY_LINE = /\A([A-Za-z][A-Za-z0-9_-]*):(?:[ \t]|\z)/
 
 def check(failures, condition, message)
   failures << message unless condition
@@ -141,14 +117,6 @@ def top_level_source_keys(raw)
 
     TOP_LEVEL_KEY_LINE.match(line.chomp)&.[](1)
   end
-end
-
-# 指定したキーに対する、ソース上のスカラー値をすべて集める。
-# 解析結果は YAML 1.1 の別名を正規化してしまうため、書かれた表現そのものを見る。
-def source_scalar_values(raw, key)
-  pattern = /\A[ \t]+#{Regexp.escape(key)}:[ \t]*([^# \t\r\n]+)[ \t]*(?:#.*)?\z/
-
-  raw.each_line.filter_map { |line| pattern.match(line.chomp)&.[](1) }
 end
 
 # 解析木を再帰的に巡回し、同じ mapping 内の重複キーを集める。
@@ -205,6 +173,19 @@ def collect_strings(node, found = [])
   end
 
   found
+end
+
+# bin/verify が実行するコマンドの本文。
+# コメント行を除く。委譲経路を説明するヘッダーコメントと実行内容を混同しない。
+def canonical_commands
+  File.readlines(VERIFY_PATH, chomp: true, encoding: "UTF-8")
+      .reject { |line| line.lstrip.start_with?("#") }
+      .join("\n")
+end
+
+# compose.yaml が宣言する PostgreSQL イメージ。
+def compose_database_image
+  YAML.safe_load_file(COMPOSE_PATH, aliases: true).dig("services", DATABASE_SERVICE, "image")
 end
 
 if ARGV.length > 1
@@ -273,7 +254,8 @@ failures = []
 # --- 最上位の構造 -------------------------------------------------------------
 #
 # YAML 1.1 に従うパーサーは on を真偽値として解釈する。
-# 正規の on: を受け取るため、解析結果では文字列キーと真偽値キーの両方を受け付ける。
+# 正規の on: を受け取るため、解析結果では文字列キーと真偽値キーの両方を受け付け、
+# ソース側でインデントのない on: が書かれていることを併せて確認する。
 
 triggers = workflow.key?("on") ? workflow["on"] : workflow[true]
 top_level_keys = workflow.keys.map { |key| key == true ? "on" : key }
@@ -281,17 +263,11 @@ top_level_keys = workflow.keys.map { |key| key == true ? "on" : key }
 check(failures, top_level_keys.sort == %w[concurrency jobs name on permissions],
   "top level keys must be exactly name, on, permissions, concurrency and jobs, got #{top_level_keys.sort.inspect}")
 
+check(failures, top_level_source_keys(raw).include?("on"),
+  "the trigger key must be written as a bare on: at the top level")
+
 check(failures, workflow["name"] == "CI",
   "workflow name must be CI, got #{workflow["name"].inspect}")
-
-# 解析結果の正規化とは別に、ソース上のキーそのものを検査する。
-# 正規化だけでは true: / yes: / ON: と書かれた Workflow を区別できず、
-# GitHub が Trigger として扱わないソースを正しいと判定してしまう。
-# 引用符付きのキーは収集対象から外れるため、件数の不一致として失敗する。
-source_keys = top_level_source_keys(raw)
-
-check(failures, source_keys == EXPECTED_TOP_LEVEL_SOURCE_KEYS,
-  "top level source keys must be exactly #{EXPECTED_TOP_LEVEL_SOURCE_KEYS.inspect}, got #{source_keys.inspect}")
 
 # --- Trigger ------------------------------------------------------------------
 #
@@ -332,92 +308,114 @@ end
 
 # --- job ----------------------------------------------------------------------
 #
-# 検証を複数 job へ分割しない。実行順序と失敗箇所の正本を 1 か所に保つ。
+# job の数と名前は固定しない。検査を並行させるための分割は、費用の問題であり契約ではない。
+# 固定するのは、どの job にも共通して守らせる実行環境と権限の条件だけとする。
 
 jobs = workflow["jobs"]
 jobs = {} unless jobs.is_a?(Hash)
 
-check(failures, jobs.keys == [ "verify" ],
-  "jobs must be exactly verify, got #{jobs.keys.inspect}")
+check(failures, !jobs.empty?, "workflow must declare at least one job")
 
-job = jobs["verify"]
-job = {} unless job.is_a?(Hash)
-
-check(failures, job.keys.sort == %w[name runs-on steps timeout-minutes],
-  "job keys must be exactly name, runs-on, timeout-minutes and steps, got #{job.keys.sort.inspect}")
-
-check(failures, job["runs-on"] == "ubuntu-24.04",
-  "runner must be ubuntu-24.04, got #{job["runs-on"].inspect}")
-
-check(failures, job["name"] == EXPECTED_JOB_NAME,
-  "job name must be #{EXPECTED_JOB_NAME.inspect}, got #{job["name"].inspect}")
-
-# 型も検査する。Ruby では整数 30 と浮動小数点数 30.0 が等値になる。
-timeout_minutes = job["timeout-minutes"]
-
-check(failures, timeout_minutes.instance_of?(Integer) && timeout_minutes == 30,
-  "job timeout must be the integer 30, got #{timeout_minutes.inspect}")
-
-# 別経路の実行環境を持ち込まない。PostgreSQL と Docker は bin/verify --full の責務とする。
-%w[services container environment permissions strategy continue-on-error].each do |key|
-  check(failures, !job.key?(key), "job must not declare #{key}")
-end
-
-# --- steps --------------------------------------------------------------------
-
-steps = job["steps"]
-steps = [] unless steps.is_a?(Array)
-
-check(failures, steps.length == EXPECTED_STEPS.length,
-  "steps must be exactly #{EXPECTED_STEPS.length}, got #{steps.length}")
-
-EXPECTED_STEPS.each_with_index do |expected, index|
-  step = steps[index]
-
-  unless step.is_a?(Hash)
-    check(failures, false, "step #{index + 1} is missing")
+jobs.each do |job_id, job|
+  unless job.is_a?(Hash)
+    check(failures, false, "job #{job_id} must be a mapping, got #{job.inspect}")
     next
   end
 
-  check(failures, step["name"] == expected.fetch(:name),
-    "step #{index + 1} name must be #{expected.fetch(:name).inspect}, got #{step["name"].inspect}")
+  # 実行環境は固定する。ubuntu-latest は同じ参照が別の OS 版へ差し替わる。
+  check(failures, job["runs-on"] == "ubuntu-24.04",
+    "job #{job_id} must run on ubuntu-24.04, got #{job["runs-on"].inspect}")
 
-  if expected.key?(:action)
-    check(failures, step.keys.sort == %w[name uses with],
-      "step #{index + 1} keys must be exactly name, uses and with, got #{step.keys.sort.inspect}")
+  # 型も検査する。Ruby では整数 10 と浮動小数点数 10.0 が等値になる。
+  timeout_minutes = job["timeout-minutes"]
 
-    action = expected.fetch(:action)
-    pin = APPROVED_ACTION_PINS.fetch(action)
+  check(failures, timeout_minutes.instance_of?(Integer) && timeout_minutes.positive?,
+    "job #{job_id} must declare a positive integer timeout-minutes, got #{timeout_minutes.inspect}")
 
-    # 承認済みの Action 名と SHA の組で完全一致させる。
-    # 名前と桁数だけの検査では、承認していない任意のコミットを許してしまう。
-    check(failures, step["uses"] == "#{action}@#{pin.fetch(:sha)}",
-      "step #{index + 1} must use #{action}@#{pin.fetch(:sha)} (#{pin.fetch(:tag)}), got #{step["uses"].inspect}")
+  JOB_FORBIDDEN_KEYS.each do |key|
+    check(failures, !job.key?(key), "job #{job_id} must not declare #{key}")
+  end
 
-    check(failures, step["with"] == expected.fetch(:with),
-      "step #{index + 1} with must be #{expected.fetch(:with).inspect}, got #{step["with"].inspect}")
-  else
-    check(failures, step.keys.sort == %w[name run],
-      "step #{index + 1} keys must be exactly name and run, got #{step.keys.sort.inspect}")
+  check(failures, job["steps"].is_a?(Array) && !job["steps"].empty?,
+    "job #{job_id} must declare steps")
 
-    check(failures, step["run"].to_s.strip == expected.fetch(:run),
-      "step #{index + 1} must run #{expected.fetch(:run)}, got #{step["run"].inspect}")
+  steps = job["steps"]
+  next unless steps.is_a?(Array)
+
+  # Action ごとの必須入力。省略を検出できないと、既定値へ黙って倒れる。
+  steps.each_with_index do |step, index|
+    next unless step.is_a?(Hash)
+
+    action = step["uses"].to_s.split("@").first
+    required = REQUIRED_ACTION_INPUTS[action]
+    next unless required
+
+    given = step["with"]
+    given = {} unless given.is_a?(Hash)
+
+    required.each do |key, value|
+      check(failures, given[key] == value,
+        "job #{job_id} step #{index + 1} (#{action}) must set #{key}: #{value.inspect}, got #{given[key].inspect}")
+    end
   end
 end
 
-# --- 実行コマンドの複製 -------------------------------------------------------
+# --- service コンテナ ---------------------------------------------------------
+#
+# PostgreSQL の版がローカル開発と CI でずれると、片方だけが通る差分を作れてしまう。
+# 版の正本は compose.yaml とし、Workflow はその値を写す。
+
+expected_database_image = compose_database_image
+
+check(failures, !expected_database_image.nil?,
+  "#{COMPOSE_PATH} must declare an image for the #{DATABASE_SERVICE} service")
+
+jobs.each do |job_id, job|
+  services = job.is_a?(Hash) ? job["services"] : nil
+  next unless services.is_a?(Hash)
+
+  services.each do |service_id, service|
+    check(failures, service_id == DATABASE_SERVICE,
+      "job #{job_id} must not declare the service #{service_id.inspect}. " \
+      "the only approved service is #{DATABASE_SERVICE}")
+
+    image = service.is_a?(Hash) ? service["image"] : service
+
+    check(failures, image == expected_database_image,
+      "job #{job_id} service #{service_id} must use #{expected_database_image.inspect} " \
+      "as declared in #{COMPOSE_PATH}, got #{image.inspect}")
+  end
+end
+
+# --- 実行コマンドの正本 -------------------------------------------------------
+#
+# 検証内容の正本は bin/verify とする。
+# Workflow が実行するコマンドは、すべて bin/verify にも並んでいなければならない。
+#
+# 一致を求めるのは、CI にしか無い検査を作らせないためである。
+# 逆向き（bin/verify にあって CI に無い）のうち、
+# セキュリティ検査の削除・無効化は scripts/verify-security が見る。
 #
 # 検査対象は解析済みの run だけとする。
 # 委譲経路を説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
 
-steps.each_with_index do |step, index|
-  next unless step.is_a?(Hash)
+canonical = canonical_commands
 
-  command = step["run"].to_s
+jobs.each do |job_id, job|
+  steps = job.is_a?(Hash) ? job["steps"] : nil
+  next unless steps.is_a?(Array)
 
-  FORBIDDEN_RUN_FRAGMENTS.each do |fragment|
-    check(failures, !command.include?(fragment),
-      "step #{index + 1} must not run #{fragment} directly. bin/verify is the single source of truth")
+  steps.each_with_index do |step, index|
+    next unless step.is_a?(Hash) && step.key?("run")
+
+    step["run"].to_s.each_line do |line|
+      command = line.strip
+      next if command.empty?
+
+      check(failures, canonical.include?(command),
+        "job #{job_id} step #{index + 1} runs #{command.inspect}, which #{VERIFY_PATH} does not. " \
+        "#{VERIFY_PATH} is the single source of truth")
+    end
   end
 end
 
@@ -427,7 +425,7 @@ end
 # プロパティ参照だけでなく、toJSON(secrets) のような受け渡しも対象にする。
 #
 # github.token は secrets ではないが、GITHUB_TOKEN と機能的に同等である。
-# 表示名の完全固定と併せて、こちらの経路も明示的に拒否する。
+# こちらの経路も明示的に拒否する。
 
 workflow_strings = collect_strings(workflow)
 
@@ -441,35 +439,18 @@ github_token_reference = workflow_strings.find { |value| GITHUB_TOKEN_REFERENCE.
 check(failures, github_token_reference.nil?,
   "workflow must not reference github.token, got #{github_token_reference.inspect}")
 
-# --- スカラーのソース表現 -----------------------------------------------------
-#
-# 解析結果では YAML 1.1 の真偽値別名が true / false へ正規化され、
-# 30.0 や 0x1e のような数値表記も同じ値へ解決される。
-# 書かれた表現そのものを固定し、非正規な表記を拒否する。
-
-EXPECTED_SOURCE_SCALAR_VALUES.each do |key, expected_value|
-  values = source_scalar_values(raw, key)
-
-  check(failures, values == [ expected_value ],
-    "#{key} must be written exactly once as #{expected_value}, got #{values.inspect}")
-end
-
-# --- 生の行による検査 ---------------------------------------------------------
+# --- Action の固定 ------------------------------------------------------------
 #
 # 固定した SHA がどのリリースに対応するのかは、解析結果からは読み取れない。
 # uses 行の末尾へリリースタグをコメントとして残すことを必須にする。
 #
 # キーを引用符で囲むと YAML としては同じ意味を保ったまま、素朴な行検査を迂回できる。
-# uses を含む行の総数と、正規形式に一致する行の内容・順序の両方を検査する。
+# uses を含む行を広く拾い、そのすべてが正規形式であることを求める。
 
 uses_lines = raw.each_line.with_index(1).select { |line, _| USES_LINE.match?(line) }
+referenced_actions = []
 
-check(failures, uses_lines.length == APPROVED_ACTION_PINS.length,
-  "workflow must contain exactly #{APPROVED_ACTION_PINS.length} uses lines, got #{uses_lines.length}")
-
-expected_pins = EXPECTED_STEPS.filter_map { |step| step[:action] }
-
-uses_lines.each_with_index do |(line, number), index|
+uses_lines.each do |(line, number)|
   matched = PINNED_USES_LINE.match(line.chomp)
 
   unless matched
@@ -478,16 +459,15 @@ uses_lines.each_with_index do |(line, number), index|
     next
   end
 
-  action = expected_pins[index]
-  pin = action && APPROVED_ACTION_PINS[action]
+  action = matched[1]
+  pin = APPROVED_ACTION_PINS[action]
 
   unless pin
-    check(failures, false, "line #{number} declares an unexpected extra action: #{line.strip.inspect}")
+    check(failures, false, "line #{number} uses an unapproved action: #{action.inspect}")
     next
   end
 
-  check(failures, matched[1] == action,
-    "line #{number} must use #{action}, got #{matched[1].inspect}")
+  referenced_actions << action
 
   check(failures, matched[2] == pin.fetch(:sha),
     "line #{number} must pin the approved SHA #{pin.fetch(:sha)}, got #{matched[2].inspect}")
@@ -495,6 +475,13 @@ uses_lines.each_with_index do |(line, number), index|
   check(failures, matched[3] == pin.fetch(:tag),
     "line #{number} must record the approved release tag #{pin.fetch(:tag)}, got #{matched[3].inspect}")
 end
+
+# 使われなくなった固定を一覧へ残さない。
+# 残ると、承認済みの記録が現在の Workflow を説明しなくなる。
+unused_pins = APPROVED_ACTION_PINS.keys - referenced_actions
+
+check(failures, unused_pins.empty?,
+  "approved action pins must all be referenced, unused: #{unused_pins.inspect}")
 
 unless failures.empty?
   failures.each { |failure| warn("workflow contract violation: #{failure}") }

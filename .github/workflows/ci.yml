@@ -1,9 +1,15 @@
-# RoleWeave の統一検証を GitHub Actions で実行する。
+# RoleWeave のアプリケーション検証を GitHub Actions で実行する。
 #
-# この Workflow は実行環境の準備と bin/ci の起動だけを担当する。
-# 検証内容の正本は bin/verify とし、個別のコマンドをここへ複製しない。
+# ここで実行するのはアプリケーションの検証だけとする。
+# Docker イメージのビルドと Compose の冪等性検証は bin/verify --full の責務であり、
+# Pull Request のたびに待たせる対象にしない（ADR 0069）。
 #
-#   bin/ci -> bin/verify --full -> scripts/verify-p0 -> scripts/verify-p0-docker
+# 検証内容の正本は bin/verify とする。
+# この Workflow が実行するコマンドは、すべて bin/verify にも並ぶ。
+# 一致は scripts/verify-github-actions が検査する。
+#
+# job を 2 つへ分けるのは、静的解析の結果をテストの完了より先に返すためである。
+# 実行順序には依存関係が無く、どちらが落ちたかは job 名で読める。
 #
 # Action は完全長のコミット SHA へ固定する。タグとブランチは可変であり、
 # 同じ参照が別の実装へ差し替わり得る。末尾のコメントで対応するリリースを記録する。
@@ -25,10 +31,38 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify:
-    name: 統一検証
+  test:
+    name: テスト
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 10
+
+    # PostgreSQL はイメージをビルドせずに service コンテナで用意する。
+    # 版の正本は compose.yaml とし、ローカル開発と同じものを使う。
+    # 一致は scripts/verify-github-actions が検査する。
+    services:
+      db:
+        image: postgres:18.4-bookworm
+        env:
+          POSTGRES_USER: roleweave
+          POSTGRES_PASSWORD: roleweave
+          POSTGRES_DB: role_weave_test
+        ports:
+          - 5432:5432
+        # 既定の間隔は 10 秒で、起動後も次の確認まで待つことになる。
+        # 判定を急ぎたいのは起動中だけなので、間隔を詰めて回数で上限を決める。
+        options: >-
+          --health-cmd "pg_isready -U roleweave -d role_weave_test"
+          --health-interval 1s
+          --health-timeout 3s
+          --health-retries 30
+
+    # 資格情報は service コンテナの使い捨ての値であり、外部から与えない。
+    env:
+      RAILS_ENV: test
+      DATABASE_HOST: localhost
+      DATABASE_PORT: "5432"
+      DATABASE_USERNAME: roleweave
+      DATABASE_PASSWORD: roleweave
 
     steps:
       - name: リポジトリを取得
@@ -44,5 +78,44 @@ jobs:
           ruby-version: .ruby-version
           bundler-cache: true
 
-      - name: 統一検証
-        run: bin/ci
+      - name: test データベース準備
+        run: bin/rails db:prepare
+
+      - name: Rails test
+        run: bin/rails test
+
+  lint:
+    name: 静的解析
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    # データベースへは接続しない。
+    # Zeitwerk の検査は eager load だけを行い、boot 中に接続を張らない。
+    env:
+      RAILS_ENV: test
+
+    steps:
+      - name: リポジトリを取得
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # checkout 後に認証情報を残さない。
+          persist-credentials: false
+
+      - name: Rubyを準備
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1.321.0
+        with:
+          # バージョンの正本は version file とし、ここへ数値を重複記述しない。
+          ruby-version: .ruby-version
+          bundler-cache: true
+
+      - name: Ruby スタイル
+        run: bin/rubocop
+
+      - name: セキュリティ静的解析
+        run: bin/brakeman --no-pager
+
+      - name: 依存関係の脆弱性
+        run: bin/bundler-audit check --update
+
+      - name: Zeitwerk
+        run: bin/rails zeitwerk:check
