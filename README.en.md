@@ -39,7 +39,7 @@ The default is opted out (see
 
 What is still *not* included and the known limitations are listed in the
 [changelog](CHANGELOG.md). Quality requirements that are not met are listed in
-[the verification status](docs/known-gaps.md).
+[the known gaps](docs/known-gaps.md).
 
 While on `0.x`, breaking changes may still land between versions.
 
