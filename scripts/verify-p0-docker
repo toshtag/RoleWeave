@@ -394,6 +394,13 @@ check(failures, services.keys.sort == %w[app db], "services must be exactly app 
 # 正規化結果の name と、そこから導出される volume 名の両方を見る。
 check(failures, config["name"] == "roleweave", "compose project name must be roleweave, got #{config["name"].inspect}")
 
+# network の表示名は project 名そのものとする。
+# 既定の roleweave_default から _default を落とすために固定の文字列を書くと、
+# --project-name を変えても同じ network を指し、隔離した検証が開発の stack と同居する。
+networks = config.fetch("networks", {})
+check(failures, networks.keys == %w[default], "compose must declare exactly the default network, got #{networks.keys.inspect}")
+check(failures, (networks["default"] || {})["name"] == config["name"], "default network name must follow the project name, got #{(networks["default"] || {})["name"].inspect}")
+
 app = services["app"] || {}
 db = services["db"] || {}
 
@@ -863,6 +870,30 @@ compose exec -T db \
 # --- 動的検証: app の起動と healthcheck ---------------------------------------
 
 compose up -d --wait app
+
+# network が project ごとに分かれていること。
+#
+# 表示名から _default を落とすために固定の文字列を書くと、
+# --project-name を変えても同じ network を指す。
+# この検証の app と db が開発中の stack と 1 つの network に同居し、
+# サービス名 db がどちらを指すかは起動順で決まることになる。
+#
+# 判定は綴りではなく、実際に接続されている network の名前で行う。
+attached_networks="$(
+  compose ps --quiet app |
+    xargs docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' |
+    grep -v '^$' |
+    sort |
+    tr '\n' ' '
+)"
+if [[ "$attached_networks" != "$project_name " ]]; then
+  printf \
+    'app must attach only to the network of its own project: expected %s, got %s\n' \
+    "$project_name" \
+    "${attached_networks:-none}" \
+    >&2
+  exit 1
+fi
 
 # 正規化結果だけでなく、実際に公開された endpoint がループバック限定であることを確認する。
 published_endpoint="$(compose port app 3000 | tr -d '\r\n')"
