@@ -372,20 +372,24 @@ compose run --rm --no-deps app bundle check
 # Dockerfile の静的検査だけでは、イメージの中で実際に実行できることを保証できない。
 compose run --rm --no-deps app git --version
 
-# Active Storage の variant 処理は libvips を使用する。
+# 画像処理のライブラリは導入しない（ADR 0064）。イメージへ無いことを実測する。
 #
-# CVE-2026-66066 の対策は、修正版の Active Storage と libvips 8.13 以上の
-# 両方を要求する。gem 側の退行は bundler-audit が検出するが、
-# システムライブラリのバージョンは監視対象外であり、
-# ベースイメージの変更で黙って下回り得る。
+# 以前はここで libvips 8.13 以上を要求していた。CVE-2026-66066 の対策が
+# その版を必要としたためである。variant を生成しないと決め、
+# gem 側の backend も外したため、要求する対象そのものが無くなった。
 #
-# 文字列比較では 8.9 と 8.13 の大小を取り違えるため、dpkg のバージョン比較を使う。
-compose run --rm --no-deps app sh -ec '
-  version="$(dpkg-query -W libvips42 | cut -f2)"
-  test -n "$version"
-  dpkg --compare-versions "$version" ge 8.13
-  printf "libvips %s\n" "$version"
-'
+# 下限の検査を消すだけにすると、ベースイメージの変更や
+# 別パッケージの依存で libvips が戻ったときに気付けない。
+# 版を検査していた場所は、不在を検査する場所として残す。
+#
+# 判定には dpkg の導入状態を使う。共有ライブラリの実体は
+# 別パッケージの依存として入ることもあり、ファイルの有無だけでは
+# 「入れたつもりがない」ことを確かめられない。
+if compose run --rm --no-deps app sh -c \
+  'dpkg-query -W libvips42 || command -v vips || command -v convert || command -v magick'; then
+  printf 'the app image must not contain image processing libraries\n' >&2
+  exit 1
+fi
 
 # Node.js は P0-R1 で撤去した。イメージへ残っていないことを実測する。
 # git を追加した後も、開発基盤を持ち込まない契約は変わらない。
