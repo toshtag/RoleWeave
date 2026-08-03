@@ -11,6 +11,15 @@ name: roleweave
 
 services:
   app:
+    # ビルド結果に付ける名前を宣言する。
+    #
+    # 宣言しない場合、Compose は project 名とサービス名から roleweave-app:latest を導く。
+    # ビルドするサービスは app だけであり、名前の中の app は何も区別していない。
+    #
+    # 導出に任せると、project 名を変えたときに別のタグが生まれる。
+    # 検証は専用の project 名を使うため（scripts/verify-p0-docker）、
+    # 実行中は同じ中身のイメージが docker images に 2 件並ぶ。
+    image: roleweave:development
     build:
       context: .
       dockerfile: Dockerfile
@@ -83,3 +92,17 @@ services:
 volumes:
   bundle:
   postgres_data:
+
+# 既定の network の表示名を宣言する。
+#
+# 宣言しない場合、Compose は project 名へ _default を足して roleweave_default とする。
+# network は 1 つしか無く、既定であることを区別する相手がいない。
+#
+# 値は project 名から取る。roleweave と直接書くと、
+# --project-name を変えても同じ network を指したままになる。
+# 検証は専用の project 名で同じ compose.yaml を使うため（scripts/verify-p0-docker）、
+# 検証中の app と開発中の app が 1 つの network に同居し、
+# どちらの db へ繋がるかが起動順で決まることになる。
+networks:
+  default:
+    name: ${COMPOSE_PROJECT_NAME}

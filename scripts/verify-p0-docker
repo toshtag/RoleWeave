@@ -394,8 +394,22 @@ check(failures, services.keys.sort == %w[app db], "services must be exactly app 
 # 正規化結果の name と、そこから導出される volume 名の両方を見る。
 check(failures, config["name"] == "roleweave", "compose project name must be roleweave, got #{config["name"].inspect}")
 
+# network の表示名は project 名そのものとする。
+# 既定の roleweave_default から _default を落とすために固定の文字列を書くと、
+# --project-name を変えても同じ network を指し、隔離した検証が開発の stack と同居する。
+networks = config.fetch("networks", {})
+check(failures, networks.keys == %w[default], "compose must declare exactly the default network, got #{networks.keys.inspect}")
+check(failures, (networks["default"] || {})["name"] == config["name"], "default network name must follow the project name, got #{(networks["default"] || {})["name"].inspect}")
+
 app = services["app"] || {}
 db = services["db"] || {}
+
+# app: ビルド結果に付ける名前
+#
+# 宣言しないと Compose は project 名とサービス名から導出する。
+# 検証は専用の project 名を使うため、導出に任せると
+# 同じ中身のイメージが実行中ずっと 2 件並ぶ。
+check(failures, app["image"] == "roleweave:development", "app image must be roleweave:development, got #{app["image"].inspect}")
 
 # app: build target と固定バージョン
 build = app["build"] || {}
@@ -528,14 +542,21 @@ compose() {
 cleanup() {
   local status=$?
 
-  # --rmi local は project 名から自動生成した検証専用イメージだけを対象にする。
-  # 明示的に image を指定している postgres は削除しない。
+  # イメージは削除しない。
+  #
+  # compose.yaml が image を宣言しているため、検証も開発も同じ
+  # roleweave:development をビルドする。検証専用のイメージは生まれない。
+  #
+  # --rmi local はカスタムタグを避けない。実測では、開発の stack が動作中でも
+  # roleweave:development を消した。検証のたびに開発用イメージを削り、
+  # 次の docker compose up でビルドし直させることになる。
+  #
+  # 削除する対象は、この project が作った container・network・volume だけとする。
   APP_PORT="$app_port" docker compose \
     --project-name "$project_name" \
     down \
     --volumes \
     --remove-orphans \
-    --rmi local \
     >/dev/null 2>&1 || true
 
   rm -f "$compose_json"
@@ -546,6 +567,19 @@ cleanup() {
 trap cleanup EXIT
 
 compose build app
+
+# 検証が、それ専用のイメージを作らないこと。
+#
+# 宣言した image ではなく導出に任せると、ここで
+# roleweave-p0-verify-<pid>-app が生まれ、検証が終わるまで docker images に並ぶ。
+# 判定は綴りではなく、実際に増えたかどうかで行う。
+if docker images --format '{{.Repository}}' | grep -q "^${project_name}-"; then
+  printf 'the verification project must not build its own image\n' >&2
+  exit 1
+fi
+
+# 宣言したタグでビルド結果が存在すること。
+docker image inspect roleweave:development >/dev/null
 
 # --- 動的検証: app イメージの中身 ---------------------------------------------
 #
@@ -837,6 +871,30 @@ compose exec -T db \
 
 compose up -d --wait app
 
+# network が project ごとに分かれていること。
+#
+# 表示名から _default を落とすために固定の文字列を書くと、
+# --project-name を変えても同じ network を指す。
+# この検証の app と db が開発中の stack と 1 つの network に同居し、
+# サービス名 db がどちらを指すかは起動順で決まることになる。
+#
+# 判定は綴りではなく、実際に接続されている network の名前で行う。
+attached_networks="$(
+  compose ps --quiet app |
+    xargs docker inspect --format '{{range $name, $_ := .NetworkSettings.Networks}}{{$name}}{{"\n"}}{{end}}' |
+    grep -v '^$' |
+    sort |
+    tr '\n' ' '
+)"
+if [[ "$attached_networks" != "$project_name " ]]; then
+  printf \
+    'app must attach only to the network of its own project: expected %s, got %s\n' \
+    "$project_name" \
+    "${attached_networks:-none}" \
+    >&2
+  exit 1
+fi
+
 # 正規化結果だけでなく、実際に公開された endpoint がループバック限定であることを確認する。
 published_endpoint="$(compose port app 3000 | tr -d '\r\n')"
 test "$published_endpoint" = "127.0.0.1:${app_port}"
@@ -889,6 +947,22 @@ ruby -rnet/http -e '
   response = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/up"))
   abort "the server must stay up after a one-off container: #{response.code}" unless response.code == "200"
 ' "$app_port"
+
+# --- 動的検証: 後片付けが開発用イメージを消さないこと --------------------------
+#
+# 検証は専用の project を使うが、イメージは宣言したタグを開発側と共有する。
+# 後片付けの範囲にイメージを含めると、検証を 1 回動かすだけで
+# 開発用イメージが消え、次の docker compose up がビルドからやり直しになる。
+#
+# 実測では、--rmi local はカスタムタグを避けなかった。
+# 開発の stack が動作中でも roleweave:development を削除している。
+#
+# 検査は cleanup そのものを呼んで行う。同じ down を別に書き写すと、
+# cleanup 側にだけ --rmi を戻したときに通ってしまう。
+
+cleanup
+
+docker image inspect roleweave:development >/dev/null
 
 # --- 事後確認: 契約外のファイルを書き換えていないこと --------------------------
 #
