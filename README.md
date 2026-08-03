@@ -251,7 +251,7 @@ bin/verify --full
 - [開発工程](docs/development/workflow.md) — Issue・PR・検証・ADR の責務
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
 - [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
-- [判断の記録](docs/decisions/) — ADR 67 件。知りたいことからの引き方は[アーキテクチャの概要](docs/architecture.md)にある
+- [判断の記録](docs/decisions/) — ADR。知りたいことからの引き方は[アーキテクチャの概要](docs/architecture.md)にある
 
 ### 何ができていないかを知る
 
