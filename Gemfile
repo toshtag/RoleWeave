@@ -23,8 +23,10 @@ gem "importmap-rails"
 gem "turbo-rails"
 # Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
 gem "stimulus-rails"
-# Build JSON APIs with ease [https://github.com/rails/jbuilder]
-gem "jbuilder"
+
+# JSON を返す経路を持たないため、jbuilder は宣言しない。
+# `.jbuilder` テンプレートも `format.json` も `render json` も使っていない。
+# 画面は HTML を返し、機械向けの出力は sitemap.xml と CSV が担う。
 
 # Use Active Model has_secure_password [https://guides.rubyonrails.org/active_model_basics.html#securepassword]
 # パスワードのハッシュ化を自前で実装しない。ソルトの生成、反復回数の埋め込み、
@@ -68,8 +70,8 @@ group :development do
   gem "web-console"
 end
 
-group :test do
-  # Use system testing [https://guides.rubyonrails.org/testing.html#system-testing]
-  gem "capybara"
-  gem "selenium-webdriver"
-end
+# system test を持たないため、capybara と selenium-webdriver は宣言しない。
+# test/system/ も test/application_system_test_case.rb も存在しない。
+# 画面の検証は integration test が担う。
+# 実ブラウザでの検証を始めるときは、その Issue で
+# 依存・実行環境（ブラウザと driver）・CI の前提をまとめて足す。
