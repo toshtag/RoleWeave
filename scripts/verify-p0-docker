@@ -50,7 +50,6 @@ docker info >/dev/null
 test -f Dockerfile
 test -f compose.yaml
 test -f .dockerignore
-test -x bin/docker-entrypoint
 test -x bin/docker-healthcheck
 test ! -e docker-compose.yml
 
@@ -230,14 +229,21 @@ fi
 # 実測は下段が行い、ここでは削除そのものが消えていないことを見る。
 grep -Fq 'Dir.glob("log/*.log.*")' bin/setup
 
-# --- 静的検証: bin/docker-entrypoint ------------------------------------------
+# --- 静的検証: entrypoint を持たないこと ---------------------------------------
 #
-# entrypoint は前処理だけを行い、与えられたコマンドへ制御を渡す。
+# ENTRYPOINT の層は ADR 0066 で撤去した。
+# コンテナへ渡したコマンドは、間に何も挟まずそのまま実行する。
+#
+# 前処理を足したくなったときに、まずここへ 1 行だけ書く形へ戻りやすい。
+# 戻すこと自体は判断だが、黙って戻ることは拒否する。
 
-bash -n bin/docker-entrypoint
+if grep -Eq '^[[:space:]]*ENTRYPOINT' Dockerfile; then
+  printf 'Dockerfile must not declare an ENTRYPOINT (ADR 0066)\n' >&2
+  exit 1
+fi
 
-if ! grep -qEx 'exec "\$@"' bin/docker-entrypoint; then
-  printf 'bin/docker-entrypoint must end by exec-ing the given command\n' >&2
+if [[ -e bin/docker-entrypoint ]]; then
+  printf 'bin/docker-entrypoint must not exist (ADR 0066)\n' >&2
   exit 1
 fi
 
@@ -756,14 +762,15 @@ ruby -rnet/http -e '
 
 # --- 動的検証: 一時コンテナが動作中のサーバーへ触れないこと --------------------
 #
-# entrypoint はすべてのコンテナで走る。up のサーバーだけでなく、
-# run --rm の一時コンテナでも走る。作業ツリーは bind mount のため、
-# tmp/pids は両者で共有されている。
+# 作業ツリーは bind mount のため、tmp/pids は up のサーバーと
+# run --rm の一時コンテナで共有されている。
 #
-# 前処理が無条件に PID ファイルを消すと、一時コマンドを 1 回動かすだけで
+# 一時コンテナ側が PID ファイルを消すと、一時コマンドを 1 回動かすだけで
 # 動作中のサーバーの PID ファイルが消え、二重起動の判定が働かなくなる。
+# ADR 0066 で entrypoint を撤去した後も、前処理を足す場所は
+# CMD 側にも Compose の command 側にも残っている。
 #
-# 判定は振る舞いで行う。entrypoint の文字列を検査すると、
+# 判定は振る舞いで行う。特定のファイルの文字列を検査すると、
 # 「削除しない」と書いた説明コメントだけでも失敗する誤検出になる。
 
 server_pid_before="$(compose exec -T app cat tmp/pids/server.pid | tr -d '\r\n')"

@@ -63,8 +63,6 @@ RUN --mount=type=cache,target=/usr/local/bundle/ruby/4.0.0/cache,sharing=locked 
 
 COPY . .
 
-ENTRYPOINT ["bin/docker-entrypoint"]
-
 EXPOSE 3000
 
 CMD ["bin/rails", "server", "-b", "0.0.0.0"]
