@@ -46,7 +46,15 @@ WORKDIR /workspace
 COPY Gemfile Gemfile.lock ./
 
 # lockfile を変更できない状態で解決し、イメージとリポジトリの依存を一致させる。
-RUN BUNDLE_FROZEN=true bundle install
+#
+# 取得した .gem も cache mount へ置く。実行時に読むのは展開後の gems/ だけで、
+# cache/ に残る .gem 20 MB は、イメージにも bundle の named volume にも要らない。
+#
+# target の 4.0.0 は RUBY_VERSION 4.0.6 に対応する ABI である。
+# mount の target には ARG を展開できないため直接書き、
+# RUBY_VERSION との対応は完全検証で確かめる。
+RUN --mount=type=cache,target=/usr/local/bundle/ruby/4.0.0/cache,sharing=locked \
+    BUNDLE_FROZEN=true bundle install
 
 COPY . .
 
