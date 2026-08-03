@@ -16,7 +16,7 @@ Rails 8.1（Puma）
    ├── Propshaft + Importmap（自前の資産だけ。外部の CDN を使わない）
    ├── Turbo / Stimulus
    ├── Active Storage（Disk。storage/ に置く）
-   └── Solid Queue / Solid Cache / Solid Cable
+   └── Solid Queue / Solid Cache
    │
    ▼
 PostgreSQL 18
