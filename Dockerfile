@@ -26,6 +26,12 @@ RUN rm -f /etc/apt/apt.conf.d/docker-clean && \
 # git は bundler-audit が Ruby Advisory Database を取得・更新するために使用する。
 # 追加するのは git だけとし、Node.js や npm などの開発基盤は導入しない。
 #
+# PostgreSQL のクライアント（psql、pg_dump）は導入しない。
+# 接続は pg gem が libpq を直接呼び、schema_format は既定の :ruby のため
+# db:prepare は db/schema.rb を読む。app 側から実行ファイルを呼ぶ経路がない。
+# バックアップと復元の手順も db コンテナ側で実行する。
+# libpq5 は libpq-dev の依存として残り、pg gem はこちらを使う。
+#
 # 画像処理のライブラリ（libvips、ImageMagick）は導入しない。
 # variant を生成しないと決めており（ADR 0064）、Ruby 側から呼ぶ経路がない。
 # 呼ばれないライブラリを入れておくと、更新も脆弱性の追跡も、
@@ -38,8 +44,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
       git \
       libpq-dev \
       libyaml-dev \
-      pkg-config \
-      postgresql-client
+      pkg-config
 
 WORKDIR /workspace
 
