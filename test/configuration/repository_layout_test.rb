@@ -12,6 +12,10 @@ class RepositoryLayoutTest < ActiveSupport::TestCase
   # controller にも mailer にも対応しないが、Rails の規約が意味を与えるもの。
   CONVENTIONAL_VIEW_DIRECTORIES = %w[layouts shared].freeze
 
+  # Rails が起動時と db:prepare で読み込むファイル。
+  # 存在すれば読まれるため、中身が無くても読み込みの対象に入る。
+  LOADED_RUBY_GLOBS = %w[config/initializers/*.rb db/seeds.rb].freeze
+
   # 中身が ignore されるため、.keep が無いとディレクトリごと消えるもの。
   # .gitignore と .dockerignore が、この一覧を名前で否定している。
   IGNORED_DIRECTORIES_WITH_KEEP = %w[log storage tmp tmp/pids tmp/storage].freeze
@@ -29,13 +33,18 @@ class RepositoryLayoutTest < ActiveSupport::TestCase
       "描画する controller も mailer も無いテンプレートのディレクトリがある: #{orphans.inspect}"
   end
 
-  test "実行される行を持たない初期化ファイルを置かない" do
-    # config/initializers/inflections.rb は、17 行すべてがコメントだった。
-    # 初期化ファイルは「ここに何かある」という表明として読まれる。
-    empty = Rails.root.glob("config/initializers/*.rb").reject { |path| executable_lines?(path) }
+  test "起動と準備で読み込むファイルが、実行される行を持つ" do
+    # config/initializers/inflections.rb は 17 行すべてが、
+    # db/seeds.rb は 9 行すべてがコメントだった。
+    #
+    # どちらも Rails が読み込む経路にある。
+    # 読み込む側から見ると「ここに何かある」という表明であり、
+    # 中身が生成時の例だけだと、読む人は毎回それを確かめることになる。
+    empty = LOADED_RUBY_GLOBS.flat_map { |glob| Rails.root.glob(glob) }
+      .reject { |path| executable_lines?(path) }
 
     assert_empty empty.map { |path| path.relative_path_from(Rails.root).to_s },
-      "コメントだけの初期化ファイルがある。設定を足すときにファイルごと足す"
+      "コメントだけのファイルがある。中身が要るときに、ファイルごと足す"
   end
 
   test "スクリプトの置き場所を scripts/ だけにする" do
