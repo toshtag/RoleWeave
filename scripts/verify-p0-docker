@@ -754,6 +754,48 @@ ruby -rnet/http -e '
   abort "health check failed: #{response.code}" unless response.code == "200"
 ' "$app_port"
 
+# --- 動的検証: 一時コンテナが動作中のサーバーへ触れないこと --------------------
+#
+# entrypoint はすべてのコンテナで走る。up のサーバーだけでなく、
+# run --rm の一時コンテナでも走る。作業ツリーは bind mount のため、
+# tmp/pids は両者で共有されている。
+#
+# 前処理が無条件に PID ファイルを消すと、一時コマンドを 1 回動かすだけで
+# 動作中のサーバーの PID ファイルが消え、二重起動の判定が働かなくなる。
+#
+# 判定は振る舞いで行う。entrypoint の文字列を検査すると、
+# 「削除しない」と書いた説明コメントだけでも失敗する誤検出になる。
+
+server_pid_before="$(compose exec -T app cat tmp/pids/server.pid | tr -d '\r\n')"
+
+if [[ ! "$server_pid_before" =~ ^[0-9]+$ ]]; then
+  printf 'expected a running server pid, got %s\n' "$server_pid_before" >&2
+  exit 1
+fi
+
+compose run --rm --no-deps app true
+
+server_pid_after="$(
+  compose exec -T app sh -c 'cat tmp/pids/server.pid 2>/dev/null || true' | tr -d '\r\n'
+)"
+
+if [[ "$server_pid_after" != "$server_pid_before" ]]; then
+  printf \
+    'a one-off container must not touch the running server pid file: %s => %s\n' \
+    "$server_pid_before" \
+    "${server_pid_after:-removed}" \
+    >&2
+  exit 1
+fi
+
+# サーバーが動き続けていることも確かめる。
+# PID ファイルが残っていても、サーバーが落ちていれば検査の意味がない。
+ruby -rnet/http -e '
+  port = Integer(ARGV.fetch(0))
+  response = Net::HTTP.get_response(URI("http://127.0.0.1:#{port}/up"))
+  abort "the server must stay up after a one-off container: #{response.code}" unless response.code == "200"
+' "$app_port"
+
 # --- 事後確認: 契約外のファイルを書き換えていないこと --------------------------
 #
 # 作業ツリーは bind mount されているため、コンテナ内の操作が
