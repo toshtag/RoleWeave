@@ -77,19 +77,19 @@ MUTATIONS = ACTION_MUTATIONS.merge({
     text.sub("          ruby-version: .ruby-version", "          ruby-version: 4.0.6")
   },
   "secretsのドット参照" => ->(text) {
-    text.sub("    steps:", "    env:\n      TOKEN: ${{ secrets.TOKEN }}\n\n    steps:")
+    text.sub("      RAILS_ENV: test", "      RAILS_ENV: test\n      TOKEN: ${{ secrets.TOKEN }}")
   },
   "secretsコンテキスト全体の参照" => ->(text) {
-    text.sub("    steps:", "    env:\n      DUMP: ${{ toJSON(secrets) }}\n\n    steps:")
+    text.sub("      RAILS_ENV: test", "      RAILS_ENV: test\n      DUMP: ${{ toJSON(secrets) }}")
   },
   "secretsの添字参照" => ->(text) {
-    text.sub("    steps:", "    env:\n      TOKEN: ${{ secrets['TOKEN'] }}\n\n    steps:")
+    text.sub("      RAILS_ENV: test", "      RAILS_ENV: test\n      TOKEN: ${{ secrets['TOKEN'] }}")
   },
   "github.tokenの参照" => ->(text) {
-    text.sub("    steps:", "    env:\n      TOKEN: ${{ github.token }}\n\n    steps:")
+    text.sub("      RAILS_ENV: test", "      RAILS_ENV: test\n      TOKEN: ${{ github.token }}")
   },
   'github["token"]の参照' => ->(text) {
-    text.sub("    steps:", "    env:\n      TOKEN: ${{ github[\"token\"] }}\n\n    steps:")
+    text.sub("      RAILS_ENV: test", "      RAILS_ENV: test\n      TOKEN: ${{ github[\"token\"] }}")
   },
 
   # --- 実行環境 ---------------------------------------------------------------
@@ -103,6 +103,27 @@ MUTATIONS = ACTION_MUTATIONS.merge({
   "continue-on-error" => ->(text) { text.sub("    steps:", "    continue-on-error: true\n\n    steps:") },
   "containerの指定" => ->(text) {
     text.sub("    steps:", "    container: ruby:4.0.6-slim-bookworm\n\n    steps:")
+  },
+
+  # --- service コンテナ -------------------------------------------------------
+  "PostgreSQLの版のずれ" => ->(text) { text.sub("image: postgres:18.4-bookworm", "image: postgres:17-bookworm") },
+  "承認していないserviceの追加" => ->(text) {
+    text.sub(
+      "    services:\n",
+      "    services:\n      cache:\n        image: redis:8-bookworm\n"
+    )
+  },
+
+  # --- 実行コマンド -----------------------------------------------------------
+  #
+  # bin/verify に無いコマンドを CI だけで実行できないこと。
+  "bin/verifyに無いコマンド" => ->(text) { text.sub("        run: bin/rubocop", "        run: bin/rubocop -a") },
+  "失敗の握り潰し" => ->(text) { text.sub("        run: bin/rails test", "        run: bin/rails test || true") },
+  "検査stepの追加" => ->(text) {
+    text.sub(
+      "      - name: Ruby スタイル\n",
+      "      - name: 追加の検査\n        run: echo bypass\n\n      - name: Ruby スタイル\n"
+    )
   },
 
   # --- 同時実行 ---------------------------------------------------------------

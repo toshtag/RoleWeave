@@ -99,7 +99,6 @@ test ! -e docs/development/code-pact.md
 
 negation_checked_scripts=(
   bin/verify
-  bin/ci
   scripts/verify-p0
   scripts/verify-p0-docker
 )
@@ -235,8 +234,9 @@ test -x scripts/verify-github-actions-self-test
 # Dependabot は P0-T9 の非目標であり、P0 では持ち込まない。
 test ! -e .github/dependabot.yml
 
-# P0 では Workflow を ci.yml の 1 つに限定する。
-# 検証入口が増えると、bin/verify を正本とする委譲経路が成立しなくなる。
+# Workflow は ci.yml の 1 つに限定する。
+# 検査を並行させるための job の分割は ci.yml の中で行い、Workflow は増やさない。
+# ファイルが増えると、bin/verify を正本とする一致検査の対象から外れる。
 workflow_count="$(
   find .github/workflows -maxdepth 1 -type f | wc -l | tr -d ' '
 )"
@@ -328,13 +328,16 @@ refute_pattern -F 'application itself has not been implemented' README.en.md
 # Docker 検証は build とコンテナ起動を伴うため、契約違反はその前に失敗させる。
 
 test -x bin/verify
-test -x bin/ci
 
 # 検証定義の二重正本を残さない。
+#
+# bin/ci は bin/verify --full へ委譲するだけの別名だった。
+# 入口は docker compose run --rm app bin/verify と bin/verify --full の 2 つとする
+# （docs/development/workflow.md）。
 test ! -e config/ci.rb
+test ! -e bin/ci
 
 bash -n bin/verify
-bash -n bin/ci
 
 # コメント行は検査対象から外す。
 # 正規コマンドを説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
@@ -382,44 +385,6 @@ scripts/verify-security
 # 構造検査は「契約違反を拒否できること」まで含めて初めて意味を持つ。
 # 負の検証を実行時の手作業に依存させると、検証器の退行に気づけない。
 scripts/verify-security-self-test
-
-# bin/ci は委譲するだけの互換ラッパーとする。
-#
-# 委譲行の存在確認では、その前後へ独自の検証コマンドを置いた bin/ci を検出できない。
-# コメントと空行を除いた実行行を、完全一致で検査する。
-ruby - <<'RUBY'
-  path = "bin/ci"
-  lines = File.readlines(path, chomp: true, encoding: "UTF-8")
-
-  shebang = lines.shift
-
-  unless shebang == "#!/usr/bin/env bash"
-    warn "bin/ci must use the expected shebang"
-    exit 1
-  end
-
-  executable_lines = lines.reject do |line|
-    line.strip.empty? || line.lstrip.start_with?("#")
-  end
-
-  expected_lines = [
-    "set -euo pipefail",
-    'APP_ROOT="$(',
-    '  cd "$(dirname "${BASH_SOURCE[0]}")/.."',
-    "  pwd",
-    ')"',
-    'exec "$APP_ROOT/bin/verify" --full "$@"'
-  ]
-
-  unless executable_lines == expected_lines
-    warn "bin/ci must only delegate to bin/verify --full"
-    warn "expected:"
-    expected_lines.each { |line| warn("  #{line}") }
-    warn "actual:"
-    executable_lines.each { |line| warn("  #{line}") }
-    exit 1
-  end
-RUBY
 
 # 完全モードをコンテナ内から呼ぶと、この検証自身を無限に呼び戻す。
 docker_verification_body="$(grep -v '^[[:space:]]*#' scripts/verify-p0-docker)"

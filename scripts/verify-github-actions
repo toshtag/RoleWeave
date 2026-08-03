@@ -11,9 +11,10 @@
 #
 # 検査する対象は「壊れると気づけないもの」に限る。
 #
-#   供給元  Action を承認済みの SHA へ固定していること
+#   供給元  Action を承認済みの SHA へ固定していること、service イメージの版
 #   権限    書き込み権限、secrets、fork の PR を特権で走らせる trigger
 #   環境    runner の版、timeout、job 単位での権限の上書き
+#   実行    bin/verify に無いコマンドを CI だけで実行していないこと
 #
 # job 名・step 名・キーの並び・スカラーの書き方は検査しない。
 # 表記を固定しても守れるものが無く、CI の構成を変えるたびに
@@ -30,6 +31,13 @@
 require "yaml"
 
 DEFAULT_WORKFLOW_PATH = ".github/workflows/ci.yml"
+
+# 検証内容の正本。Workflow が実行するコマンドは、すべてここにも並ぶ。
+VERIFY_PATH = "bin/verify"
+
+# service コンテナのイメージは、ローカル開発と同じものを使う。
+COMPOSE_PATH = "compose.yaml"
+DATABASE_SERVICE = "db"
 
 # 承認済みの Action 固定。
 #
@@ -165,6 +173,19 @@ def collect_strings(node, found = [])
   end
 
   found
+end
+
+# bin/verify が実行するコマンドの本文。
+# コメント行を除く。委譲経路を説明するヘッダーコメントと実行内容を混同しない。
+def canonical_commands
+  File.readlines(VERIFY_PATH, chomp: true, encoding: "UTF-8")
+      .reject { |line| line.lstrip.start_with?("#") }
+      .join("\n")
+end
+
+# compose.yaml が宣言する PostgreSQL イメージ。
+def compose_database_image
+  YAML.safe_load_file(COMPOSE_PATH, aliases: true).dig("services", DATABASE_SERVICE, "image")
 end
 
 if ARGV.length > 1
@@ -335,6 +356,65 @@ jobs.each do |job_id, job|
     required.each do |key, value|
       check(failures, given[key] == value,
         "job #{job_id} step #{index + 1} (#{action}) must set #{key}: #{value.inspect}, got #{given[key].inspect}")
+    end
+  end
+end
+
+# --- service コンテナ ---------------------------------------------------------
+#
+# PostgreSQL の版がローカル開発と CI でずれると、片方だけが通る差分を作れてしまう。
+# 版の正本は compose.yaml とし、Workflow はその値を写す。
+
+expected_database_image = compose_database_image
+
+check(failures, !expected_database_image.nil?,
+  "#{COMPOSE_PATH} must declare an image for the #{DATABASE_SERVICE} service")
+
+jobs.each do |job_id, job|
+  services = job.is_a?(Hash) ? job["services"] : nil
+  next unless services.is_a?(Hash)
+
+  services.each do |service_id, service|
+    check(failures, service_id == DATABASE_SERVICE,
+      "job #{job_id} must not declare the service #{service_id.inspect}. " \
+      "the only approved service is #{DATABASE_SERVICE}")
+
+    image = service.is_a?(Hash) ? service["image"] : service
+
+    check(failures, image == expected_database_image,
+      "job #{job_id} service #{service_id} must use #{expected_database_image.inspect} " \
+      "as declared in #{COMPOSE_PATH}, got #{image.inspect}")
+  end
+end
+
+# --- 実行コマンドの正本 -------------------------------------------------------
+#
+# 検証内容の正本は bin/verify とする。
+# Workflow が実行するコマンドは、すべて bin/verify にも並んでいなければならない。
+#
+# 一致を求めるのは、CI にしか無い検査を作らせないためである。
+# 逆向き（bin/verify にあって CI に無い）のうち、
+# セキュリティ検査の削除・無効化は scripts/verify-security が見る。
+#
+# 検査対象は解析済みの run だけとする。
+# 委譲経路を説明するヘッダーコメントと、実際に実行するコマンドを混同しない。
+
+canonical = canonical_commands
+
+jobs.each do |job_id, job|
+  steps = job.is_a?(Hash) ? job["steps"] : nil
+  next unless steps.is_a?(Array)
+
+  steps.each_with_index do |step, index|
+    next unless step.is_a?(Hash) && step.key?("run")
+
+    step["run"].to_s.each_line do |line|
+      command = line.strip
+      next if command.empty?
+
+      check(failures, canonical.include?(command),
+        "job #{job_id} step #{index + 1} runs #{command.inspect}, which #{VERIFY_PATH} does not. " \
+        "#{VERIFY_PATH} is the single source of truth")
     end
   end
 end
