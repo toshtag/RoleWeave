@@ -54,7 +54,7 @@ require_file() {
 # --- 撤去済みの開発依存を持ち込まない ------------------------------------------
 #
 # code-pact と Node.js は P0-R1 で撤去した。
-# 進捗・契約の正本はロードマップと GitHub Issues であり、
+# 進捗・契約の正本は GitHub Issues と Pull Requests であり、
 # ツール固有の制御面やイベント台帳を再導入しない。
 
 test ! -e .code-pact
@@ -71,7 +71,6 @@ test ! -e docs/development/code-pact.md
 require_file docs/principles.md
 require_file docs/development/language-policy.md
 require_file docs/development/workflow.md
-require_file docs/roadmap/index.yaml
 
 # 実行タスクの入口である Issue テンプレートも P0 の必須成果物とする。
 require_file .github/ISSUE_TEMPLATE/bug.yml
@@ -142,135 +141,6 @@ if [[ "$removed_design_reference_found" -ne 0 ]]; then
   exit 1
 fi
 
-# ロードマップとフェーズ定義は YAML として常に解析できること。
-ruby -ryaml -e '
-  Dir["docs/roadmap/**/*.yaml"].sort.each do |path|
-    YAML.load_file(path)
-  end
-'
-
-# フェーズ YAML はフェーズレベルの情報だけを持つ。
-# タスク単位の進捗・完了実績の正本は GitHub Issues と PR であり、
-# フェーズ定義へ複製する構造を再導入しない。
-#
-# ID の一意性は Hash 化の前に検査する。to_h は重複キーを黙って上書きするため、
-# 先に検査しないと 1 フェーズが検査対象から消えても成功してしまう。
-# 循環依存は自己依存に限定せず、任意の長さの循環を DFS で拒否する。
-ruby -ryaml -e '
-  phase_paths = Dir["docs/roadmap/phases/*.yaml"].sort
-
-  records = phase_paths.map do |path|
-    [path, YAML.load_file(path)]
-  end
-
-  ids = records.map do |_path, phase|
-    id = phase.fetch("id")
-    abort "phase id must not be empty" if id.to_s.strip.empty?
-    id
-  end
-
-  duplicate_ids = ids.tally.select { |_id, count| count > 1 }
-
-  unless duplicate_ids.empty?
-    abort "duplicate phase ids: #{duplicate_ids.keys.sort.join(", ")}"
-  end
-
-  phases = records.to_h do |_path, phase|
-    [phase.fetch("id"), phase]
-  end
-
-  phase_paths_by_id = records.to_h do |path, phase|
-    [phase.fetch("id"), path]
-  end
-
-  # ロードマップとフェーズファイルは同じフェーズ集合を指す。
-  roadmap_entries = YAML.load_file("docs/roadmap/index.yaml").fetch("phases")
-
-  roadmap_ids = roadmap_entries.map { |entry| entry.fetch("id") }
-  roadmap_paths = roadmap_entries.map { |entry| entry.fetch("path") }
-
-  duplicate_roadmap_ids = roadmap_ids.tally.select { |_id, count| count > 1 }
-
-  unless duplicate_roadmap_ids.empty?
-    abort "duplicate roadmap ids: #{duplicate_roadmap_ids.keys.sort.join(", ")}"
-  end
-
-  duplicate_roadmap_paths = roadmap_paths.tally.select { |_path, count| count > 1 }
-
-  unless duplicate_roadmap_paths.empty?
-    abort "duplicate roadmap paths: #{duplicate_roadmap_paths.keys.sort.join(", ")}"
-  end
-
-  unless roadmap_ids.sort == ids.sort
-    abort "roadmap ids must match phase file ids. " \
-      "roadmap only: #{(roadmap_ids - ids).sort.inspect}, " \
-      "files only: #{(ids - roadmap_ids).sort.inspect}"
-  end
-
-  # 指定先ファイルの ID 一致だけでは、同じ ID を持つ別コピーを正本として
-  # 指すロードマップを受理してしまう。docs/roadmap/phases/*.yaml から得た
-  # 正規 path との完全一致まで確認し、別コピーと path の別表記を拒否する。
-  roadmap_entries.each do |entry|
-    id = entry.fetch("id")
-    actual_path = entry.fetch("path")
-    expected_path = phase_paths_by_id.fetch(id)
-
-    unless actual_path == expected_path
-      abort "roadmap path for #{id} must be #{expected_path}, got #{actual_path}"
-    end
-
-    abort "roadmap path is missing: #{actual_path}" unless File.file?(actual_path)
-
-    file_id = YAML.load_file(actual_path).fetch("id")
-
-    abort "roadmap id #{id} does not match #{actual_path} (#{file_id})" unless file_id == id
-  end
-
-  phases.each do |id, phase|
-    abort "#{id} must not define tasks" if phase.key?("tasks")
-    abort "#{id} must not define completed_milestones" if phase.key?("completed_milestones")
-
-    dependencies = phase.fetch("depends_on")
-    abort "#{id} depends_on must be an array" unless dependencies.is_a?(Array)
-    abort "#{id} must not depend on itself" if dependencies.include?(id)
-
-    dependencies.each do |dependency|
-      abort "#{id} depends on a missing phase: #{dependency}" unless phases.key?(dependency)
-    end
-  end
-
-  abort "P0 depends_on must be empty" unless phases.fetch("P0").fetch("depends_on") == []
-
-  # 任意の長さの循環依存を拒否する。
-  states = {}
-  stack = []
-
-  visit = lambda do |id|
-    case states[id]
-    when :done
-      next
-    when :visiting
-      start = stack.index(id) || 0
-      cycle = stack[start..] + [id]
-      abort "phase dependency cycle: #{cycle.join(" -> ")}"
-    end
-
-    states[id] = :visiting
-    stack << id
-
-    phases.fetch(id).fetch("depends_on").each do |dependency|
-      visit.call(dependency)
-    end
-
-    stack.pop
-    states[id] = :done
-  end
-
-  phases.each_key do |id|
-    visit.call(id)
-  end
-'
-
 # --- 撤去済みのローカル制御面 ---------------------------------------------------
 #
 # .context と .local は code-pact 時代のローカルディレクトリ契約であり、P0-R2 で撤去した。
@@ -294,7 +164,7 @@ done
 
 # --- P0 全体で持ち込まない生成物 ---------------------------------------------
 #
-# デプロイ基盤（Kamal）、Thruster、開発用コンテナは現在のロードマップで採用していない。
+# デプロイ基盤（Kamal）、Thruster、開発用コンテナは採用していない。
 # Rails が一時生成する master key と、それで暗号化された credentials も持ち込まない。
 
 test ! -e .kamal
@@ -417,16 +287,6 @@ test ! -e config/ci.rb
 
 bash -n bin/verify
 bash -n bin/ci
-
-# フェーズ検証コマンドは YAML として解析する。
-# インデント前提の grep では、値の所属先を取り違える。
-ruby -ryaml -e '
-  phase = YAML.load_file("docs/roadmap/phases/P0-project-foundation.yaml")
-  commands = phase.fetch("verification").fetch("commands")
-
-  abort "unexpected P0 verification command: #{commands.inspect}" \
-    unless commands == ["bin/verify --full"]
-'
 
 # コメント行は検査対象から外す。
 # 正規コマンドを説明するヘッダーコメントと、実際に実行するコマンドを混同しない。

@@ -12,8 +12,7 @@
 現在の `main` には、`v0.1.0` の後に追加した機能と修正が入っています。
 これらにはまだ版を付けていないため、リリースとしては出していません。
 
-計画していた P0 から P15 までのフェーズは、すべて完了しています
-（[ロードマップ](docs/roadmap/index.yaml)）。
+計画していた P0 から P15 までのフェーズは、すべて完了しています。
 
 現在の `main` で実装している範囲は次のとおりです。
 
@@ -327,10 +326,9 @@ bin/verify --full
 - [変更の履歴](CHANGELOG.md) — 版ごとの内容と既知の制限
 - [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
 - [開発の原則](docs/principles.md) — 計画・実装・コードの判断基準
-- [ロードマップ](docs/roadmap/index.yaml) — P0 から P15 までのフェーズ索引
-- [v1 以降の検討候補](docs/roadmap/post-v1-options.md) — 実装の約束ではない候補の一覧と評価の手順
+- [v1 以降の検討候補](docs/decisions/0059-post-v1-evaluation.md) — 実装の約束ではない候補の一覧と評価の手順
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
-- [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
+- [開発工程](docs/development/workflow.md) — Issue・PR・検証・ADR の責務
 - [ファイルの保存先](docs/development/file-storage.md) — 添付の保存先と自己ホストでの運用
 - [逆プロキシの前提](docs/development/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
 - [横断品質要件の検証状況](docs/quality/verification-status.md) — 満たしている点と満たしていない点
@@ -342,16 +340,14 @@ bin/verify --full
 
 ## 開発の進め方
 
-中長期計画はロードマップ、実行タスクと不具合は GitHub Issues、
-実装内容と検証結果は Pull Request を正本としています。
+実行タスクと不具合は GitHub Issues、実装内容と検証結果は Pull Request を正本としています。
 1 Issue につき 1 つの確認可能な成果、1 PR を原則としています。
 詳細は[開発工程](docs/development/workflow.md)を参照してください。
 
 **計画していたフェーズ（P0 から P15）は完了しています。**
 以降は、新しい機能を計画に沿って足し続けることはしません。
 具体的な不具合の報告か、実際の利用にもとづく要望があった時点で Issue を作り、
-個別に判断します（[v1 以降の検討候補](docs/roadmap/post-v1-options.md)、
-[ADR 0059](docs/decisions/0059-post-v1-evaluation.md)）。
+個別に判断します（[ADR 0059](docs/decisions/0059-post-v1-evaluation.md)）。
 
 ## ライセンス
 

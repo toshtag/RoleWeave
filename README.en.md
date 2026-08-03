@@ -12,8 +12,7 @@ The latest published release is `v0.1.0`. The current `main` contains features a
 fixes added after `v0.1.0`. They have not been versioned yet, so they have not been
 published as a release.
 
-Every planned phase, P0 through P15, is complete
-(see the [roadmap](docs/roadmap/index.yaml)).
+Every planned phase, P0 through P15, is complete.
 
 The following is implemented on the current `main`:
 
@@ -342,10 +341,9 @@ described above. Setup and usage documentation will be provided in both language
 - [Changelog](CHANGELOG.md) — what each version contains and its known limitations
 - [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
 - [Development principles](docs/principles.md) — how planning, implementation, and code decisions are made
-- [Roadmap](docs/roadmap/index.yaml) — phase index from P0 through P15
-- [Post-v1 options](docs/roadmap/post-v1-options.md) — candidates under consideration, not commitments, and how they are evaluated
+- [Post-v1 options](docs/decisions/0059-post-v1-evaluation.md) — candidates under consideration, not commitments, and how they are evaluated
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
-- [Development workflow](docs/development/workflow.md) — responsibilities of the roadmap, issues, PRs, and ADRs
+- [Development workflow](docs/development/workflow.md) — responsibilities of issues, PRs, verification, and ADRs
 - [File storage](docs/development/file-storage.md) — where attachments live and how they are handled when self-hosting
 - [Reverse proxy assumptions](docs/development/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
 - [Verification status](docs/quality/verification-status.md) — what is met and what is not
@@ -357,17 +355,15 @@ described above. Setup and usage documentation will be provided in both language
 
 ## How development proceeds
 
-The roadmap is the source of truth for long-term planning, GitHub Issues for
-implementation tasks and bugs, and pull requests for implementation results
-and verification records. As a rule, each issue produces one verifiable result
+GitHub Issues are the source of truth for implementation tasks and bugs, and
+pull requests for implementation results and verification records. As a rule, each issue produces one verifiable result
 and one pull request. See the [development workflow](docs/development/workflow.md)
 for details.
 
 **Every planned phase (P0 through P15) is complete.** From here on, features are not
 added by working down a plan. When a concrete bug report or a request grounded in
 actual use arrives, an issue is opened and judged on its own
-(see [post-v1 options](docs/roadmap/post-v1-options.md) and
-[ADR 0059](docs/decisions/0059-post-v1-evaluation.md)).
+(see [ADR 0059](docs/decisions/0059-post-v1-evaluation.md)).
 
 ## License
 
