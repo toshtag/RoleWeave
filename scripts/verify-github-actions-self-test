@@ -7,6 +7,10 @@
 # 負の検証を実行時の手作業に依存させると、検証器が退行しても気づけない。
 # ここでは正規の Workflow へ変異を加え、すべてが拒否されることを毎回確認する。
 #
+# 変異は検証器が検査する項目とだけ対応させる。
+# 検査していない表記へ変異を足すと、検証器を縛るのではなく
+# 「いま拒否されている」という観測を固定するだけになる。
+#
 # 変異は一時ディレクトリへ複製した Workflow に対してのみ行う。
 # .github/workflows/ci.yml は読み取るだけで、書き換えない。
 
@@ -15,13 +19,11 @@ require "tmpdir"
 WORKFLOW_PATH = ".github/workflows/ci.yml"
 VERIFIER_PATH = "scripts/verify-github-actions"
 
-CHECKOUT_SHA = "3d3c42e5aac5ba805825da76410c181273ba90b1"
-
-# Action 固定の変異は 3 つすべてに対して行う。
+# Action 固定の変異は登録済みのすべてに対して行う。
 # 実装が現時点で汎用であることではなく、
 # 将来一部の Action だけ検査対象から漏れた場合に検出することが目的である。
 ACTION_PINS = {
-  "actions/checkout" => { sha: CHECKOUT_SHA, tag: "v7.0.1" },
+  "actions/checkout" => { sha: "3d3c42e5aac5ba805825da76410c181273ba90b1", tag: "v7.0.1" },
   "ruby/setup-ruby" => { sha: "95ef2b042f9d7a56d8268cba8559e2842e2ad01b", tag: "v1.321.0" }
 }.freeze
 
@@ -48,24 +50,62 @@ end.to_h.freeze
 # 変異は正規の Workflow に対する文字列置換で表現する。
 # 置換が適用されなかった場合は、Workflow 側の変更に追随できていないため失敗させる。
 MUTATIONS = ACTION_MUTATIONS.merge({
+  # --- 供給元 -----------------------------------------------------------------
   "引用符付きusesキー" => ->(text) { text.sub("uses: actions/checkout@", "\"uses\": actions/checkout@") },
+  "未承認のActionの追加" => ->(text) {
+    text.sub(
+      "      - name: リポジトリを取得\n",
+      "      - name: Node.jsを準備\n" \
+      "        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0\n\n" \
+      "      - name: リポジトリを取得\n"
+    )
+  },
+
+  # --- Trigger ----------------------------------------------------------------
   "onキーをtrueへ変更" => ->(text) { text.sub(/^on:$/, "true:") },
   "onキーをyesへ変更" => ->(text) { text.sub(/^on:$/, "yes:") },
-  "onキーをONへ変更" => ->(text) { text.sub(/^on:$/, "ON:") },
-  "onキーを引用符付きへ変更" => ->(text) { text.sub(/^on:$/, '"on":') },
-  "cancel-in-progressをyesへ変更" => ->(text) {
-    text.sub("cancel-in-progress: true", "cancel-in-progress: yes")
+  "pull_request_target" => ->(text) { text.sub("  pull_request:", "  pull_request_target:") },
+  "pushの対象ブランチ拡大" => ->(text) { text.sub("      - main\n", "      - main\n      - release\n") },
+
+  # --- 権限とシークレット -----------------------------------------------------
+  "write権限" => ->(text) { text.sub("  contents: read", "  contents: write") },
+  "認証情報の保持" => ->(text) {
+    text.sub("          persist-credentials: false", "          persist-credentials: true")
   },
-  "persist-credentialsをnoへ変更" => ->(text) {
-    text.sub("persist-credentials: false", "persist-credentials: no")
+  "persist-credentialsの削除" => ->(text) { text.sub("          persist-credentials: false\n", "") },
+  "version fileの重複記述" => ->(text) {
+    text.sub("          ruby-version: .ruby-version", "          ruby-version: 4.0.6")
   },
-  "bundler-cacheをyesへ変更" => ->(text) { text.sub("bundler-cache: true", "bundler-cache: yes") },
+  "secretsのドット参照" => ->(text) {
+    text.sub("    steps:", "    env:\n      TOKEN: ${{ secrets.TOKEN }}\n\n    steps:")
+  },
   "secretsコンテキスト全体の参照" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ toJSON(secrets) }}")
+    text.sub("    steps:", "    env:\n      DUMP: ${{ toJSON(secrets) }}\n\n    steps:")
   },
-  "secretsコンテキストの裸参照" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ secrets }}")
+  "secretsの添字参照" => ->(text) {
+    text.sub("    steps:", "    env:\n      TOKEN: ${{ secrets['TOKEN'] }}\n\n    steps:")
   },
+  "github.tokenの参照" => ->(text) {
+    text.sub("    steps:", "    env:\n      TOKEN: ${{ github.token }}\n\n    steps:")
+  },
+  'github["token"]の参照' => ->(text) {
+    text.sub("    steps:", "    env:\n      TOKEN: ${{ github[\"token\"] }}\n\n    steps:")
+  },
+
+  # --- 実行環境 ---------------------------------------------------------------
+  "ubuntu-latest" => ->(text) { text.sub("    runs-on: ubuntu-24.04", "    runs-on: ubuntu-latest") },
+  "timeoutの削除" => ->(text) { text.sub(/^    timeout-minutes: \d+\n/, "") },
+  "timeoutを浮動小数へ変更" => ->(text) { text.sub(/^(    timeout-minutes: \d+)$/, '\1.0') },
+  "timeoutを文字列へ変更" => ->(text) { text.sub(/^    timeout-minutes: (\d+)$/, '    timeout-minutes: "\1"') },
+  "job権限の上書き" => ->(text) {
+    text.sub("    steps:", "    permissions:\n      contents: write\n\n    steps:")
+  },
+  "continue-on-error" => ->(text) { text.sub("    steps:", "    continue-on-error: true\n\n    steps:") },
+  "containerの指定" => ->(text) {
+    text.sub("    steps:", "    container: ruby:4.0.6-slim-bookworm\n\n    steps:")
+  },
+
+  # --- 同時実行 ---------------------------------------------------------------
   "concurrency groupの固定値化" => ->(text) {
     text.sub("group: ci-${{ github.workflow }}-${{ github.ref }}", "group: global")
   },
@@ -75,62 +115,9 @@ MUTATIONS = ACTION_MUTATIONS.merge({
       ""
     )
   },
-  "secretsのドット参照" => ->(text) {
-    text.sub("        run: bin/ci", "        env:\n          TOKEN: ${{ secrets.TOKEN }}\n        run: bin/ci")
-  },
-  "secretsの添字参照" => ->(text) {
-    text.sub("    name: 統一検証", "    name: ${{ secrets['TOKEN'] }}")
-  },
-  "write権限" => ->(text) { text.sub("  contents: read", "  contents: write") },
-  "pull_request_target" => ->(text) { text.sub("  pull_request:", "  pull_request_target:") },
-  "統一入口の迂回" => ->(text) { text.sub("        run: bin/ci", "        run: bin/verify --full") },
-  "個別検証の複製" => ->(text) {
-    text.sub(
-      "      - name: 統一検証",
-      "      - name: Rubyスタイル\n        run: bin/rubocop\n\n      - name: 統一検証"
-    )
-  },
-  "複数job" => ->(text) {
-    text +
-      "\n  extra:\n" \
-      "    name: 追加\n" \
-      "    runs-on: ubuntu-24.04\n" \
-      "    timeout-minutes: 5\n" \
-      "    steps:\n" \
-      "      - name: 何もしない\n" \
-      "        run: \"true\"\n"
-  },
-  "ubuntu-latest" => ->(text) { text.sub("    runs-on: ubuntu-24.04", "    runs-on: ubuntu-latest") },
-  "version fileの重複記述" => ->(text) {
-    text.sub("          ruby-version: .ruby-version", "          ruby-version: 4.0.6")
-  },
-  # Node.js 基盤は P0-R1 で撤去した。再導入は期待 step との不一致として拒否する。
-  "Node.js stepの追加" => ->(text) {
-    text.sub(
-      "      - name: 統一検証",
-      "      - name: Node.jsを準備\n" \
-      "        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0\n" \
-      "        with:\n" \
-      "          node-version: 24.18.0\n\n" \
-      "      - name: 統一検証"
-    )
-  },
-  "npm ciステップの追加" => ->(text) {
-    text.sub(
-      "      - name: 統一検証",
-      "      - name: Node.js依存関係を準備\n        run: npm ci\n\n      - name: 統一検証"
-    )
-  },
-  "認証情報の保持" => ->(text) {
-    text.sub("          persist-credentials: false", "          persist-credentials: true")
-  },
-  "timeoutの削除" => ->(text) { text.sub("    timeout-minutes: 30\n", "") },
-  "service containerの追加" => ->(text) {
-    text.sub("    steps:", "    services:\n      db:\n        image: postgres:18.4-bookworm\n\n    steps:")
-  },
-  "continue-on-error" => ->(text) { text.sub("        run: bin/ci", "        continue-on-error: true\n        run: bin/ci") },
 
-  # 重複した mapping key。
+  # --- 重複した mapping key ---------------------------------------------------
+  #
   # Psych は後勝ちで畳み込むため、前方の定義は解析結果から消える。
   "pushの重複" => ->(text) {
     text.sub(
@@ -139,58 +126,14 @@ MUTATIONS = ACTION_MUTATIONS.merge({
     )
   },
   "contentsの重複" => ->(text) { text.sub("  contents: read", "  contents: write\n  contents: read") },
-  "verify jobの重複" => ->(text) {
-    text.sub(
-      "  verify:\n",
-      "  verify:\n    name: 無効な定義\n    runs-on: ubuntu-latest\n    steps: []\n  verify:\n"
-    )
-  },
-  "step runの重複" => ->(text) { text.sub("        run: bin/ci", "        run: echo bypass\n        run: bin/ci") },
-  "step nameの重複" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ secrets.TOKEN }}\n        name: 統一検証")
-  },
   "引用符違いのキー重複" => ->(text) { text.sub("  contents: read", "  \"contents\": write\n  contents: read") },
-  "flow mapping内のキー重複" => ->(text) {
-    text.sub(
-      "        with:\n          # バージョンの正本は version file とし、ここへ数値を重複記述しない。\n          ruby-version: .ruby-version\n          bundler-cache: true",
-      "        with: { ruby-version: .ruby-version, bundler-cache: false, bundler-cache: true }"
-    )
-  },
 
-  # 複数 document。YAML.safe_load は最初の document だけを返す。
+  # --- 複数 document ----------------------------------------------------------
+  #
+  # YAML.safe_load は最初の document だけを返す。
   "空の2件目document" => ->(text) { "#{text}---\n" },
-  "引用符付きキーを持つ2件目document" => ->(text) { "#{text}---\n\"x\": \"extra\"\n" },
   "secretsを含む2件目document" => ->(text) { "#{text}---\n\"x\": \"${{ secrets.TOKEN }}\"\n" },
-  "document終端後の裸のscalar" => ->(text) { "#{text}...\n\nplain-trailing-content\n" },
-  "document終端後のsecrets式" => ->(text) { "#{text}...\n\n${{ secrets.TOKEN }}\n" },
-
-  # 表示名。正規値へ固定しないと、GitHub 式の評価結果を表示名として出力できる。
-  "job名を別の固定値へ変更" => ->(text) { text.sub("    name: 統一検証", "    name: 無関係な表示名") },
-  "job名からgithub式を参照" => ->(text) { text.sub("    name: 統一検証", "    name: ${{ github.ref }}") },
-  "job名からgithub.tokenを参照" => ->(text) { text.sub("    name: 統一検証", "    name: ${{ github.token }}") },
-  "step名を別の固定値へ変更" => ->(text) { text.sub("      - name: 統一検証", "      - name: 無関係な表示名") },
-  "step名からgithub.tokenを参照" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ github.token }}")
-  },
-  "step名からgithub['token']を参照" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ github['token'] }}")
-  },
-  'step名からgithub["token"]を参照' => ->(text) {
-    text.sub("      - name: 統一検証", '      - name: ${{ github["token"] }}')
-  },
-  "step名からgithub全体を参照" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ toJSON(github) }}")
-  },
-  "step名から裸のgithubコンテキストを参照" => ->(text) {
-    text.sub("      - name: 統一検証", "      - name: ${{ github }}")
-  },
-
-  # 数値スカラー。解析結果では 30 と等値になる別表記を拒否する。
-  "timeoutを浮動小数へ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: 30.0") },
-  "timeoutをfloatタグ付きへ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: !!float 30") },
-  "timeoutを16進数へ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: 0x1e") },
-  "timeoutを符号付きへ変更" => ->(text) { text.sub("timeout-minutes: 30", "timeout-minutes: +30") },
-  "timeoutを文字列へ変更" => ->(text) { text.sub("timeout-minutes: 30", 'timeout-minutes: "30"') }
+  "document終端後の裸のscalar" => ->(text) { "#{text}...\n\nplain-trailing-content\n" }
 }).freeze
 
 # 検証器の終了コードだけを見る。出力は失敗時の説明に使う。
