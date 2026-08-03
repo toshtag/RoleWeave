@@ -182,7 +182,14 @@ Brakeman と bundler-audit のバージョンは `Gemfile.lock` で固定する�
 
 gem 以外のシステムライブラリは bundler-audit の監視対象外となる。
 脆弱性の対策条件がライブラリのバージョンに依存する場合は、完全検証へ下限を明記する。
-現在は Active Storage の variant 処理が使う libvips について、8.13 以上を要求している。
+現在は開発イメージの libvips について、8.13 以上を要求している。
+
+この下限は CVE-2026-66066 の対策として置いた。
+[ADR 0064](../decisions/0064-no-image-variant-processing.md) で variant を
+生成しないと決めたため、Ruby 側から libvips を呼ぶ経路は残っていない。
+下限を残しているのは、イメージが libvips を導入し続けているためであり、
+導入をやめるかどうかは別の判断として扱う。
+入れているものについては、入れている版を検査する。
 
 ## 7. ADR
 
