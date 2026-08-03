@@ -375,7 +375,7 @@ fi
 
 # project 名を宣言しないと、Compose は作業ディレクトリ名から導出する。
 # clone 先の名前を変えるだけで container・network・volume の名前が変わり、
-# 既存の roleweave_postgres_data を持ったまま別の project へ切り替わる。
+# 既存の roleweave_db_data を持ったまま別の project へ切り替わる。
 require_exact_line_once "name: roleweave" compose.yaml
 
 docker compose config --quiet
@@ -472,7 +472,7 @@ check(failures, !pgdata.nil?, "db must persist /var/lib/postgresql")
 if pgdata
   check(failures, pgdata["target"] == "/var/lib/postgresql", "db volume target must be /var/lib/postgresql (PostgreSQL 18), got #{pgdata["target"].inspect}")
   check(failures, pgdata["type"] == "volume", "db data must use a named volume")
-  check(failures, pgdata["source"] == "postgres_data", "db data volume source must be postgres_data")
+  check(failures, pgdata["source"] == "db_data", "db data volume source must be db_data")
 end
 check(failures, db_volumes.none? { |volume| volume["target"].to_s.start_with?("/var/lib/postgresql/data") }, "db must not mount the PostgreSQL 17 layout /var/lib/postgresql/data")
 
@@ -535,7 +535,7 @@ check(failures, bundle_mount && bundle_mount["type"] == "volume" && bundle_mount
 check(failures, app_volumes.none? { |volume| volume["type"] == "volume" && volume["source"].to_s.empty? }, "app must not use anonymous volumes")
 
 # named volume
-check(failures, config.fetch("volumes", {}).keys.sort == %w[bundle postgres_data], "named volumes must be exactly bundle and postgres_data")
+check(failures, config.fetch("volumes", {}).keys.sort == %w[bundle db_data], "named volumes must be exactly bundle and db_data")
 
 # 運用上の固定を持ち込まない
 services.each do |name, service|

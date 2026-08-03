@@ -5,7 +5,7 @@
 
 # project 名を宣言しない場合、Compose は作業ディレクトリ名から導出する。
 # clone 先の名前を変えると、container・network・volume の名前がまとめて変わり、
-# 既存の roleweave_postgres_data を持ったまま別の project へ切り替わる。
+# 既存の roleweave_db_data を持ったまま別の project へ切り替わる。
 # 表示される名前を、置き場所の都合で変わらないようにする。
 name: roleweave
 
@@ -78,7 +78,7 @@ services:
     volumes:
       # PostgreSQL 18 では永続データのマウント先が /var/lib/postgresql へ変更されている。
       # 17 以前の /var/lib/postgresql/data をマウントしても永続化されない。
-      - postgres_data:/var/lib/postgresql
+      - db_data:/var/lib/postgresql
     healthcheck:
       test:
         - CMD-SHELL
@@ -91,7 +91,7 @@ services:
 
 volumes:
   bundle:
-  postgres_data:
+  db_data:
 
 # 既定の network の表示名を宣言する。
 #
