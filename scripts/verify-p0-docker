@@ -225,6 +225,11 @@ if grep -Eq 'rails([[:space:]]+|", ")server' bin/setup; then
   exit 1
 fi
 
+# log:clear が空にするのは log/*.log だけである。
+# Rails が回転させた log/*.log.0 は掛からず、整理したと表示したまま残る。
+# 実測は下段が行い、ここでは削除そのものが消えていないことを見る。
+grep -Fq 'Dir.glob("log/*.log.*")' bin/setup
+
 # --- 静的検証: bin/docker-entrypoint ------------------------------------------
 #
 # entrypoint は前処理だけを行い、与えられたコマンドへ制御を渡す。
@@ -243,6 +248,11 @@ if grep -Eq '^version:' compose.yaml; then
   exit 1
 fi
 
+# project 名を宣言しないと、Compose は作業ディレクトリ名から導出する。
+# clone 先の名前を変えるだけで container・network・volume の名前が変わり、
+# 既存の roleweave_postgres_data を持ったまま別の project へ切り替わる。
+require_exact_line_once "name: roleweave" compose.yaml
+
 docker compose config --quiet
 
 compose_json="$(mktemp)"
@@ -260,8 +270,36 @@ def check(failures, condition, message)
   failures << message unless condition
 end
 
+# Compose の正規化結果は "15s" や "500ms" のような文字列で返る。
+# 数値部分だけを比べると、単位の違う値を取り違える。
+UNIT_IN_MILLISECONDS = {
+  "ns" => 0.000001,
+  "us" => 0.001,
+  "ms" => 1,
+  "s" => 1_000,
+  "m" => 60_000,
+  "h" => 3_600_000
+}.freeze
+
+def duration_ms(value)
+  text = value.to_s.strip
+  return nil if text.empty?
+
+  parts = text.scan(/(\d+(?:\.\d+)?)(ns|us|ms|s|m|h)/)
+  return nil if parts.empty?
+
+  # 単位の無い数字や未知の接尾辞が混ざった値は、解釈せずに拒否する。
+  return nil unless parts.map { |amount, unit| "#{amount}#{unit}" }.join == text
+
+  parts.sum { |amount, unit| amount.to_f * UNIT_IN_MILLISECONDS.fetch(unit) }
+end
+
 services = config.fetch("services", {})
 check(failures, services.keys.sort == %w[app db], "services must be exactly app and db, got #{services.keys.sort.inspect}")
+
+# 表示される名前は、置き場所の都合で変わらないこと。
+# 正規化結果の name と、そこから導出される volume 名の両方を見る。
+check(failures, config["name"] == "roleweave", "compose project name must be roleweave, got #{config["name"].inspect}")
 
 app = services["app"] || {}
 db = services["db"] || {}
@@ -311,10 +349,29 @@ check(failures, depends_on.key?("db"), "app must depend on db")
 check(failures, (depends_on["db"] || {})["condition"] == "service_healthy", "app must wait for db service_healthy")
 
 # healthcheck
+#
+# 起動中と常駐中で間隔を分ける。start_interval が無いと、
+# 起動の判定は常駐用の長い interval に律速される。
+# 逆に interval を起動に合わせて詰めると、起動が終わった後もその頻度で払い続ける。
+# docker compose run の一時コンテナも healthcheck を実行するため、そちらにも効く。
 %w[app db].each do |name|
   healthcheck = (services[name] || {})["healthcheck"] || {}
   check(failures, !Array(healthcheck["test"]).empty?, "#{name} must define a healthcheck")
   check(failures, healthcheck["disable"] != true, "#{name} healthcheck must not be disabled")
+
+  interval = duration_ms(healthcheck["interval"])
+  start_interval = duration_ms(healthcheck["start_interval"])
+
+  check(failures, !interval.nil?, "#{name} healthcheck must set interval")
+  check(failures, !start_interval.nil?, "#{name} healthcheck must set start_interval")
+
+  if interval && start_interval
+    check(
+      failures,
+      start_interval < interval,
+      "#{name} healthcheck start_interval must be shorter than interval, got #{healthcheck["start_interval"].inspect} and #{healthcheck["interval"].inspect}"
+    )
+  end
 end
 
 # app: DB 接続環境変数
@@ -596,8 +653,25 @@ compose exec -T db \
 
 database_state_after_first="$(database_state)"
 
+# Rails が回転させたログを bin/setup が片付けることを実測する。
+#
+# log:clear が空にするのは log/*.log だけで、log/*.log.0 は掛からない。
+# development と test は 100 MB ごとに回転するため、
+# 片付けが消えると、整理したと表示したまま 100 MB が残り続ける。
+#
+# 作業ツリーは bind mount のため、置く場所も消える場所もホスト側になる。
+# log/ は .gitignore の対象であり、git の状態の比較には現れない。
+rotated_log_probe="log/verify-p0-rotation-probe.log.0"
+printf 'rotated\n' > "$rotated_log_probe"
+
 # 同じ project、同じ named volume に対する 2 回目の実行。
 compose run --rm app bin/setup
+
+if [[ -e "$rotated_log_probe" ]]; then
+  rm -f "$rotated_log_probe"
+  printf 'bin/setup must remove rotated log files\n' >&2
+  exit 1
+fi
 
 setup_git_state_after_second="$(git status --porcelain=v1 --untracked-files=all)"
 test "$setup_git_state_after_second" = "$setup_git_state_before"
