@@ -45,6 +45,38 @@ require_exact_line_once() {
 
 docker info >/dev/null
 
+# --- 前提: 開発用 stack が動いていないこと ------------------------------------
+#
+# 作業ツリーは bind mount で共有されるため、tmp/pids/server.pid も共有される。
+# docker compose up 中のサーバーが置いた PID ファイルがあると、
+# 専用の project 名を使っていても、検証用の Rails サーバーは起動を拒否する。
+#
+#   A server is already running (pid: 6, file: /workspace/tmp/pids/server.pid).
+#
+# サーバーを起こすのは動的検証の終盤で、そこまでにイメージのビルドと
+# コンテナ内の Rails test 1218 件を通る。実測は 88 秒で、
+# 出力に残るのは container ... exited (1) の 1 行だけだった。
+# PID ファイルにも bind mount にも触れず、直し方も書かれていない。
+#
+# 落ちること自体は変わらない。変えるのは、何が読めるかと、いつ落ちるかである。
+
+development_server_pid_file=tmp/pids/server.pid
+
+if [[ -s "$development_server_pid_file" ]]; then
+  printf \
+    'a Rails server pid file exists: %s (pid %s)\n' \
+    "$development_server_pid_file" \
+    "$(tr -d '\r\n' < "$development_server_pid_file")" \
+    >&2
+  printf \
+    'the working tree is bind mounted, so this verification cannot start its own server\n' \
+    >&2
+  printf \
+    'stop the development stack first: docker compose down\n' \
+    >&2
+  exit 1
+fi
+
 # --- 静的検証: 必須ファイル ---------------------------------------------------
 
 test -f Dockerfile
