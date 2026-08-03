@@ -12,7 +12,7 @@ objective: |-
   このフェーズで初めて安全性を追加するのではない。
   認可、組織間分離、個人情報の最小化、非公開を初期値とする設計は、
   対象となる機能を実装するフェーズで同時に実装する。
-  詳細は docs/project-principles.md と docs/quality/cross-cutting-requirements.md を参照する。
+  詳細は docs/principles.md を参照する。
 
   前提フェーズ: P9
 

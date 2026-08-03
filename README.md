@@ -326,16 +326,13 @@ bin/verify --full
 - [開発に参加する](CONTRIBUTING.md) — 進め方と検証の要求
 - [変更の履歴](CHANGELOG.md) — 版ごとの内容と既知の制限
 - [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
-- [プロジェクト原則](docs/project-principles.md) — 計画・実装上の判断を導く基本原則
+- [開発の原則](docs/principles.md) — 計画・実装・コードの判断基準
 - [ロードマップ](docs/roadmap/index.yaml) — P0 から P15 までのフェーズ索引
 - [v1 以降の検討候補](docs/roadmap/post-v1-options.md) — 実装の約束ではない候補の一覧と評価の手順
-- [アーキテクチャ原則](docs/architecture/principles.md) — 構造に関する判断基準
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
-- [コーディングスタイル](docs/development/coding-style.md) — 実装中に参照する言語・コメント・構造の要点
 - [開発工程](docs/development/workflow.md) — ロードマップ・Issue・PR・ADR の責務
 - [ファイルの保存先](docs/development/file-storage.md) — 添付の保存先と自己ホストでの運用
 - [逆プロキシの前提](docs/development/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
-- [横断品質要件](docs/quality/cross-cutting-requirements.md) — 各機能フェーズで同時に満たす品質要件
 - [横断品質要件の検証状況](docs/quality/verification-status.md) — 満たしている点と満たしていない点
 - [脅威モデル](docs/security/threat-model.md) — 何から守り、何を受け入れているか
 - [セキュリティ報告手順](SECURITY.md) — 問題を見つけたときの連絡先

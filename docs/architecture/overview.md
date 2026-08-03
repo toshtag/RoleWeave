@@ -2,7 +2,7 @@
 
 この文書は日本語版を正本とする。
 
-判断の基準は [`principles.md`](principles.md)、
+判断の基準は [`../principles.md`](../principles.md)、
 個別の判断は [`../decisions/`](../decisions/) にある（66 件）。
 ここでは「何がどう組み合わさっているか」だけを書く。
 

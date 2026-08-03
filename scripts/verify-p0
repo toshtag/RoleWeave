@@ -68,12 +68,9 @@ test ! -e docs/development/code-pact.md
 # 文書の正本は docs/ へ集約する。
 # code-pact 時代の配置を引き継いだ design/ は P0-R2 で撤去した。
 
-require_file docs/project-principles.md
-require_file docs/architecture/principles.md
-require_file docs/development/coding-style.md
+require_file docs/principles.md
 require_file docs/development/language-policy.md
 require_file docs/development/workflow.md
-require_file docs/quality/cross-cutting-requirements.md
 require_file docs/roadmap/index.yaml
 
 # 実行タスクの入口である Issue テンプレートも P0 の必須成果物とする。

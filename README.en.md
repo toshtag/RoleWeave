@@ -341,16 +341,13 @@ described above. Setup and usage documentation will be provided in both language
 - [Contributing](CONTRIBUTING.md) — how work proceeds and what verification is required
 - [Changelog](CHANGELOG.md) — what each version contains and its known limitations
 - [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
-- [Project principles](docs/project-principles.md) — the principles that guide planning and implementation decisions
+- [Development principles](docs/principles.md) — how planning, implementation, and code decisions are made
 - [Roadmap](docs/roadmap/index.yaml) — phase index from P0 through P15
 - [Post-v1 options](docs/roadmap/post-v1-options.md) — candidates under consideration, not commitments, and how they are evaluated
-- [Architecture principles](docs/architecture/principles.md) — how structural decisions are made
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
-- [Coding style](docs/development/coding-style.md) — language, comment, and structure rules referenced while implementing
 - [Development workflow](docs/development/workflow.md) — responsibilities of the roadmap, issues, PRs, and ADRs
 - [File storage](docs/development/file-storage.md) — where attachments live and how they are handled when self-hosting
 - [Reverse proxy assumptions](docs/development/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
-- [Cross-cutting quality requirements](docs/quality/cross-cutting-requirements.md) — quality requirements met within each feature phase
 - [Verification status](docs/quality/verification-status.md) — what is met and what is not
 - [Threat model](docs/security/threat-model.md) — what is defended against and what is accepted
 - [Security policy](SECURITY.md) — where to report a problem
