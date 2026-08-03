@@ -21,7 +21,8 @@ class DependencyDeclarationTest < ActiveSupport::TestCase
   #   capybara            system test がない
   #   selenium-webdriver  同上
   #   solid_cable         Action Cable を読み込まない（ADR 0065）
-  REMOVED_GEMS = %w[jbuilder capybara selenium-webdriver solid_cable].freeze
+  #   stimulus-rails      controller を 1 つも持たない（ADR 0068）
+  REMOVED_GEMS = %w[jbuilder capybara selenium-webdriver solid_cable stimulus-rails].freeze
 
   # 読み込まない Rails のフレームワーク（ADR 0065）。
   UNLOADED_FRAMEWORKS = %w[ActionCable ActionText ActionMailbox].freeze
