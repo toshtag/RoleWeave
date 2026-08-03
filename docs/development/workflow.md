@@ -63,6 +63,26 @@ bin/verify --full
 各タスクで正の検証と負の検証の両方を行う。
 スコープ外で見つけた問題は、そのタスクで直さず新しい Issue にする。
 
+## CI が実行する範囲
+
+Pull Request で GitHub Actions が実行するのは、
+標準検証と同じアプリケーションの検査だけとする（[ADR 0069](../decisions/0069-pull-request-verification-scope.md)）。
+
+| job | 実行する内容 |
+| --- | --- |
+| テスト | `db:prepare`、`rails test` |
+| 静的解析 | RuboCop、Brakeman、bundler-audit、Zeitwerk |
+
+Workflow が実行するコマンドは、すべて `bin/verify` にも並んでいなければならない。
+一致は `scripts/verify-github-actions` が検査する。
+**CI へ検査を足すときは、先に `bin/verify` へ足す。**
+
+**`bin/verify --full` は CI では実行されない。**
+
+Docker イメージの build、Compose の起動、`bin/setup` の冪等性、
+P0 の静的契約検査は、手元での実行結果を Pull Request へ書くことで担保する。
+`Dockerfile` と `compose.yaml` を変えたときは、とくにそれが唯一の検出手段になる。
+
 ## セキュリティ検査
 
 標準検証は、lint・autoload・test に加えて Brakeman と bundler-audit を実行する。
