@@ -61,15 +61,10 @@ understanding which features are needed.
 
 ### Japanese and English
 
-The following are provided in both Japanese and English:
-
-- User-facing text (UI) is treated equally in Japanese and English from the beginning
-- Public specifications, setup instructions, and usage documentation are provided in both languages
-
-The following use Japanese as the source of truth:
-
-- Internal design documents, ADRs, task definitions, and review records are written in Japanese
-- An English translation is not required for all of them
+User-facing text (UI), public specifications, setup instructions, and usage
+documentation are provided in both languages. Internal design documents, ADRs,
+task definitions, and verification records use Japanese as the source of truth;
+an English translation is not required for them.
 
 ### No hosted demo
 
@@ -78,17 +73,15 @@ stage. Evaluation is expected to be done in a local environment.
 
 ## Technology stack
 
-The following are the initial baselines. Each version will be pinned to the stable
-patch release available at initialization time.
+- A modular monolith built with Ruby on Rails 8.1 (Puma)
+- PostgreSQL 18 as the system of record
+- Server-side rendering with Turbo, Stimulus, Propshaft, and Importmap
+- Solid Queue, Solid Cache, and Active Storage (Disk)
+- Docker Compose for local development, GitHub Actions for verification
 
-- A modular monolith built with Ruby on Rails
-- PostgreSQL as the system of record
-- Server-side rendering with Turbo and Stimulus
-- Active Job, Solid Queue, and Active Storage
-- Docker Compose for the local development environment
-- GitHub Actions for verification
-
-Redis, OpenSearch, and Kubernetes are not required at this stage.
+**No Redis, OpenSearch, Kubernetes, or external CDN.** Everything is chosen so
+that the application can be self-hosted (see the
+[architecture overview](docs/architecture.md), written in Japanese).
 
 ## Setup
 
@@ -123,21 +116,8 @@ docker compose build app
 Downloaded `.deb` and `.gem` files live in BuildKit cache mounts. They are not
 kept in the image, and the next build does not fetch them again.
 
-To rebuild the base image and dependencies without the cache, run the following.
-This is used for re-verifying the foundation and is not needed for regular development.
-
-```bash
-docker compose build --no-cache app
-```
-
-`--no-cache` also empties the cache mounts, so this path always refetches.
-
-Build cache accumulates on the Docker side. To reclaim the space, run the
-following. **This also removes cache belonging to other projects.**
-
-```bash
-docker builder prune
-```
+Build cache accumulates on the Docker side. Run `docker builder prune` to reclaim
+the space. **This also removes cache belonging to other projects.**
 
 ### Initial setup
 
@@ -145,23 +125,13 @@ docker builder prune
 docker compose run --rm app bin/setup
 ```
 
-`bin/setup` does the following:
+It checks the dependencies, prepares the development database, and clears old logs
+and temporary files. It does not start the development server; that is the
+responsibility of `docker compose up`.
 
-- Checks the Ruby dependencies and prepares them only when they are missing
-- Prepares the development database
-- Clears old logs and temporary files, including the `log/*.log.0` files Rails
-  rotates every 100 MB
-
-It does not start the development server; starting it is the responsibility of
-`docker compose up`.
-
-`bin/setup` does not drop or reset an existing development database. If pending
-migrations exist, it applies them, so the database schema or data may change as
-defined by those migrations.
-
-When rerun against the same code and migration state, it preserves the existing
-database state, leaves tracked files unchanged, and converges on the same
-development-ready state.
+**It never drops or resets an existing database.** Pending migrations are applied,
+so the contents may change as those migrations define. Rerunning it converges on
+the same development-ready state.
 
 ### Start the application
 
@@ -251,28 +221,18 @@ docker compose down --volumes
 the idempotency of `bin/setup`. It is intended for maintainers and is not needed for
 regular development.
 
-Unlike the standard verification it runs directly on the host, so the following are
-required:
-
-- The Ruby version recorded in `.ruby-version` (4.0.6)
-- Bundler
-- Docker Engine or Docker Desktop, and Docker Compose v2
-- The Ruby dependencies on the host
-- An environment with Bash and common Unix command-line tools
-  (such as macOS, Linux, WSL, or Git Bash)
-
-The full verification is a Bash script and uses tools such as `awk`, `grep`, `find`,
-`mktemp`, and `tr`. Running it from native PowerShell or Command Prompt alone is out
-of scope. This requirement applies only to the full verification, not to regular
-Docker-based development.
+Unlike the standard verification it runs directly on the host, so it needs the Ruby
+version recorded in `.ruby-version` (4.0.6), Bundler, Docker, and an environment
+with Bash and common Unix command-line tools (macOS, Linux, WSL, or Git Bash).
+Running it from native PowerShell or Command Prompt alone is out of scope.
 
 ```bash
 bundle install
 bin/verify --full
 ```
 
-The full verification checks that `Gemfile` and `Gemfile.lock` are unchanged in the
-working tree. Commit them first if dependencies have been updated.
+It fails if `Gemfile` or `Gemfile.lock` is modified in the working tree. Commit
+them first if dependencies have been updated.
 
 ## Documentation
 

@@ -59,15 +59,10 @@
 
 ### 日本語と英語に対応します
 
-日本語と英語の両方を提供する範囲は次のとおりです。
-
-- 利用者向けの表示（UI）は、初期段階から日本語と英語を同等に扱います
-- 公開仕様、セットアップ手順、操作文書は、日本語と英語の両方を提供します
-
-日本語を正本とする範囲は次のとおりです。
-
-- 内部設計、ADR、タスク定義、レビュー記録は日本語を正本とします
-- これらすべてに英訳を用意することは必須としません
+利用者向けの表示（UI）、公開仕様、セットアップ手順、操作文書は、
+日本語と英語の両方を提供します。
+内部設計、ADR、タスク定義、検証結果は日本語を正本とし、英訳は必須としません
+（[開発言語・命名ポリシー](docs/development/language-policy.md)）。
 
 ### 常設デモは提供しません
 
@@ -76,16 +71,15 @@
 
 ## 技術スタック
 
-初期基準は次のとおりです。各バージョンは初期化時点の安定パッチへ固定します。
+- Ruby on Rails 8.1 によるモジュラーモノリス（Puma）
+- PostgreSQL 18 を正本データベースとする
+- サーバーサイドレンダリング、Turbo、Stimulus、Propshaft、Importmap
+- Solid Queue、Solid Cache、Active Storage（Disk）
+- Docker Compose によるローカル開発環境、GitHub Actions による検証
 
-- Ruby on Rails によるモジュラーモノリス
-- PostgreSQL を正本データベースとする
-- サーバーサイドレンダリング、Turbo、Stimulus
-- Active Job、Solid Queue、Active Storage
-- Docker Compose によるローカル開発環境
-- GitHub Actions による検証
-
-初期段階では Redis、OpenSearch、Kubernetes を必須にしません。
+**Redis、OpenSearch、Kubernetes、外部の CDN を使いません。**
+自己ホストできることを前提に選んでいます
+（[アーキテクチャの概要](docs/architecture.md)）。
 
 ## セットアップ
 
@@ -117,24 +111,11 @@ cd RoleWeave
 docker compose build app
 ```
 
-取得した `.deb` と `.gem` は BuildKit の cache mount へ置いています。
-イメージには残らず、次のビルドでは取り直しません。
+取得した `.deb` と `.gem` は BuildKit の cache mount にあり、
+イメージには残りません。次のビルドでは取り直しません。
 
-ベースイメージと依存関係をキャッシュなしで作り直す場合は、次を実行します。
-Foundation の再検証で使用するもので、通常の開発では必要ありません。
-
-```bash
-docker compose build --no-cache app
-```
-
-`--no-cache` は cache mount も空にします。この経路だけは毎回取り直します。
-
-ビルドの過程で溜まったキャッシュは、Docker 側に残ります。
-容量を戻すときは次を実行します。**これは他のプロジェクトの分も消します。**
-
-```bash
-docker builder prune
-```
+キャッシュが溜まって容量を戻したいときは `docker builder prune` を実行します。
+**これは他のプロジェクトの分も消します。**
 
 ### 初期セットアップ
 
@@ -142,21 +123,12 @@ docker builder prune
 docker compose run --rm app bin/setup
 ```
 
-`bin/setup` は次を行います。
-
-- Ruby 依存関係を確認し、不足している場合だけ準備する
-- development データベースを準備する
-- 古いログと一時ファイルを整理する。
-  Rails が 100 MB ごとに回転させた `log/*.log.0` も削除します
-
+依存関係の確認、development データベースの準備、古いログと一時ファイルの整理を行います。
 開発サーバーは起動しません。起動は `docker compose up` の責務です。
 
-`bin/setup` は既存の development データベースを drop または reset しません。
-未適用の migration がある場合は適用するため、その migration の定義に従って
-データベースのスキーマやデータが変更される場合があります。
-
-同じコードと migration の状態で再実行した場合は、既存のデータベース状態を維持し、
-追跡対象のファイルを変更せず、同じ開発可能な状態へ収束します。
+**既存のデータベースを drop も reset もしません。**
+未適用の migration があれば適用するため、その定義に従って中身が変わることはあります。
+何度実行しても同じ開発可能な状態へ収束します。
 
 ### 起動する
 
@@ -242,25 +214,17 @@ docker compose down --volumes
 `bin/verify --full` は、Docker 基盤と `bin/setup` の冪等性を含む P0 の完全検証です。
 保守者向けであり、通常の開発では必要ありません。
 
-標準検証と異なりホスト側で直接実行するため、次が必要です。
-
-- `.ruby-version` に記載された Ruby（4.0.6）
-- Bundler
-- Docker Engine または Docker Desktop と Docker Compose v2
-- ホスト側の Ruby 依存関係
-- Bash と一般的な Unix コマンドを利用できる環境
-  （macOS、Linux、または Windows 上の WSL・Git Bash など）
-
-完全検証は Bash スクリプトであり、`awk`、`grep`、`find`、`mktemp`、`tr` などを使用します。
-ネイティブの PowerShell やコマンドプロンプトだけでの実行は対象としていません。
-この要件は完全検証だけのものであり、通常の Docker 開発には当てはまりません。
+標準検証と異なりホスト側で直接実行するため、
+`.ruby-version` の Ruby（4.0.6）、Bundler、Docker、
+および Bash と一般的な Unix コマンド（macOS、Linux、WSL、Git Bash など）が必要です。
+ネイティブの PowerShell やコマンドプロンプトだけでの実行は対象外です。
 
 ```bash
 bundle install
 bin/verify --full
 ```
 
-完全検証は `Gemfile` と `Gemfile.lock` が作業ツリーで変更されていないことを確認します。
+`Gemfile` と `Gemfile.lock` が作業ツリーで変更されていると失敗します。
 依存を更新した場合は、コミットしてから実行してください。
 
 ## ドキュメント
