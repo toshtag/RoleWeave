@@ -146,7 +146,8 @@ docker compose run --rm app bin/setup
 
 - Checks the Ruby dependencies and prepares them only when they are missing
 - Prepares the development database
-- Clears old logs and temporary files
+- Clears old logs and temporary files, including the `log/*.log.0` files Rails
+  rotates every 100 MB
 
 It does not start the development server; starting it is the responsibility of
 `docker compose up`.

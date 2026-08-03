@@ -143,7 +143,8 @@ docker compose run --rm app bin/setup
 
 - Ruby 依存関係を確認し、不足している場合だけ準備する
 - development データベースを準備する
-- 古いログと一時ファイルを整理する
+- 古いログと一時ファイルを整理する。
+  Rails が 100 MB ごとに回転させた `log/*.log.0` も削除します
 
 開発サーバーは起動しません。起動は `docker compose up` の責務です。
 
