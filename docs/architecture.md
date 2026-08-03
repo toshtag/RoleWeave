@@ -14,7 +14,7 @@
    ▼
 Rails 8.1（Puma）
    ├── Propshaft + Importmap（自前の資産だけ。外部の CDN を使わない）
-   ├── Turbo / Stimulus
+   ├── Turbo
    ├── Active Storage（Disk。storage/ に置く）
    └── Solid Queue / Solid Cache
    │
@@ -151,4 +151,5 @@ ADR は番号順に積み上がっている。全部を読む必要はない。
 | Webhook への個人情報 | 送った先には公開範囲も保持期限も効かない（ADR 0057） |
 | 個別サービス向けの連携実装 | 商用 SDK へ直接依存しない。汎用の Webhook と CSV までとする（ADR 0057、ADR 0058） |
 | 外部のスクリプト・CDN | CSP を `self` から始められる（ADR 0045） |
+| Stimulus | controller を 1 つも持たない。配る資産は Turbo までとする（ADR 0068） |
 | 商用の監視サービス | 自己ホストの前提と合わない（ADR 0048） |

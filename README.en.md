@@ -75,7 +75,7 @@ stage. Evaluation is expected to be done in a local environment.
 
 - A modular monolith built with Ruby on Rails 8.1 (Puma)
 - PostgreSQL 18 as the system of record
-- Server-side rendering with Turbo, Stimulus, Propshaft, and Importmap
+- Server-side rendering with Turbo, Propshaft, and Importmap
 - Solid Queue, Solid Cache, and Active Storage (Disk)
 - Docker Compose for local development, GitHub Actions for verification
 
