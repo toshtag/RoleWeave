@@ -3,6 +3,12 @@
 # サービスは app と db の 2 つだけとする。
 # 資格情報は開発専用の固定値であり、本番環境へ流用できる設計として扱わない。
 
+# project 名を宣言しない場合、Compose は作業ディレクトリ名から導出する。
+# clone 先の名前を変えると、container・network・volume の名前がまとめて変わり、
+# 既存の roleweave_postgres_data を持ったまま別の project へ切り替わる。
+# 表示される名前を、置き場所の都合で変わらないようにする。
+name: roleweave
+
 services:
   app:
     build:
@@ -34,14 +40,23 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # 起動中と常駐中で確認の間隔を分ける。
+    #
+    # bin/docker-healthcheck は 1 回あたり約 100 ms（Ruby の起動が約 60 ms）で、
+    # 起動が終わった後もその間隔で払い続ける。
+    # 判定を急ぎたいのは起動中だけなので、そこだけ start_interval で詰める。
+    #
+    # docker compose run の一時コンテナも healthcheck を実行する。
+    # 常駐側の間隔は、そちらの無駄も同じだけ減らす。
     healthcheck:
       test:
         - CMD
         - bin/docker-healthcheck
-      interval: 5s
+      interval: 15s
       timeout: 3s
-      retries: 10
-      start_period: 10s
+      retries: 3
+      start_period: 30s
+      start_interval: 1s
     stdin_open: true
     tty: true
 
@@ -59,10 +74,11 @@ services:
       test:
         - CMD-SHELL
         - pg_isready -U roleweave -d role_weave_development
-      interval: 2s
-      timeout: 5s
-      retries: 15
-      start_period: 5s
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 20s
+      start_interval: 1s
 
 volumes:
   bundle:

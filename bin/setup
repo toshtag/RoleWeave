@@ -49,5 +49,18 @@ FileUtils.chdir APP_ROOT do
   puts "\n== 古いログと一時ファイルを整理 =="
   system!("bin/rails", "log:clear", "tmp:clear")
 
+  # log:clear が空にするのは log/*.log だけである。
+  # Rails は development と test で 100 MB ごとにログを回転させ、
+  # log/*.log.0 を 1 本残す（config.log_file_size の既定）。
+  # この名前は log:clear の glob に掛からず、整理したと表示したまま残り続ける。
+  #
+  # 作業ツリーは bind mount のため、残るのはホスト側である。
+  rotated_logs = Dir.glob("log/*.log.*")
+
+  unless rotated_logs.empty?
+    FileUtils.rm_f(rotated_logs)
+    puts "回転後のログ #{rotated_logs.size} 件を削除しました。"
+  end
+
   puts "\n== セットアップ完了 =="
 end
