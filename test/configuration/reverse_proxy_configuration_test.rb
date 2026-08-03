@@ -42,7 +42,7 @@ class ReverseProxyConfigurationTest < ActiveSupport::TestCase
 
   test "逆プロキシの前提が文書化されている" do
     # 設定できることと、設定しないと何が効かないかは、運用の側が読む。
-    assert_predicate Rails.root.join("docs/development/reverse-proxy.md"), :exist?
+    assert_predicate Rails.root.join("docs/operations/reverse-proxy.md"), :exist?
   end
 
   private

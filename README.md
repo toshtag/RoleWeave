@@ -38,7 +38,7 @@
 
 まだ入っていないものと既知の制限は[変更の履歴](CHANGELOG.md)に、
 満たしていない品質要件は
-[横断品質要件の検証状況](docs/quality/verification-status.md)に書いています。
+[横断品質要件の検証状況](docs/known-gaps.md)に書いています。
 
 `0.x` の間は、互換性のない変更が入りうる状態です。
 
@@ -241,8 +241,8 @@ docker compose run --rm app bin/rails "roleweave:load:measure[20]"
 docker compose run --rm app bin/rails roleweave:load:clean
 ```
 
-実測値は [`docs/performance/load-test-results.md`](docs/performance/load-test-results.md)、
-見積もりは [`docs/performance/capacity-model.md`](docs/performance/capacity-model.md) にあります。
+実測値は [`docs/operations/load-test-results.md`](docs/operations/load-test-results.md)、
+見積もりは [`docs/operations/capacity-model.md`](docs/operations/capacity-model.md) にあります。
 
 ### 保持期限を適用する
 
@@ -321,7 +321,7 @@ bin/verify --full
 - [求職者として使う](docs/guides/candidate.md) — 登録から応募・退会まで
 - [企業の担当者として使う](docs/guides/organization.md) — 組織・求人・選考
 - [運営者として使う](docs/guides/operator.md) — サーバーを運用する人向け
-- [アーキテクチャの概要](docs/architecture/overview.md) — 何がどう組み合わさっているか
+- [アーキテクチャの概要](docs/architecture.md) — 何がどう組み合わさっているか
 - [開発に参加する](CONTRIBUTING.md) — 進め方と検証の要求
 - [変更の履歴](CHANGELOG.md) — 版ごとの内容と既知の制限
 - [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
@@ -329,14 +329,14 @@ bin/verify --full
 - [v1 以降の検討候補](docs/decisions/0059-post-v1-evaluation.md) — 実装の約束ではない候補の一覧と評価の手順
 - [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
 - [開発工程](docs/development/workflow.md) — Issue・PR・検証・ADR の責務
-- [ファイルの保存先](docs/development/file-storage.md) — 添付の保存先と自己ホストでの運用
-- [逆プロキシの前提](docs/development/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
-- [横断品質要件の検証状況](docs/quality/verification-status.md) — 満たしている点と満たしていない点
-- [脅威モデル](docs/security/threat-model.md) — 何から守り、何を受け入れているか
+- [ファイルの保存先](docs/operations/file-storage.md) — 添付の保存先と自己ホストでの運用
+- [逆プロキシの前提](docs/operations/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
+- [横断品質要件の検証状況](docs/known-gaps.md) — 満たしている点と満たしていない点
+- [脅威モデル](docs/threat-model.md) — 何から守り、何を受け入れているか
 - [セキュリティ報告手順](SECURITY.md) — 問題を見つけたときの連絡先
-- [バックアップと復元](docs/development/backup-and-restore.md) — データベースと添付を組で扱う
-- [負荷試験の実測値](docs/performance/load-test-results.md) — 測った値だけを書く
-- [容量モデル](docs/performance/capacity-model.md) — 前提を明示した見積もり
+- [バックアップと復元](docs/operations/backup-and-restore.md) — データベースと添付を組で扱う
+- [負荷試験の実測値](docs/operations/load-test-results.md) — 測った値だけを書く
+- [容量モデル](docs/operations/capacity-model.md) — 前提を明示した見積もり
 
 ## 開発の進め方
 

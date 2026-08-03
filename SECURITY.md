@@ -42,12 +42,12 @@ GitHub の [Security Advisories](https://github.com/toshtag/RoleWeave/security/a
 - 依存しているソフトウェア自体の脆弱性（そちらへ報告してください）
 - 運営者（サーバーの管理者）による操作。
   自己ホストの前提であり、脅威モデルの想定に含めていません
-  （[`docs/security/threat-model.md`](docs/security/threat-model.md)）
+  （[`docs/threat-model.md`](docs/threat-model.md)）
 
 ## 既知の受け入れているリスク
 
 対策していないことを、あらかじめ
-[`docs/security/threat-model.md`](docs/security/threat-model.md) に書いています。
+[`docs/threat-model.md`](docs/threat-model.md) に書いています。
 そこに書かれているものは既知です。報告の前に確認してください。
 
 ---
@@ -67,4 +67,4 @@ Only the reply time is a commitment; the time to a fix depends on the issue.
 
 Self-hosted environment settings, upstream dependencies, and actions by the
 server operator are out of scope. Risks we knowingly accept are listed in
-[`docs/security/threat-model.md`](docs/security/threat-model.md).
+[`docs/threat-model.md`](docs/threat-model.md).

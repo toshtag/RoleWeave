@@ -49,11 +49,11 @@ docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com
 
 | やること | 手順 |
 | --- | --- |
-| 前段の proxy の設定 | [逆プロキシの前提](../development/reverse-proxy.md) |
+| 前段の proxy の設定 | [逆プロキシの前提](../operations/reverse-proxy.md) |
 | 保持期限の適用 | [README](../../README.md) の「保持期限を適用する」 |
-| バックアップ | [バックアップと復元](../development/backup-and-restore.md) |
+| バックアップ | [バックアップと復元](../operations/backup-and-restore.md) |
 | 配信の失敗の確認 | `/ja/operator/notification_deliveries` を定期的に見る |
-| 性能の確認 | [負荷試験](../performance/load-test-results.md) の手順で測る |
+| 性能の確認 | [負荷試験](../operations/load-test-results.md) の手順で測る |
 
 **配信の失敗は自動で知らされない。**
 メールが送れない状況で、メールで知らせることはできないためである

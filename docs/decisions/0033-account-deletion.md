@@ -93,7 +93,7 @@ ADR 0026 に「削除・匿名化では、アカウントを残して
 
 - 添付の実体（blob）の削除は Active Storage の purge に従う。
   非同期のジョブとして実行されるため、キューが動いていない環境では
-  ファイルが残る。運用は [`docs/development/file-storage.md`](../development/file-storage.md) を参照する
+  ファイルが残る。運用は [`docs/operations/file-storage.md`](../operations/file-storage.md) を参照する
 - 組織そのものの削除は用意していない。求人や所属が残るため、別に判断する
 - 運営者が他人のアカウントを削除する経路は用意していない
 - 削除の取り消しはできない。猶予期間も持たない

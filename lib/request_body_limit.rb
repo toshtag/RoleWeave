@@ -41,7 +41,7 @@ class RequestBodyLimit
     # 本文を読んでから数えると、数え終えた時点ですでに受け取っている。
     # 申告のない本文（chunked）はここでは止まらない。
     # その場合の上限は前段（逆プロキシ、Puma）が持つ
-    # （docs/development/reverse-proxy.md）。
+    # （docs/operations/reverse-proxy.md）。
     def over_limit?(env)
       content_length = env["CONTENT_LENGTH"]
 

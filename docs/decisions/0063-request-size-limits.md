@@ -55,7 +55,7 @@ Puma にも Rack にも既定の上限はなく、`config/puma.rb` でも設定�
 本文を読んでから数えると、数え終えた時点で受け取っているためである。
 申告のない本文（`Transfer-Encoding: chunked`）はここでは止まらない。
 その場合の上限は前段（逆プロキシ、Puma）が持つ
-（`docs/development/reverse-proxy.md`、ADR 0062）。
+（`docs/operations/reverse-proxy.md`、ADR 0062）。
 **この判断だけで、あらゆる大きさの入力を止められるわけではない。**
 
 413 に静的な画面を返すのは、ほかのエラー画面と同じ理由による（ADR 0003）。

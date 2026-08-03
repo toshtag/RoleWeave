@@ -39,7 +39,7 @@ The default is opted out (see
 
 What is still *not* included and the known limitations are listed in the
 [changelog](CHANGELOG.md). Quality requirements that are not met are listed in
-[the verification status](docs/quality/verification-status.md).
+[the verification status](docs/known-gaps.md).
 
 While on `0.x`, breaking changes may still land between versions.
 
@@ -247,9 +247,9 @@ docker compose run --rm app bin/rails roleweave:load:clean
 ```
 
 Measured values are in
-[`docs/performance/load-test-results.md`](docs/performance/load-test-results.md) and
+[`docs/operations/load-test-results.md`](docs/operations/load-test-results.md) and
 the estimates in
-[`docs/performance/capacity-model.md`](docs/performance/capacity-model.md).
+[`docs/operations/capacity-model.md`](docs/operations/capacity-model.md).
 
 ### Apply the retention policy
 
@@ -336,7 +336,7 @@ described above. Setup and usage documentation will be provided in both language
 - [Using it as a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
 - [Using it as an organization](docs/guides/organization.md) — organizations, job postings, hiring
 - [Using it as an operator](docs/guides/operator.md) — for whoever runs the server
-- [Architecture overview](docs/architecture/overview.md) — how the pieces fit together
+- [Architecture overview](docs/architecture.md) — how the pieces fit together
 - [Contributing](CONTRIBUTING.md) — how work proceeds and what verification is required
 - [Changelog](CHANGELOG.md) — what each version contains and its known limitations
 - [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
@@ -344,14 +344,14 @@ described above. Setup and usage documentation will be provided in both language
 - [Post-v1 options](docs/decisions/0059-post-v1-evaluation.md) — candidates under consideration, not commitments, and how they are evaluated
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
 - [Development workflow](docs/development/workflow.md) — responsibilities of issues, PRs, verification, and ADRs
-- [File storage](docs/development/file-storage.md) — where attachments live and how they are handled when self-hosting
-- [Reverse proxy assumptions](docs/development/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
-- [Verification status](docs/quality/verification-status.md) — what is met and what is not
-- [Threat model](docs/security/threat-model.md) — what is defended against and what is accepted
+- [File storage](docs/operations/file-storage.md) — where attachments live and how they are handled when self-hosting
+- [Reverse proxy assumptions](docs/operations/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
+- [Verification status](docs/known-gaps.md) — what is met and what is not
+- [Threat model](docs/threat-model.md) — what is defended against and what is accepted
 - [Security policy](SECURITY.md) — where to report a problem
-- [Backup and restore](docs/development/backup-and-restore.md) — the database and the attachments are handled as a pair
-- [Load test results](docs/performance/load-test-results.md) — measured values only
-- [Capacity model](docs/performance/capacity-model.md) — estimates with the assumptions stated
+- [Backup and restore](docs/operations/backup-and-restore.md) — the database and the attachments are handled as a pair
+- [Load test results](docs/operations/load-test-results.md) — measured values only
+- [Capacity model](docs/operations/capacity-model.md) — estimates with the assumptions stated
 
 ## How development proceeds
 

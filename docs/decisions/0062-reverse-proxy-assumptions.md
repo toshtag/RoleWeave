@@ -49,7 +49,7 @@ production は `config.assume_ssl = true` を置いている。
 - IP でも CIDR でもない値は、**起動の時点で失敗する**
 - 環境変数の読み方は `lib/reverse_proxy.rb` へ 1 か所で置く
 - 逆プロキシに求める条件と、満たさない場合に効かなくなるものを
-  `docs/development/reverse-proxy.md` へ書く
+  `docs/operations/reverse-proxy.md` へ書く
 
 ## 理由
 
@@ -93,7 +93,7 @@ production は `config.assume_ssl = true` を置いている。
 
 - 設定を書かない環境の挙動は変わらない。**この ADR だけでは何も守られない**。
   守りが働くのは、運用の側が `TRUSTED_PROXIES` を書いたときである
-- 書かない場合に効かなくなるものを `docs/development/reverse-proxy.md` へ書いた。
+- 書かない場合に効かなくなるものを `docs/operations/reverse-proxy.md` へ書いた。
   脅威モデルの「受け入れているリスク」へも行を足した
 - `ALLOWED_HOSTS` を書くと、書いていないホスト名での要求が 403 になる。
   名前を増やすときは設定の更新が要る

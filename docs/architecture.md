@@ -2,8 +2,8 @@
 
 この文書は日本語版を正本とする。
 
-判断の基準は [`../principles.md`](../principles.md)、
-個別の判断は [`../decisions/`](../decisions/) にある（66 件）。
+判断の基準は [`principles.md`](principles.md)、
+個別の判断は [`../decisions/`](decisions/) にある（66 件）。
 ここでは「何がどう組み合わさっているか」だけを書く。
 
 ## 構成
@@ -33,7 +33,7 @@ PostgreSQL 18
 
 ## 経路の分け方
 
-URL は必ず `/:locale` から始まる（[ADR 0001](../decisions/0001-locale-prefixed-routes.md)）。
+URL は必ず `/:locale` から始まる（[ADR 0001](decisions/0001-locale-prefixed-routes.md)）。
 表示言語の正本は URL であり、ブラウザーの設定でも Cookie でもない。
 
 | 経路 | 誰が使うか | 入口の条件 |
@@ -102,15 +102,15 @@ User ─┬─ CandidateProfile ─┬─ WorkExperience / Education / Skill
 
 | 仕組み | 正本 |
 | --- | --- |
-| 日本語と英語（葉キーの一致をテストで固定） | [ADR 0001](../decisions/0001-locale-prefixed-routes.md) |
-| 非公開を初期値とする | [ADR 0030](../decisions/0030-profile-visibility.md) |
-| レート制限 | [ADR 0044](../decisions/0044-rate-limiting.md) |
-| CSP・CSRF・セッション | [ADR 0045](../decisions/0045-content-security-policy.md) |
-| 保持期限 | [ADR 0046](../decisions/0046-data-retention.md) |
-| 監査ログ | [ADR 0047](../decisions/0047-access-audit-log.md) |
-| 構造化ログ | [ADR 0048](../decisions/0048-structured-logging.md) |
-| 前段の proxy の前提 | [ADR 0062](../decisions/0062-reverse-proxy-assumptions.md) |
-| 受け取る入力の大きさの上限 | [ADR 0063](../decisions/0063-request-size-limits.md) |
+| 日本語と英語（葉キーの一致をテストで固定） | [ADR 0001](decisions/0001-locale-prefixed-routes.md) |
+| 非公開を初期値とする | [ADR 0030](decisions/0030-profile-visibility.md) |
+| レート制限 | [ADR 0044](decisions/0044-rate-limiting.md) |
+| CSP・CSRF・セッション | [ADR 0045](decisions/0045-content-security-policy.md) |
+| 保持期限 | [ADR 0046](decisions/0046-data-retention.md) |
+| 監査ログ | [ADR 0047](decisions/0047-access-audit-log.md) |
+| 構造化ログ | [ADR 0048](decisions/0048-structured-logging.md) |
+| 前段の proxy の前提 | [ADR 0062](decisions/0062-reverse-proxy-assumptions.md) |
+| 受け取る入力の大きさの上限 | [ADR 0063](decisions/0063-request-size-limits.md) |
 
 ## 判断を追う
 
