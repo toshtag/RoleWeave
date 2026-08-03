@@ -6,7 +6,7 @@ RoleWeave の状態は 2 か所にある。**両方を同じ時点の組で扱�
 
 | 対象 | 中身 | 場所 |
 | --- | --- | --- |
-| データベース | アカウント、プロフィール、求人、応募、記録 | PostgreSQL（`postgres_data` volume） |
+| データベース | アカウント、プロフィール、求人、応募、記録 | PostgreSQL（`db_data` volume） |
 | ファイル | 履歴書・職務経歴書の実体 | `storage/`（[`file-storage.md`](file-storage.md)） |
 
 片方だけを戻すと、次の状態になる。
