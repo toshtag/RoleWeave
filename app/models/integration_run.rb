@@ -16,8 +16,4 @@ class IntegrationRun < ApplicationRecord
   validates :status, inclusion: { in: STATUSES }
 
   scope :recent, -> { order(created_at: :desc, id: :desc) }
-
-  def processed_count
-    created_count + updated_count + failed_count
-  end
 end
