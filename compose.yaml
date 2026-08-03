@@ -3,6 +3,12 @@
 # サービスは app と db の 2 つだけとする。
 # 資格情報は開発専用の固定値であり、本番環境へ流用できる設計として扱わない。
 
+# project 名を宣言しない場合、Compose は作業ディレクトリ名から導出する。
+# clone 先の名前を変えると、container・network・volume の名前がまとめて変わり、
+# 既存の roleweave_postgres_data を持ったまま別の project へ切り替わる。
+# 表示される名前を、置き場所の都合で変わらないようにする。
+name: roleweave
+
 services:
   app:
     build:
