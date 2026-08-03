@@ -194,23 +194,6 @@ To change the host port, specify `APP_PORT`.
 APP_PORT=3001 docker compose up
 ```
 
-### Granting operator privileges
-
-Grant operator privileges to the person running this server. There is no screen for this.
-
-```bash
-docker compose run --rm app bin/rails "roleweave:operator:grant[you@example.com]"
-```
-
-Use `revoke` to take them away.
-
-```bash
-docker compose run --rm app bin/rails "roleweave:operator:revoke[you@example.com]"
-```
-
-Operators can only list every organization and restore an organization's administrator.
-See [`docs/decisions/0015-operator-role.md`](docs/decisions/0015-operator-role.md) for details.
-
 ### Load the demo data
 
 This loads fictional data for evaluation. It can only be run in development.
@@ -228,46 +211,9 @@ To remove it, run the following.
 docker compose run --rm app bin/rails roleweave:demo:clean
 ```
 
-### Run the load test
-
-Create the data first, then measure. No external load tool is required.
-
-```bash
-docker compose run --rm app bin/rails "roleweave:load:seed[5000]"
-```
-
-```bash
-docker compose run --rm app bin/rails "roleweave:load:measure[20]"
-```
-
-Remove the data once you are done measuring.
-
-```bash
-docker compose run --rm app bin/rails roleweave:load:clean
-```
-
-Measured values are in
-[`docs/operations/load-test-results.md`](docs/operations/load-test-results.md) and
-the estimates in
-[`docs/operations/capacity-model.md`](docs/operations/capacity-model.md).
-
-### Apply the retention policy
-
-This deletes and anonymizes data past its retention period. It is never run
-automatically.
-
-```bash
-docker compose run --rm app bin/rails roleweave:retention:report
-```
-
-Check the counts with `report` first, then apply.
-
-```bash
-docker compose run --rm app bin/rails roleweave:retention:apply
-```
-
-See [`docs/decisions/0046-data-retention.md`](docs/decisions/0046-data-retention.md)
-for what is kept and for how long.
+Granting operator privileges, applying the retention policy, and measuring
+performance are covered in
+[using it as an operator](docs/guides/operator.md), written in Japanese.
 
 ### Standard verification
 
