@@ -17,12 +17,16 @@ ENV LANG=C.UTF-8 \
 #
 # git は bundler-audit が Ruby Advisory Database を取得・更新するために使用する。
 # 追加するのは git だけとし、Node.js や npm などの開発基盤は導入しない。
+#
+# 画像処理のライブラリ（libvips、ImageMagick）は導入しない。
+# variant を生成しないと決めており（ADR 0064）、Ruby 側から呼ぶ経路がない。
+# 呼ばれないライブラリを入れておくと、更新も脆弱性の追跡も、
+# 何のために続けているのか分からないまま残る。
 RUN apt-get update -qq && \
     apt-get install --no-install-recommends -y \
       build-essential \
       git \
       libpq-dev \
-      libvips \
       libyaml-dev \
       pkg-config \
       postgresql-client && \
