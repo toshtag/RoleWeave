@@ -73,7 +73,7 @@
 
 - Ruby on Rails 8.1 によるモジュラーモノリス（Puma）
 - PostgreSQL 18 を正本データベースとする
-- サーバーサイドレンダリング、Turbo、Stimulus、Propshaft、Importmap
+- サーバーサイドレンダリング、Turbo、Propshaft、Importmap
 - Solid Queue、Solid Cache、Active Storage（Disk）
 - Docker Compose によるローカル開発環境、GitHub Actions による検証
 
