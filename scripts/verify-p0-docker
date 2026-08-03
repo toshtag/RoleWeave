@@ -41,6 +41,35 @@ require_exact_line_once() {
   fi
 }
 
+# Dockerfile の実行命令にパターンが現れないことを、診断付きで検査する。
+#
+# コメント行は対象から外す。契約は「その処理を実行しないこと」であり、
+# 「文字列が現れないこと」ではない。
+# 「持ち込まない」と書いた説明コメントで失敗させると、
+# 検査を通すために説明のほうを消すことになる。
+# 同じ誤検出は、以前 Node.js の文字列検査で起こしている。
+#
+# `! grep ...` とは書かない。Bash は `!` 予約語で始まるパイプラインへ errexit を
+# 適用しないため、一致しても次の行へ進み、検査が常に成功してしまう。
+#
+#   bash -c 'set -e; ! true; echo reached'
+#   => reached
+refute_dockerfile_instruction() {
+  local matcher="$1"
+  local pattern="$2"
+  local matches
+
+  matches="$(
+    grep -n "$matcher" -e "$pattern" -- Dockerfile |
+      grep -vE '^[0-9]+:[[:space:]]*#' || true
+  )"
+
+  if [[ -n "$matches" ]]; then
+    printf 'Dockerfile must not run %s:\n%s\n' "$pattern" "$matches" >&2
+    return 1
+  fi
+}
+
 # --- 前提: Docker が使用できること -------------------------------------------
 
 docker info >/dev/null
@@ -159,9 +188,9 @@ fi
 # 実測は下段の動的検証が担う。
 
 # 本番向けの処理を開発用イメージへ持ち込まない。
-! grep -Fq "assets:precompile" Dockerfile
-! grep -Eq 'RAILS_ENV[=:][[:space:]]*production' Dockerfile
-! grep -Fq "db:prepare" Dockerfile
+refute_dockerfile_instruction -F "assets:precompile"
+refute_dockerfile_instruction -E 'RAILS_ENV[=:][[:space:]]*production'
+refute_dockerfile_instruction -F "db:prepare"
 
 # --- 静的検証: .dockerignore --------------------------------------------------
 
