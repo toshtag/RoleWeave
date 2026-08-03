@@ -330,28 +330,40 @@ working tree. Commit them first if dependencies have been updated.
 
 ## Documentation
 
-The documents below are internal design documents and are written in Japanese, as
-described above. Setup and usage documentation will be provided in both languages.
+Setup and usage documentation is provided in both languages. The design documents
+below are written in Japanese.
 
-- [Using it as a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
-- [Using it as an organization](docs/guides/organization.md) — organizations, job postings, hiring
-- [Using it as an operator](docs/guides/operator.md) — for whoever runs the server
-- [Architecture overview](docs/architecture.md) — how the pieces fit together
-- [Contributing](CONTRIBUTING.md) — how work proceeds and what verification is required
-- [Changelog](CHANGELOG.md) — what each version contains and its known limitations
-- [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
-- [Development principles](docs/principles.md) — how planning, implementation, and code decisions are made
-- [Post-v1 options](docs/decisions/0059-post-v1-evaluation.md) — candidates under consideration, not commitments, and how they are evaluated
-- [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
-- [Development workflow](docs/development/workflow.md) — responsibilities of issues, PRs, verification, and ADRs
-- [File storage](docs/operations/file-storage.md) — where attachments live and how they are handled when self-hosting
-- [Reverse proxy assumptions](docs/operations/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
-- [Verification status](docs/known-gaps.md) — what is met and what is not
-- [Threat model](docs/threat-model.md) — what is defended against and what is accepted
-- [Security policy](SECURITY.md) — where to report a problem
+### Using it
+
+- [As a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
+- [As an organization](docs/guides/organization.md) — organizations, job postings, hiring
+- [As an operator](docs/guides/operator.md) — for whoever runs the server
+
+### Operating it
+
 - [Backup and restore](docs/operations/backup-and-restore.md) — the database and the attachments are handled as a pair
+- [Reverse proxy assumptions](docs/operations/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
+- [File storage](docs/operations/file-storage.md) — where attachments live and how they are handled when self-hosting
 - [Load test results](docs/operations/load-test-results.md) — measured values only
 - [Capacity model](docs/operations/capacity-model.md) — estimates with the assumptions stated
+
+### Developing it
+
+- [Contributing](CONTRIBUTING.md) — how work proceeds and what verification is required
+- [Architecture overview](docs/architecture.md) — how the pieces fit together
+- [Development principles](docs/principles.md) — how planning, implementation, and code decisions are made
+- [Development workflow](docs/development/workflow.md) — responsibilities of issues, PRs, verification, and ADRs
+- [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
+- [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
+- [Decision records](docs/decisions/) — 67 ADRs; the [architecture overview](docs/architecture.md) indexes them by topic
+
+### Knowing what is missing
+
+- [Changelog](CHANGELOG.md) — what each version contains and its known limitations
+- [Known gaps](docs/known-gaps.md) — what is met and what is not
+- [Threat model](docs/threat-model.md) — what is defended against and what is accepted
+- [Security policy](SECURITY.md) — where to report a problem
+- [Post-v1 options](docs/decisions/0059-post-v1-evaluation.md) — candidates under consideration, not commitments, and how they are evaluated
 
 ## How development proceeds
 

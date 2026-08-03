@@ -318,25 +318,37 @@ bin/verify --full
 
 ## ドキュメント
 
+### 使う
+
 - [求職者として使う](docs/guides/candidate.md) — 登録から応募・退会まで
 - [企業の担当者として使う](docs/guides/organization.md) — 組織・求人・選考
 - [運営者として使う](docs/guides/operator.md) — サーバーを運用する人向け
-- [アーキテクチャの概要](docs/architecture.md) — 何がどう組み合わさっているか
-- [開発に参加する](CONTRIBUTING.md) — 進め方と検証の要求
-- [変更の履歴](CHANGELOG.md) — 版ごとの内容と既知の制限
-- [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
-- [開発の原則](docs/principles.md) — 計画・実装・コードの判断基準
-- [v1 以降の検討候補](docs/decisions/0059-post-v1-evaluation.md) — 実装の約束ではない候補の一覧と評価の手順
-- [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
-- [開発工程](docs/development/workflow.md) — Issue・PR・検証・ADR の責務
-- [ファイルの保存先](docs/operations/file-storage.md) — 添付の保存先と自己ホストでの運用
-- [逆プロキシの前提](docs/operations/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
-- [横断品質要件の検証状況](docs/known-gaps.md) — 満たしている点と満たしていない点
-- [脅威モデル](docs/threat-model.md) — 何から守り、何を受け入れているか
-- [セキュリティ報告手順](SECURITY.md) — 問題を見つけたときの連絡先
+
+### 運用する
+
 - [バックアップと復元](docs/operations/backup-and-restore.md) — データベースと添付を組で扱う
+- [逆プロキシの前提](docs/operations/reverse-proxy.md) — 前段に求める条件と、満たさない場合に効かなくなるもの
+- [ファイルの保存先](docs/operations/file-storage.md) — 添付の保存先と自己ホストでの運用
 - [負荷試験の実測値](docs/operations/load-test-results.md) — 測った値だけを書く
 - [容量モデル](docs/operations/capacity-model.md) — 前提を明示した見積もり
+
+### 開発する
+
+- [開発に参加する](CONTRIBUTING.md) — 進め方と検証の要求
+- [アーキテクチャの概要](docs/architecture.md) — 何がどう組み合わさっているか
+- [開発の原則](docs/principles.md) — 計画・実装・コードの判断基準
+- [開発工程](docs/development/workflow.md) — Issue・PR・検証・ADR の責務
+- [開発言語・命名ポリシー](docs/development/language-policy.md) — 日本語と英語の使い分け
+- [リリース手順](docs/development/release.md) — 版の付け方と出す前の確認
+- [判断の記録](docs/decisions/) — ADR 67 件。知りたいことからの引き方は[アーキテクチャの概要](docs/architecture.md)にある
+
+### 何ができていないかを知る
+
+- [変更の履歴](CHANGELOG.md) — 版ごとの内容と既知の制限
+- [満たしていない品質要件](docs/known-gaps.md) — 満たしている点と満たしていない点
+- [脅威モデル](docs/threat-model.md) — 何から守り、何を受け入れているか
+- [セキュリティ報告手順](SECURITY.md) — 問題を見つけたときの連絡先
+- [v1 以降の検討候補](docs/decisions/0059-post-v1-evaluation.md) — 実装の約束ではない候補の一覧と評価の手順
 
 ## 開発の進め方
 
