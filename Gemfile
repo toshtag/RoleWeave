@@ -21,8 +21,12 @@ gem "puma", ">= 5.0"
 gem "importmap-rails"
 # Hotwire's SPA-like page accelerator [https://turbo.hotwired.dev]
 gem "turbo-rails"
-# Hotwire's modest JavaScript framework [https://stimulus.hotwired.dev]
-gem "stimulus-rails"
+
+# Stimulus の controller を 1 つも持たないため、stimulus-rails は宣言しない（ADR 0068）。
+# `*_controller.js` も `data-controller` も 0 件である。
+# 宣言すると、すべての画面で stimulus.min.js と stimulus-loading.js を配ることになる。
+# 費用を払うのは画面を開く人の回線と端末であり、開発環境ではない。
+# JavaScript の振る舞いが必要になったときは、何に使うかと合わせて足す。
 
 # JSON を返す経路を持たないため、jbuilder は宣言しない。
 # `.jbuilder` テンプレートも `format.json` も `render json` も使っていない。
