@@ -51,6 +51,31 @@ require_file() {
   fi
 }
 
+# パターンが現れないことを、診断付きで検査する。
+#
+# `! grep ...` とは書かない。Bash は `!` 予約語で始まるパイプラインへ errexit を
+# 適用しないため、一致しても次の行へ進み、検査が常に成功してしまう。
+#
+#   bash -c 'set -e; ! true; echo reached'
+#   => reached
+#
+# 一致した行を診断へ出す。どの行が契約へ触れたのかが分からないと、直せない。
+refute_pattern() {
+  local matcher="$1"
+  local pattern="$2"
+  local file="$3"
+
+  if [[ ! -f "$file" ]]; then
+    printf 'required file is missing: %s\n' "$file" >&2
+    return 1
+  fi
+
+  if grep -n "$matcher" -e "$pattern" -- "$file" >&2; then
+    printf '%s must not contain: %s\n' "$file" "$pattern" >&2
+    return 1
+  fi
+}
+
 # --- 撤去済みの開発依存を持ち込まない ------------------------------------------
 #
 # code-pact と Node.js は P0-R1 で撤去した。
@@ -62,6 +87,29 @@ test ! -e .node-version
 test ! -e package.json
 test ! -e package-lock.json
 test ! -e docs/development/code-pact.md
+
+# --- 否定形の裸の検査を書き戻さない -------------------------------------------
+#
+# Bash は `!` 予約語で始まるパイプラインへ errexit を適用しない。
+# 行頭が `!` の検査は、違反しても次の行へ進むため、常に成功する。
+# 診断も出ないため、検査が効いていないことに気付けない。
+#
+# 検査を足すときは refute_pattern（または対象ごとの同種の関数）を使う。
+# `if ! foo; then` のように条件として使う形は、行頭が `!` にならないため対象外とする。
+
+negation_checked_scripts=(
+  bin/verify
+  bin/ci
+  scripts/verify-p0
+  scripts/verify-p0-docker
+)
+
+for script in "${negation_checked_scripts[@]}"; do
+  if grep -nE '^[[:space:]]*![[:space:]]*[a-z]' "$script"; then
+    printf '%s must not use a bare negated command as a check\n' "$script" >&2
+    exit 1
+  fi
+done
 
 # --- プロジェクト文書の正本 -----------------------------------------------------
 #
@@ -272,8 +320,8 @@ env \
   'abort "unexpected application namespace" unless Rails.application.class.module_parent_name == "RoleWeave"'
 
 # README が事実誤認を残していないこと
-! grep -Fq 'アプリケーションは実装されていません' README.md
-! grep -Fq 'application itself has not been implemented' README.en.md
+refute_pattern -F 'アプリケーションは実装されていません' README.md
+refute_pattern -F 'application itself has not been implemented' README.en.md
 
 # --- 統一検証コマンド --------------------------------------------------------
 #
