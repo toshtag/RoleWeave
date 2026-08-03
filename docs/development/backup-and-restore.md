@@ -14,15 +14,53 @@ RoleWeave の状態は 2 か所にある。**両方を同じ時点の組で扱�
 - データベースだけ新しい: 記録はあるがファイルがない添付が現れる
 - ファイルだけ新しい: どこからも参照されないファイルが残る
 
+## 名前の正本
+
+コマンドへ書く利用者とデータベースの名前は、環境ごとに違う。
+**この文書に数えるのではなく、次の 2 つを見る。**
+
+| 環境 | 利用者 | データベース | 正本 |
+| --- | --- | --- | --- |
+| 開発（`docker compose`） | `roleweave` | `role_weave_development` | [`compose.yaml`](../../compose.yaml) |
+| production | `role_weave` | `role_weave_production` ほか | [`config/database.yml`](../../config/database.yml) |
+
+以下の例は開発の compose 環境で動く形にしてある。
+production では、上の表に従って `-U` と対象のデータベースを置き換える。
+
+## production のデータベース
+
+production は 3 つのデータベースを使う（[`config/database.yml`](../../config/database.yml)）。
+**取る対象が違う。**
+
+| 名前 | 中身 | 失うと何が起きるか |
+| --- | --- | --- |
+| `role_weave_production` | 業務のデータすべて | 取り返せない。**必ず取る** |
+| `role_weave_production_queue` | Solid Queue の未実行のジョブ | 送っていない通知・スカウト・Webhook の配信が消える。**取る** |
+| `role_weave_production_cache` | Solid Cache | 作り直せる。取らなくてよい |
+
+`cache` を取らない判断は、中身がキャッシュだからである。
+ただし `rate_limit` の計数もここにある（[ADR 0044](../decisions/0044-rate-limiting.md)）。
+復元の直後は、上限の計数が空の状態から始まる。
+
+Action Cable は読み込んでいないため、cable データベースは存在しない
+（[ADR 0065](../decisions/0065-no-unused-rails-frameworks.md)）。
+
 ## バックアップ
 
 ### データベース
 
 ```bash
-docker compose exec db pg_dump -U postgres -Fc roleweave_production > roleweave-$(date +%Y%m%d).dump
+docker compose exec db pg_dump -U roleweave -Fc role_weave_development > roleweave-$(date +%Y%m%d).dump
 ```
 
 `-Fc`（カスタム形式）を使うと、復元時に並列化と部分復元ができる。
+
+production では、業務のデータと未実行のジョブの 2 つを取る。
+
+```bash
+pg_dump -U role_weave -Fc role_weave_production > roleweave-$(date +%Y%m%d).dump
+pg_dump -U role_weave -Fc role_weave_production_queue > roleweave-queue-$(date +%Y%m%d).dump
+```
 
 ### ファイル
 
@@ -51,7 +89,14 @@ docker compose down
 
 ```bash
 docker compose up -d db
-docker compose exec -T db pg_restore -U postgres -d roleweave_production --clean --if-exists < roleweave-YYYYMMDD.dump
+docker compose exec -T db pg_restore -U roleweave -d role_weave_development --clean --if-exists < roleweave-YYYYMMDD.dump
+```
+
+production では、業務のデータと未実行のジョブの両方を戻す。
+
+```bash
+pg_restore -U role_weave -d role_weave_production --clean --if-exists < roleweave-YYYYMMDD.dump
+pg_restore -U role_weave -d role_weave_production_queue --clean --if-exists < roleweave-queue-YYYYMMDD.dump
 ```
 
 3. ファイルを戻す
