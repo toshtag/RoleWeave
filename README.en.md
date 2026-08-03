@@ -117,11 +117,23 @@ cd RoleWeave
 docker compose build app
 ```
 
+Downloaded `.deb` and `.gem` files live in BuildKit cache mounts. They are not
+kept in the image, and the next build does not fetch them again.
+
 To rebuild the base image and dependencies without the cache, run the following.
 This is used for re-verifying the foundation and is not needed for regular development.
 
 ```bash
 docker compose build --no-cache app
+```
+
+`--no-cache` also empties the cache mounts, so this path always refetches.
+
+Build cache accumulates on the Docker side. To reclaim the space, run the
+following. **This also removes cache belonging to other projects.**
+
+```bash
+docker builder prune
 ```
 
 ### Initial setup
