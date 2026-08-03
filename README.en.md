@@ -50,6 +50,10 @@ We are building a self-hostable, open source recruiting platform that covers job
 posting publication, job search, candidate profiles, job applications, hiring
 workflows, sourcing, messaging, notifications, and external integrations.
 
+It is aimed at organizations that want their hiring data under their own control,
+and at the developers who build and operate that environment. Success is measured
+by ease of change, safety, and reproducibility rather than by feature count.
+
 ### Built from scratch
 
 No code, database schema, routing, naming, or directory structure has been ported
@@ -330,7 +334,6 @@ working tree. Commit them first if dependencies have been updated.
 The documents below are internal design documents and are written in Japanese, as
 described above. Setup and usage documentation will be provided in both languages.
 
-- [Project overview](docs/project-overview.md) — what is being built and who it is for
 - [Using it as a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
 - [Using it as an organization](docs/guides/organization.md) — organizations, job postings, hiring
 - [Using it as an operator](docs/guides/operator.md) — for whoever runs the server
