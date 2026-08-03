@@ -51,12 +51,12 @@
                         profile_path(locale: I18n.locale) %>
             <%= link_to t("application.account.organizations"),
                         organizations_path(locale: I18n.locale) %>
-<%#
-  未読の件数を出す。通知は開かない限り気付けないため、
-  入口を常に見える場所へ置く。
-%>
-<%= link_to t("application.account.notifications", count: unread_notification_count),
-            notifications_path(locale: I18n.locale) %>
+            <%#
+              未読の件数を出す。通知は開かない限り気付けないため、
+              入口を常に見える場所へ置く。
+            %>
+            <%= link_to t("application.account.notifications", count: unread_notification_count),
+                        notifications_path(locale: I18n.locale) %>
             <%= link_to current_user.email_address,
                         account_path(locale: I18n.locale),
                         class: "site-header__account-name" %>
