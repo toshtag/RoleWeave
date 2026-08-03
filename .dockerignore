@@ -8,8 +8,17 @@
 .bundle
 
 # 秘密情報を build context へ持ち込まない。
-.env*
-config/*.key
+#
+# .dockerignore のパターンは path 全体と照合する。
+# .env* と config/*.key は先頭階層しか当たらず、
+# config/.env と config/credentials/*.key が通っていた。
+#
+# Rails は環境ごとの credentials を使うと config/credentials/<env>.key を作る。
+# 範囲は scripts/verify-security が Git 追跡を拒否している path に合わせる。
+**/.env*
+config/**/*.key
+config/credentials.yml.enc
+config/credentials/*.yml.enc
 
 log/*
 tmp/*
