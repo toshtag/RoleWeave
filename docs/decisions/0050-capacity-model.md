@@ -28,8 +28,8 @@ P11 の完了条件は次を含む。
 - 応答の状態も返す。200 以外を測っても意味のある数字にならない
 - データ量を変えて 2 点以上を測り、**増え方**を見る
 - 実測値と見積もりを**別の文書**に書く
-  - `docs/performance/load-test-results.md`（測った値だけ）
-  - `docs/performance/capacity-model.md`（前提を明示した見積もり）
+  - `docs/operations/load-test-results.md`（測った値だけ）
+  - `docs/operations/capacity-model.md`（前提を明示した見積もり）
 - 実測値には、測った環境とデータ量を必ず書く
 - **200 万 MAU は保証値ではなく、構造を変える判断の基準**として書く
 - 遅い経路には「いつ直すか」の基準を書き、**いまは直さない**

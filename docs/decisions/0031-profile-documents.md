@@ -80,7 +80,7 @@ PDF も安全ではないが、マクロを埋め込んだ文書ほど直接で�
 
 - `storage/` を永続化しないと、添付だけが失われる。
   データベースには記録が残るため、開けない添付として現れる。
-  運用は [`docs/development/file-storage.md`](../development/file-storage.md) に書いた
+  運用は [`docs/operations/file-storage.md`](../operations/file-storage.md) に書いた
 - バックアップは、データベースと `storage/` を同じ時点の組で取る必要がある
 - 添付の版の履歴は持たない。差し替えたら古いファイルは残らない
 - 外部のオブジェクトストレージを使う場合は、依存の追加と ADR が要る

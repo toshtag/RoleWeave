@@ -95,7 +95,7 @@ test 環境のキャッシュを変えるのは、`:null_store` では制限が�
   上限は通常の利用で届かない値に置いている
 - **数える IP は、前段の逆プロキシの設定に依存する。**
   信じる前段を書かないと、`X-Forwarded-For` を変えるだけで数え直させられる。
-  前提は ADR 0062 と `docs/development/reverse-proxy.md` が持つ
+  前提は ADR 0062 と `docs/operations/reverse-proxy.md` が持つ
 - production の数え場所は Solid Cache である。
   複数のプロセスで動かす場合、数はデータベースを通じて共有される
 - 期間が過ぎると再び試せる。ロックアウトは行わない

@@ -55,7 +55,7 @@ bin/verify --full
   （[`docs/development/language-policy.md`](docs/development/language-policy.md)）
 - コメントは**なぜそうしたか**を書きます。何をしているかはコードが示します
 - 判定を複数の場所へ書かないでください。書き忘れた場所が入口になります
-- 詳細は [`docs/development/coding-style.md`](docs/development/coding-style.md)
+- 詳細は [`docs/principles.md`](docs/principles.md)
 
 ## 文言を足すとき
 

@@ -3,7 +3,7 @@
 この文書は日本語版を正本とする。
 
 判断の基準は [`principles.md`](principles.md)、
-個別の判断は [`../decisions/`](../decisions/) にある（66 件）。
+個別の判断は [`decisions/`](decisions/) にある（67 件）。
 ここでは「何がどう組み合わさっているか」だけを書く。
 
 ## 構成
@@ -33,7 +33,7 @@ PostgreSQL 18
 
 ## 経路の分け方
 
-URL は必ず `/:locale` から始まる（[ADR 0001](../decisions/0001-locale-prefixed-routes.md)）。
+URL は必ず `/:locale` から始まる（[ADR 0001](decisions/0001-locale-prefixed-routes.md)）。
 表示言語の正本は URL であり、ブラウザーの設定でも Cookie でもない。
 
 | 経路 | 誰が使うか | 入口の条件 |
@@ -102,15 +102,15 @@ User ─┬─ CandidateProfile ─┬─ WorkExperience / Education / Skill
 
 | 仕組み | 正本 |
 | --- | --- |
-| 日本語と英語（葉キーの一致をテストで固定） | [ADR 0001](../decisions/0001-locale-prefixed-routes.md) |
-| 非公開を初期値とする | [ADR 0030](../decisions/0030-profile-visibility.md) |
-| レート制限 | [ADR 0044](../decisions/0044-rate-limiting.md) |
-| CSP・CSRF・セッション | [ADR 0045](../decisions/0045-content-security-policy.md) |
-| 保持期限 | [ADR 0046](../decisions/0046-data-retention.md) |
-| 監査ログ | [ADR 0047](../decisions/0047-access-audit-log.md) |
-| 構造化ログ | [ADR 0048](../decisions/0048-structured-logging.md) |
-| 前段の proxy の前提 | [ADR 0062](../decisions/0062-reverse-proxy-assumptions.md) |
-| 受け取る入力の大きさの上限 | [ADR 0063](../decisions/0063-request-size-limits.md) |
+| 日本語と英語（葉キーの一致をテストで固定） | [ADR 0001](decisions/0001-locale-prefixed-routes.md) |
+| 非公開を初期値とする | [ADR 0030](decisions/0030-profile-visibility.md) |
+| レート制限 | [ADR 0044](decisions/0044-rate-limiting.md) |
+| CSP・CSRF・セッション | [ADR 0045](decisions/0045-content-security-policy.md) |
+| 保持期限 | [ADR 0046](decisions/0046-data-retention.md) |
+| 監査ログ | [ADR 0047](decisions/0047-access-audit-log.md) |
+| 構造化ログ | [ADR 0048](decisions/0048-structured-logging.md) |
+| 前段の proxy の前提 | [ADR 0062](decisions/0062-reverse-proxy-assumptions.md) |
+| 受け取る入力の大きさの上限 | [ADR 0063](decisions/0063-request-size-limits.md) |
 
 ## 判断を追う
 
@@ -137,6 +137,8 @@ ADR は番号順に積み上がっている。全部を読む必要はない。
 | 外部連携（Webhook・CSV） | 0057、0058、0060、0061 |
 | v1 以降の判断の進め方 | 0059 |
 | 前段の proxy と入力の大きさ | 0062、0063 |
+| 意図的に持たない実装（画像処理・未使用のフレームワーク・ENTRYPOINT） | 0064〜0066 |
+| 文書の作り方 | 0052、0067 |
 
 ## 意図的に持たないもの
 
@@ -147,6 +149,6 @@ ADR は番号順に積み上がっている。全部を読む必要はない。
 | 応募を経由しない双方向のやり取り | スカウトは 1 組織から 1 通だけで、返信の経路を持たない。続きは応募の会話で行う（ADR 0041、ADR 0056） |
 | 候補者・応募者の CSV | 一括で持ち出せる形にしない（ADR 0058） |
 | Webhook への個人情報 | 送った先には公開範囲も保持期限も効かない（ADR 0057） |
-| 個別サービス向けの連携実装 | 商用 SDK へ直接依存しない（P14 の非目標） |
+| 個別サービス向けの連携実装 | 商用 SDK へ直接依存しない。汎用の Webhook と CSV までとする（ADR 0057、ADR 0058） |
 | 外部のスクリプト・CDN | CSP を `self` から始められる（ADR 0045） |
 | 商用の監視サービス | 自己ホストの前提と合わない（ADR 0048） |

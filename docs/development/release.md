@@ -37,7 +37,7 @@ bin/verify --full
 | 移行が適用できる | `bin/verify --full` が Docker を作り直して確かめる |
 | デモが入る | `bin/rails roleweave:demo:seed` が成功する |
 | 変更の履歴が最新 | `CHANGELOG.md` にこの版の節がある |
-| 既知の制限が最新 | `docs/quality/verification-status.md` を見直した |
+| 既知の制限が最新 | `docs/known-gaps.md` を見直した |
 | 依存に脆弱性がない | `bin/verify` の bundler-audit が通る |
 
 ## 手順
@@ -58,7 +58,7 @@ git push origin v0.1.0
 ## 出さないもの
 
 - コンテナイメージ（配るのはソースと手順である）
-- 常設の公開環境（P12 の非目標）
+- 常設の公開環境。評価はローカルで行う前提である
 - 商用サポート
 
 ## 版を戻すとき

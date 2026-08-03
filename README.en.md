@@ -12,8 +12,7 @@ The latest published release is `v0.1.0`. The current `main` contains features a
 fixes added after `v0.1.0`. They have not been versioned yet, so they have not been
 published as a release.
 
-Every planned phase, P0 through P15, is complete
-(see the [roadmap](docs/roadmap/index.yaml)).
+Every planned phase, P0 through P15, is complete.
 
 The following is implemented on the current `main`:
 
@@ -40,7 +39,7 @@ The default is opted out (see
 
 What is still *not* included and the known limitations are listed in the
 [changelog](CHANGELOG.md). Quality requirements that are not met are listed in
-[the verification status](docs/quality/verification-status.md).
+[the verification status](docs/known-gaps.md).
 
 While on `0.x`, breaking changes may still land between versions.
 
@@ -49,6 +48,10 @@ While on `0.x`, breaking changes may still land between versions.
 We are building a self-hostable, open source recruiting platform that covers job
 posting publication, job search, candidate profiles, job applications, hiring
 workflows, sourcing, messaging, notifications, and external integrations.
+
+It is aimed at organizations that want their hiring data under their own control,
+and at the developers who build and operate that environment. Success is measured
+by ease of change, safety, and reproducibility rather than by feature count.
 
 ### Built from scratch
 
@@ -244,9 +247,9 @@ docker compose run --rm app bin/rails roleweave:load:clean
 ```
 
 Measured values are in
-[`docs/performance/load-test-results.md`](docs/performance/load-test-results.md) and
+[`docs/operations/load-test-results.md`](docs/operations/load-test-results.md) and
 the estimates in
-[`docs/performance/capacity-model.md`](docs/performance/capacity-model.md).
+[`docs/operations/capacity-model.md`](docs/operations/capacity-model.md).
 
 ### Apply the retention policy
 
@@ -327,47 +330,52 @@ working tree. Commit them first if dependencies have been updated.
 
 ## Documentation
 
-The documents below are internal design documents and are written in Japanese, as
-described above. Setup and usage documentation will be provided in both languages.
+Setup and usage documentation is provided in both languages. The design documents
+below are written in Japanese.
 
-- [Project overview](docs/project-overview.md) — what is being built and who it is for
-- [Using it as a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
-- [Using it as an organization](docs/guides/organization.md) — organizations, job postings, hiring
-- [Using it as an operator](docs/guides/operator.md) — for whoever runs the server
-- [Architecture overview](docs/architecture/overview.md) — how the pieces fit together
+### Using it
+
+- [As a candidate](docs/guides/candidate.md) — from sign-up to applying and leaving
+- [As an organization](docs/guides/organization.md) — organizations, job postings, hiring
+- [As an operator](docs/guides/operator.md) — for whoever runs the server
+
+### Operating it
+
+- [Backup and restore](docs/operations/backup-and-restore.md) — the database and the attachments are handled as a pair
+- [Reverse proxy assumptions](docs/operations/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
+- [File storage](docs/operations/file-storage.md) — where attachments live and how they are handled when self-hosting
+- [Load test results](docs/operations/load-test-results.md) — measured values only
+- [Capacity model](docs/operations/capacity-model.md) — estimates with the assumptions stated
+
+### Developing it
+
 - [Contributing](CONTRIBUTING.md) — how work proceeds and what verification is required
-- [Changelog](CHANGELOG.md) — what each version contains and its known limitations
-- [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
-- [Project principles](docs/project-principles.md) — the principles that guide planning and implementation decisions
-- [Roadmap](docs/roadmap/index.yaml) — phase index from P0 through P15
-- [Post-v1 options](docs/roadmap/post-v1-options.md) — candidates under consideration, not commitments, and how they are evaluated
-- [Architecture principles](docs/architecture/principles.md) — how structural decisions are made
+- [Architecture overview](docs/architecture.md) — how the pieces fit together
+- [Development principles](docs/principles.md) — how planning, implementation, and code decisions are made
+- [Development workflow](docs/development/workflow.md) — responsibilities of issues, PRs, verification, and ADRs
 - [Language and naming policy](docs/development/language-policy.md) — when Japanese and English are used
-- [Coding style](docs/development/coding-style.md) — language, comment, and structure rules referenced while implementing
-- [Development workflow](docs/development/workflow.md) — responsibilities of the roadmap, issues, PRs, and ADRs
-- [File storage](docs/development/file-storage.md) — where attachments live and how they are handled when self-hosting
-- [Reverse proxy assumptions](docs/development/reverse-proxy.md) — what the front proxy must provide, and what stops working without it
-- [Cross-cutting quality requirements](docs/quality/cross-cutting-requirements.md) — quality requirements met within each feature phase
-- [Verification status](docs/quality/verification-status.md) — what is met and what is not
-- [Threat model](docs/security/threat-model.md) — what is defended against and what is accepted
+- [Release procedure](docs/development/release.md) — how versions are assigned and checked before release
+- [Decision records](docs/decisions/) — 67 ADRs; the [architecture overview](docs/architecture.md) indexes them by topic
+
+### Knowing what is missing
+
+- [Changelog](CHANGELOG.md) — what each version contains and its known limitations
+- [Known gaps](docs/known-gaps.md) — what is met and what is not
+- [Threat model](docs/threat-model.md) — what is defended against and what is accepted
 - [Security policy](SECURITY.md) — where to report a problem
-- [Backup and restore](docs/development/backup-and-restore.md) — the database and the attachments are handled as a pair
-- [Load test results](docs/performance/load-test-results.md) — measured values only
-- [Capacity model](docs/performance/capacity-model.md) — estimates with the assumptions stated
+- [Post-v1 options](docs/decisions/0059-post-v1-evaluation.md) — candidates under consideration, not commitments, and how they are evaluated
 
 ## How development proceeds
 
-The roadmap is the source of truth for long-term planning, GitHub Issues for
-implementation tasks and bugs, and pull requests for implementation results
-and verification records. As a rule, each issue produces one verifiable result
+GitHub Issues are the source of truth for implementation tasks and bugs, and
+pull requests for implementation results and verification records. As a rule, each issue produces one verifiable result
 and one pull request. See the [development workflow](docs/development/workflow.md)
 for details.
 
 **Every planned phase (P0 through P15) is complete.** From here on, features are not
 added by working down a plan. When a concrete bug report or a request grounded in
 actual use arrives, an issue is opened and judged on its own
-(see [post-v1 options](docs/roadmap/post-v1-options.md) and
-[ADR 0059](docs/decisions/0059-post-v1-evaluation.md)).
+(see [ADR 0059](docs/decisions/0059-post-v1-evaluation.md)).
 
 ## License
 
