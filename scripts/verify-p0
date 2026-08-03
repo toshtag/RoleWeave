@@ -151,16 +151,7 @@ if git ls-files -- design | grep -q .; then
 fi
 
 # 撤去済みの正本 path。ディレクトリは末尾のスラッシュまで含めて照合する。
-removed_design_references=(
-  "design/brief.md"
-  "design/constitution.md"
-  "design/roadmap.yaml"
-  "design/phases/"
-  "design/rules/"
-  "design/decisions/"
-  "design/acceptance/"
-)
-
+#
 # 探索対象を固定した一覧にすると、bin や他の検証器、ルート設定ファイルへ
 # 参照を書き戻したときに検出できない。追跡ファイル全体を対象にする。
 #
@@ -168,22 +159,21 @@ removed_design_references=(
 # 作業ツリー全体を走査すると、gitignore 済みのローカル作業ファイルによって
 # 手元だけが失敗し、新規 clone と CI では成功する検証になる。
 #
-# 検査文字列そのものを含むこのスクリプトは対象から除く。
-# grep へ /dev/null を併せて渡し、単一ファイルでも診断へパスを含める。
-removed_design_reference_found=0
-
-while IFS= read -r -d '' path; do
-  [[ "$path" == "scripts/verify-p0" ]] && continue
-  [[ -f "$path" ]] || continue
-
-  for removed_reference in "${removed_design_references[@]}"; do
-    if grep -InI -F "$removed_reference" "$path" /dev/null; then
-      removed_design_reference_found=1
-    fi
-  done
-done < <(git ls-files -z)
-
-if [[ "$removed_design_reference_found" -ne 0 ]]; then
+# git grep は追跡ファイルの作業ツリーの内容を 1 回の走査で読む。
+# 追跡ファイルを 1 件ずつ grep へ渡すと、対象 × 検査文字列の回数だけ
+# プロセスを起動することになり、この検査だけで 7.5 秒かかっていた。
+#
+# 検査文字列そのものを含むこのスクリプトは pathspec で除く。
+# -I は binary を飛ばし、-n は診断へ行番号を出す。
+if git grep -I -n -F \
+  -e "design/brief.md" \
+  -e "design/constitution.md" \
+  -e "design/roadmap.yaml" \
+  -e "design/phases/" \
+  -e "design/rules/" \
+  -e "design/decisions/" \
+  -e "design/acceptance/" \
+  -- . ':(exclude)scripts/verify-p0' >&2; then
   printf 'removed design document paths must not be referenced\n' >&2
   exit 1
 fi
